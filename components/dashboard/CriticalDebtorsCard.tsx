@@ -65,7 +65,7 @@ export function CriticalDebtorsCard({
       <CardContent className="flex flex-1 flex-col justify-center pt-0">
         <div className="grid grid-cols-2 items-end gap-3">
           <div className="pl-1 md:pl-2">
-            <p className="text-4xl font-semibold tabular-nums tracking-tight text-destructive md:text-5xl">
+            <p className="text-4xl font-semibold tabular-nums tracking-tight text-brand md:text-5xl">
               {count}
             </p>
           </div>
@@ -73,7 +73,7 @@ export function CriticalDebtorsCard({
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               Deuda pendiente
             </p>
-            <p className="text-3xl font-semibold tabular-nums tracking-tight text-destructive">
+            <p className="text-3xl font-semibold tabular-nums tracking-tight text-brand">
               {eur.format(totalBalance)}
             </p>
           </div>

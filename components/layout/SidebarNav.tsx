@@ -7,25 +7,58 @@ import { usePathname } from "next/navigation";
 import { appRoutes } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-export function SidebarNav() {
+export function SidebarNav({
+  collapsed = false,
+  variant = "sidebar",
+}: {
+  collapsed?: boolean;
+  variant?: "sidebar" | "dock";
+}) {
   const pathname = usePathname();
   const homeActive = pathname === appRoutes.home;
 
+  if (variant === "dock") {
+    return (
+      <ul className="flex flex-row items-center justify-center gap-2">
+        <li className="shrink-0">
+          <Link
+            href={appRoutes.home}
+            className={cn(
+              "inline-flex min-w-[5.5rem] flex-col items-center justify-center gap-0.5 rounded-lg border border-transparent px-4 py-1.5 text-xs transition-colors",
+              "hover:border-border hover:bg-muted/50",
+              homeActive ? "border-border bg-muted/60 font-medium text-foreground" : "text-muted-foreground",
+            )}
+            aria-current={homeActive ? "page" : undefined}
+          >
+            <Home className="size-5 shrink-0" aria-hidden />
+            <span>Inicio</span>
+          </Link>
+        </li>
+      </ul>
+    );
+  }
+
   return (
-    <nav aria-label="Principal" className="mt-4">
+    <nav aria-label="Principal" className={cn("mt-4", collapsed && "mt-2")}>
       <ul className="space-y-1">
         <li>
           <Link
             href={appRoutes.home}
+            title={collapsed ? "Inicio" : undefined}
             className={cn(
-              "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+              "flex items-center gap-2 rounded-md py-1.5 text-sm transition-colors",
+              collapsed ? "justify-center px-0" : "px-2",
               homeActive
                 ? "bg-muted font-medium text-foreground"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
             )}
           >
             <Home className="size-4 shrink-0" aria-hidden />
-            Inicio
+            {collapsed ? (
+              <span className="sr-only">Inicio</span>
+            ) : (
+              <span>Inicio</span>
+            )}
           </Link>
         </li>
       </ul>
