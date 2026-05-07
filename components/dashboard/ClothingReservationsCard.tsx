@@ -14,16 +14,17 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 
-export function MonthlyPaymentsCard({
-  paid,
-  target,
+export function ClothingReservationsCard({
+  total,
+  fulfilled,
+  pending,
 }: {
-  paid: number;
-  target: number;
+  total: number;
+  fulfilled: number;
+  pending: number;
 }) {
-  const safeTarget = target > 0 ? target : 1;
-  const pct = Math.min(100, Math.round((paid / safeTarget) * 100));
-  const pending = Math.max(0, target - paid);
+  const safeTotal = total > 0 ? total : 1;
+  const pct = Math.min(100, Math.round((fulfilled / safeTotal) * 100));
   const chartData = [{ name: "progress", value: pct, fill: "var(--club-brand)" }];
 
   return (
@@ -31,10 +32,10 @@ export function MonthlyPaymentsCard({
       <CardHeader className="gap-2">
         <div className="flex items-baseline justify-between gap-2">
           <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Pagos este mes
+            Reservas de ropa
           </CardDescription>
           <span className="text-[11px] font-normal normal-case text-muted-foreground">
-            Meta mensual
+            Temporada actual
           </span>
         </div>
       </CardHeader>
@@ -67,7 +68,7 @@ export function MonthlyPaymentsCard({
           </div>
         </div>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          {paid} / {target} realizados · {pct}%
+          {fulfilled} / {total} entregadas · {pct}%
         </p>
       </CardContent>
     </Card>

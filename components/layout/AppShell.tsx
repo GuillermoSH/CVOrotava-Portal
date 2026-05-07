@@ -16,8 +16,8 @@ export function AppShell({
   sidebarUser?: { name: string; role: string };
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <aside className="flex w-full shrink-0 flex-col border-b border-border bg-card px-4 py-6 md:h-auto md:w-56 md:min-h-0 md:border-b-0 md:border-r">
+    <div className="flex h-dvh overflow-hidden flex-col md:flex-row">
+      <aside className="flex w-full shrink-0 flex-col border-b border-border bg-card px-4 py-6 md:h-full md:w-56 md:min-h-0 md:border-b-0 md:border-r">
         <div className="shrink-0 space-y-2">
           <Link href={appRoutes.home} className="flex items-center gap-2">
             <Logo className="size-9" />

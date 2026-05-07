@@ -1,6 +1,12 @@
 export const adminKpis = {
-  clothingPending: 14,
-  criticalDebtors: 5,
+  clothing: {
+    /** Reservas confirmadas de la temporada */
+    total: 60,
+    /** Ya entregadas */
+    fulfilled: 46,
+    /** Pendientes de entrega (= total − fulfilled) */
+    pending: 14,
+  },
   monthlyPayments: { paid: 23, target: 30 },
   totalRevenueYear: 18450,
   revenueThisMonth: 1820,
@@ -24,6 +30,8 @@ export const criticalDebtors = [
   { id: "d4", family: "Familia Oramas", overdueMonths: 2, balance: 150 },
   { id: "d5", family: "Familia Gil", overdueMonths: 2, balance: 120 },
 ] as const;
+
+export type CriticalDebtor = (typeof criticalDebtors)[number];
 
 export const recentPayments: Payment[] = [
   {

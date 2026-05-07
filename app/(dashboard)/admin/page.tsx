@@ -1,10 +1,13 @@
+import { ClothingReservationsCard } from "@/components/dashboard/ClothingReservationsCard";
+import { CriticalDebtorsCard } from "@/components/dashboard/CriticalDebtorsCard";
 import { MonthlyPaymentsCard } from "@/components/dashboard/MonthlyPaymentsCard";
 import { PaymentsSummaryCard } from "@/components/dashboard/PaymentsSummaryCard";
 import { RecentPaymentsCard } from "@/components/dashboard/RecentPaymentsCard";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { adminKpis, recentPayments } from "@/lib/mocks/admin";
+import { adminKpis, criticalDebtors, recentPayments } from "@/lib/mocks/admin";
 
 export default function AdminDashboardPage() {
+  const emailConfigured = Boolean(process.env.RESEND_API_KEY);
+
   return (
     <div className="space-y-6">
       <div>
@@ -16,16 +19,10 @@ export default function AdminDashboardPage() {
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          label="Reservas ropa pendientes"
-          value={adminKpis.clothingPending}
-          helper="Por confirmar"
-        />
-        <StatCard
-          label="Morosos críticos"
-          value={adminKpis.criticalDebtors}
-          helper="≥ 2 cuotas"
-          accent="warning"
+        <ClothingReservationsCard {...adminKpis.clothing} />
+        <CriticalDebtorsCard
+          debtors={criticalDebtors}
+          emailConfigured={emailConfigured}
         />
         <MonthlyPaymentsCard
           paid={adminKpis.monthlyPayments.paid}
