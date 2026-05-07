@@ -1,0 +1,133 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@config "../tailwind.config.mjs";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  /* Club tokens — light (default) */
+  --club-bg: #fafaf9;
+  --club-surface: #fffffe;
+  --club-surface-2: #f4f4f5;
+  --club-border: #e4e4e7;
+  --club-brand: #c8102e;
+  --club-brand-strong: #9f0c24;
+  --club-brand-soft: #f2d7dc;
+  --club-fg: #1a1a1f;
+  --club-fg-muted: #52525b;
+
+  /* Semantic (shadcn) — references club tokens */
+  --background: var(--club-bg);
+  --foreground: var(--club-fg);
+  --card: var(--club-surface);
+  --card-foreground: var(--club-fg);
+  --popover: var(--club-surface);
+  --popover-foreground: var(--club-fg);
+  --primary: var(--club-brand);
+  --primary-foreground: #fafaf9;
+  --secondary: var(--club-surface-2);
+  --secondary-foreground: var(--club-fg);
+  --muted: var(--club-surface-2);
+  --muted-foreground: var(--club-fg-muted);
+  --accent: var(--club-surface-2);
+  --accent-foreground: var(--club-fg);
+  --destructive: var(--club-brand-strong);
+  --destructive-foreground: #fafaf9;
+  --border: var(--club-border);
+  --input: var(--club-border);
+  --ring: var(--club-brand);
+  --chart-1: var(--club-brand);
+  --chart-2: var(--club-brand-strong);
+  --chart-3: var(--club-brand-soft);
+  --chart-4: #b91c1c;
+  --chart-5: var(--club-fg-muted);
+  --sidebar: var(--club-surface);
+  --sidebar-foreground: var(--club-fg);
+  --sidebar-primary: var(--club-brand);
+  --sidebar-primary-foreground: #fafaf9;
+  --sidebar-accent: var(--club-surface-2);
+  --sidebar-accent-foreground: var(--club-fg);
+  --sidebar-border: var(--club-border);
+  --sidebar-ring: var(--club-brand);
+}
+
+html.dark {
+  /* Club tokens — dark */
+  --club-bg: #0f0f12;
+  --club-surface: #18181b;
+  --club-surface-2: #27272a;
+  --club-border: #3f3f46;
+  --club-brand: #c8102e;
+  --club-brand-strong: #9f0c24;
+  --club-brand-soft: #f2d7dc;
+  --club-fg: #fafaf9;
+  --club-fg-muted: #a1a1aa;
+
+  --chart-4: #7f1d1d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand: var(--club-brand);
+  --color-brand-strong: var(--club-brand-strong);
+  --color-brand-soft: var(--club-brand-soft);
+  --color-club-bg: var(--club-bg);
+  --color-club-surface: var(--club-surface);
+  --color-club-surface-2: var(--club-surface-2);
+  --color-club-fg: var(--club-fg);
+  --color-club-border: var(--club-border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+}

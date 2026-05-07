@@ -1,0 +1,14 @@
+---
+description: CVOrotava Portal — stack, diseño, seguridad, estructura
+globs: "**/*.{ts,tsx,css,md}"
+alwaysApply: true
+---
+
+# CVOrotava Portal
+
+- **Stack:** Next.js 15 (App Router), TypeScript, Tailwind v4, shadcn/ui, Supabase, pnpm.
+- **Producto:** portal voleibol; familias (`/parents`) y dirección (`/admin`); pagos solo **anotación** (transferencia/efectivo); reserva de **ropa**; UI en **español**. **Sin registro público** en la web (altas por el club).
+- **Paleta:** tokens en `app/globals.css` (claro `:root`, oscuro `html.dark`) / `lib/constants.ts` (`clubPaletteLight`, `clubPaletteDark`). Evitar negro/rojo/blanco **puros**. Tema: sistema por defecto + `ThemeToggle`.
+- **Componentes:** reutilizar en `components/`; páginas = composición. Si ≥2 usos → extraer.
+- **Secretos:** solo `.env.local` (gitignored). Nunca commitear claves. `SUPABASE_SERVICE_ROLE_KEY` solo servidor (`lib/supabase/service-role.ts`).
+- **Mocks:** ficticios; sin datos reales de personas.
