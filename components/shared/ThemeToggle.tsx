@@ -13,11 +13,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { type VariantProps } from "class-variance-authority";
+import { buttonVariants } from "@/components/ui/button";
 
 export function ThemeToggle({
   align = "end",
+  triggerClassName,
+  iconClassName,
+  triggerVariant = "outline",
 }: {
   align?: "start" | "center" | "end";
+  triggerClassName?: string;
+  iconClassName?: string;
+  triggerVariant?: VariantProps<typeof buttonVariants>["variant"];
 }) {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
@@ -41,14 +49,14 @@ export function ThemeToggle({
         nativeButton
         render={
           <Button
-            variant="outline"
+            variant={triggerVariant}
             size="icon"
             aria-label="Elegir tema"
-            className={cn(!mounted && "opacity-70")}
+            className={cn(!mounted && "opacity-70", triggerClassName)}
           />
         }
       >
-        <Icon className="size-4" />
+        <Icon className={cn("size-4", iconClassName)} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="min-w-40">
         <DropdownMenuRadioGroup

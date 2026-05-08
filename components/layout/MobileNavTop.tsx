@@ -1,13 +1,12 @@
 "use client";
 
-import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import * as React from "react";
 
 import { AccountProfileMenu } from "@/components/layout/AccountProfileMenu";
 import { Logo } from "@/components/shared/Logo";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
-import { Button } from "@/components/ui/button";
 import { appRoutes } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -24,11 +23,16 @@ export function MobileNavTop({
   user?: { name: string; role: string };
 }) {
   const router = useRouter();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 flex h-10 min-h-10 shrink-0 items-center gap-2 border-b border-border bg-card/95 px-2.5 backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:px-3",
+        "sticky top-0 z-40 flex h-10 min-h-10 shrink-0 items-center gap-2 border-b border-border bg-card/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:px-6",
         "lg:hidden",
       )}
     >
@@ -42,30 +46,33 @@ export function MobileNavTop({
         </Link>
         <p className="min-w-0 truncate text-sm font-medium text-foreground">{navTitle}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
-        <AccountProfileMenu
-          userName={user.name}
-          userRole={user.role}
-          showThemeSubmenu={false}
-          showLogout={false}
-          contentAlign="end"
-          contentSide="bottom"
-          triggerAriaLabel="Perfil"
-          triggerClassName="size-8 bg-muted/50 text-[11px] font-semibold sm:size-9"
+      <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+        <ThemeToggle
+          align="end"
+          triggerVariant="ghost"
+          triggerClassName="size-8 border-0 bg-transparent text-foreground hover:bg-transparent aria-expanded:bg-transparent sm:size-9"
+          iconClassName="text-foreground"
         />
-        <ThemeToggle align="end" />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 gap-1.5 px-2 text-xs font-medium text-muted-foreground hover:text-foreground sm:px-2.5"
-          onClick={() => {
-            router.push(appRoutes.home);
-          }}
-        >
-          <span>Salir</span>
-          <LogOut className="size-3.5 shrink-0 sm:size-4" aria-hidden />
-        </Button>
+        {mounted ? (
+          <AccountProfileMenu
+            userName={user.name}
+            userRole={user.role}
+            onViewProfile={() => {
+              router.push(appRoutes.profile);
+            }}
+            onLogout={() => {
+              router.push(appRoutes.home);
+            }}
+            showViewProfile
+            showThemeSubmenu={false}
+            contentAlign="end"
+            contentSide="bottom"
+            triggerAriaLabel="Perfil"
+            triggerClassName="size-8 rounded-full border border-brand/70 bg-brand text-primary-foreground text-[11px] font-semibold hover:bg-brand/90 sm:size-9"
+          />
+        ) : (
+          <div className="size-8 rounded-full border border-brand/70 bg-brand sm:size-9" />
+        )}
       </div>
     </header>
   );

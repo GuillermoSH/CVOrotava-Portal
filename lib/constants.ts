@@ -34,6 +34,7 @@ export const appRoutes = {
   login: "/login",
   parents: "/parents",
   admin: "/admin",
+  profile: "/perfil",
 } as const;
 
 export const userRoles = ["parent", "admin"] as const;

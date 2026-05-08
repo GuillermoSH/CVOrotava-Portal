@@ -47,7 +47,6 @@ export function DashboardShell({
       <div
         className={cn(
           "flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row",
-          "pb-[calc(4.25rem+env(safe-area-inset-bottom,0px))] lg:pb-0",
         )}
       >
         <aside
@@ -123,7 +122,9 @@ export function DashboardShell({
               </div>
             ) : null}
           </header>
-          <main className="flex-1 overflow-auto px-4 py-6 md:px-6">{children}</main>
+          <main className="flex-1 overflow-auto px-4 py-6 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:pb-6">
+            {children}
+          </main>
         </div>
       </div>
 

@@ -8,7 +8,7 @@ export function MobileNavBottom() {
     <nav
       aria-label="Principal"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 flex h-14 min-h-14 items-center justify-center border-t border-border bg-card/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-card/80",
+        "fixed inset-x-0 bottom-0 z-40 flex h-14 min-h-14 items-center justify-center bg-card px-3",
         "pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 lg:hidden",
       )}
     >
