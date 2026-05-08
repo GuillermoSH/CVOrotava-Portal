@@ -34,6 +34,13 @@ export const appRoutes = {
   login: "/login",
   parents: "/parents",
   admin: "/admin",
+  adminPaymentsHibrido: "/admin/pagos/hibrido",
+  adminPaymentsConfig: "/admin/pagos/configuracion",
+  adminPaymentsGenerate: "/admin/pagos/generacion",
+  adminPaymentsPlanning: "/admin/pagos/planificacion",
+  adminPaymentsTotoro: "/admin/pagos/totoro",
+  adminPaymentsMei: "/admin/pagos/mei",
+  adminPaymentsChihiro: "/admin/pagos/chihiro",
   profile: "/perfil",
 } as const;
 

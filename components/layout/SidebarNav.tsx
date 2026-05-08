@@ -15,7 +15,12 @@ export function SidebarNav({
   variant?: "sidebar" | "dock";
 }) {
   const pathname = usePathname();
+  const isAdminSection = pathname.startsWith(appRoutes.admin);
   const homeActive = pathname === appRoutes.home;
+  const hibridoActive = pathname === appRoutes.adminPaymentsHibrido;
+  const configActive = pathname === appRoutes.adminPaymentsConfig;
+  const generateActive = pathname === appRoutes.adminPaymentsGenerate;
+  const planningActive = pathname === appRoutes.adminPaymentsPlanning;
 
   if (variant === "dock") {
     return (
@@ -34,6 +39,25 @@ export function SidebarNav({
             <span>Inicio</span>
           </Link>
         </li>
+        {isAdminSection ? (
+          <>
+            <li className="shrink-0">
+              <Link
+                href={appRoutes.adminPaymentsHibrido}
+                className={cn(
+                  "inline-flex min-w-[5.5rem] flex-col items-center justify-center gap-0.5 rounded-lg border border-transparent px-4 py-1.5 text-xs transition-colors",
+                  "hover:border-border hover:bg-muted/50",
+                  hibridoActive
+                    ? "border-border bg-muted/60 font-medium text-foreground"
+                    : "text-muted-foreground",
+                )}
+                aria-current={hibridoActive ? "page" : undefined}
+              >
+                <span>PAGOS V1</span>
+              </Link>
+            </li>
+          </>
+        ) : null}
       </ul>
     );
   }
@@ -61,6 +85,82 @@ export function SidebarNav({
             )}
           </Link>
         </li>
+        {isAdminSection ? (
+          <>
+            <li className={cn("pt-2", collapsed && "pt-1")}>
+              {collapsed ? (
+                <span className="sr-only">Demos de pagos</span>
+              ) : (
+                <p className="px-2 text-[0.7rem] font-semibold tracking-wide text-muted-foreground uppercase">
+                  Pagos
+                </p>
+              )}
+            </li>
+            <li>
+              <Link
+                href={appRoutes.adminPaymentsHibrido}
+                title={collapsed ? "Pagos V1" : undefined}
+                className={cn(
+                  "flex items-center gap-2 rounded-md py-1.5 text-sm transition-colors",
+                  collapsed ? "justify-center px-0" : "px-2",
+                  hibridoActive
+                    ? "bg-muted font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                )}
+                aria-current={hibridoActive ? "page" : undefined}
+              >
+                {collapsed ? <span className="font-medium">V1</span> : <span>Pagos V1</span>}
+              </Link>
+            </li>
+            <li className={cn(collapsed ? "hidden" : "pt-2")}>
+              <p className="px-2 text-[0.7rem] font-semibold tracking-wide text-muted-foreground uppercase">
+                Planificación PC
+              </p>
+            </li>
+            <li className={collapsed ? "hidden" : undefined}>
+              <Link
+                href={appRoutes.adminPaymentsConfig}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                  configActive
+                    ? "bg-muted font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                )}
+                aria-current={configActive ? "page" : undefined}
+              >
+                <span>Configurar grupos</span>
+              </Link>
+            </li>
+            <li className={collapsed ? "hidden" : undefined}>
+              <Link
+                href={appRoutes.adminPaymentsGenerate}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                  generateActive
+                    ? "bg-muted font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                )}
+                aria-current={generateActive ? "page" : undefined}
+              >
+                <span>Generar temporada</span>
+              </Link>
+            </li>
+            <li className={collapsed ? "hidden" : undefined}>
+              <Link
+                href={appRoutes.adminPaymentsPlanning}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                  planningActive
+                    ? "bg-muted font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                )}
+                aria-current={planningActive ? "page" : undefined}
+              >
+                <span>Revisar planificación</span>
+              </Link>
+            </li>
+          </>
+        ) : null}
       </ul>
     </nav>
   );
