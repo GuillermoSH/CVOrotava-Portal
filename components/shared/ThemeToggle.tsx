@@ -43,6 +43,19 @@ export function ThemeToggle({
 
   const value = theme ?? "system";
 
+  if (!mounted) {
+    return (
+      <Button
+        variant={triggerVariant}
+        size="icon"
+        aria-label="Elegir tema"
+        className={cn("opacity-70", triggerClassName)}
+      >
+        <Monitor className={cn("size-4", iconClassName)} />
+      </Button>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger

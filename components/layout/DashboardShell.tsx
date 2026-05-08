@@ -122,7 +122,7 @@ export function DashboardShell({
               </div>
             ) : null}
           </header>
-          <main className="flex-1 overflow-auto px-4 py-6 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:pb-6">
+          <main className="scrollbar-hidden flex-1 overflow-auto px-4 py-6 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:pb-6">
             {children}
           </main>
         </div>

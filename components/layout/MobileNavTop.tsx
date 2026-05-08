@@ -47,12 +47,16 @@ export function MobileNavTop({
         <p className="min-w-0 truncate text-sm font-medium text-foreground">{navTitle}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-        <ThemeToggle
-          align="end"
-          triggerVariant="ghost"
-          triggerClassName="size-8 border-0 bg-transparent text-foreground hover:bg-transparent aria-expanded:bg-transparent sm:size-9"
-          iconClassName="text-foreground"
-        />
+        {mounted ? (
+          <ThemeToggle
+            align="end"
+            triggerVariant="ghost"
+            triggerClassName="size-8 border-0 bg-transparent text-foreground hover:bg-transparent aria-expanded:bg-transparent sm:size-9"
+            iconClassName="text-foreground"
+          />
+        ) : (
+          <div className="size-8 sm:size-9" />
+        )}
         {mounted ? (
           <AccountProfileMenu
             userName={user.name}
