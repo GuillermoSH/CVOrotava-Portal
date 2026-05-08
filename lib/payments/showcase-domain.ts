@@ -156,17 +156,13 @@ export function registerPendingChargePayment({
   method: ShowcasePaymentMethod;
 }) {
   const paidAt = todayIsoDate();
-  let paidCharge: ShowcaseCharge | null = null;
-
-  const nextCharges = charges.map((charge) => {
-    if (charge.id !== chargeId) return charge;
-    paidCharge = { ...charge, status: "pagado", method, paidAt };
-    return paidCharge;
-  });
-
-  if (!paidCharge) {
-    return { charges: nextCharges, payment: null };
+  const chargeToPay = charges.find((charge) => charge.id === chargeId);
+  if (!chargeToPay) {
+    return { charges, payment: null };
   }
+
+  const paidCharge: ShowcaseCharge = { ...chargeToPay, status: "pagado", method, paidAt };
+  const nextCharges = charges.map((charge) => (charge.id === chargeId ? paidCharge : charge));
 
   const payment: ShowcasePayment = {
     id: createLocalId("sp"),
