@@ -10,18 +10,19 @@ import { SidebarNav } from "@/components/layout/SidebarNav";
 import { SidebarUser } from "@/components/layout/SidebarUser";
 import { Logo } from "@/components/shared/Logo";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
-import { Button } from "@/components/ui/button";
-import { appRoutes } from "@/lib/constants";
+import { Button } from "@/components/club/Button";
 import { readSidebarCollapsed, writeSidebarCollapsed } from "@/lib/layout/shell-storage";
 import { cn } from "@/lib/utils";
 
 export function DashboardShell({
   children,
   navTitle,
+  homeHref,
   sidebarUser,
 }: {
   children: React.ReactNode;
   navTitle: string;
+  homeHref: string;
   sidebarUser?: { name: string; role: string };
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
@@ -38,28 +39,23 @@ export function DashboardShell({
     });
   }
 
-  const showDesktopHeaderTheme = !sidebarCollapsed;
-
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden lg:flex-row">
-      <MobileNavTop navTitle={navTitle} user={sidebarUser} />
+      <MobileNavTop navTitle={navTitle} homeHref={homeHref} user={sidebarUser} />
 
-      <div
-        className={cn(
-          "flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row",
-        )}
-      >
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
         <aside
           className={cn(
-            "relative hidden min-h-0 shrink-0 flex-col border-r border-border bg-card backdrop-blur-xl transition-[width] duration-200 ease-out lg:flex",
-            sidebarCollapsed ? "w-[4.5rem] px-2 py-6" : "w-56 px-4 py-6",
+            "shell-sidebar relative hidden min-h-0 shrink-0 flex-col transition-[width] duration-200 ease-out lg:flex",
+            sidebarCollapsed ? "w-[4.5rem] px-2 py-5" : "w-56 px-3 py-5",
           )}
+          aria-label="Navegación principal"
         >
           {sidebarCollapsed ? (
             <div className="flex shrink-0 flex-col items-center gap-3">
               <Link
-                href={appRoutes.home}
-                className="flex rounded-md p-1 hover:bg-muted/60"
+                href={homeHref}
+                className="flex rounded-lg p-1 transition-colors hover:bg-[var(--club-surface)]"
                 aria-label="Inicio — Club Voleibol Orotava"
               >
                 <Logo className="size-9 shrink-0" />
@@ -77,25 +73,22 @@ export function DashboardShell({
               </Button>
             </div>
           ) : (
-            <div className="flex shrink-0 flex-col gap-2">
-              <div className="flex items-start gap-2">
+            <div className="flex shrink-0 flex-col gap-1">
+              <div className="flex items-center gap-2 px-2 pb-1">
                 <Link
-                  href={appRoutes.home}
-                  className="flex min-w-0 flex-1 items-start gap-2 rounded-md p-1 hover:bg-muted/60"
+                  href={homeHref}
+                  className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 transition-colors hover:bg-[var(--club-surface)]"
                 >
                   <Logo className="size-9 shrink-0" />
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-tight">
-                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Portal
-                    </span>
-                    <span className="truncate text-sm font-semibold text-foreground">CVOrotava</span>
-                  </div>
+                  <span className="truncate text-base font-semibold tracking-[-0.02em] text-foreground">
+                    CVOrotava
+                  </span>
                 </Link>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  className="mt-0.5 shrink-0"
+                  className="shrink-0"
                   onClick={toggleSidebar}
                   aria-expanded
                   aria-label="Contraer menú lateral"
@@ -103,32 +96,34 @@ export function DashboardShell({
                   <ChevronsLeft className="size-4" aria-hidden />
                 </Button>
               </div>
-              <SidebarNav collapsed={false} />
+              <SidebarNav homeHref={homeHref} collapsed={false} />
             </div>
           )}
 
-          {sidebarCollapsed ? <SidebarNav collapsed /> : null}
+          {sidebarCollapsed ? <SidebarNav homeHref={homeHref} collapsed /> : null}
 
           <div className="min-h-4 flex-1" aria-hidden />
           <SidebarUser user={sidebarUser} collapsed={sidebarCollapsed} />
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
-          <header className="hidden items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-6 lg:flex">
-            <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground">{navTitle}</h1>
-            {showDesktopHeaderTheme ? (
+          <header className="shell-topbar hidden items-center justify-between gap-3 px-4 py-3 md:px-6 lg:flex">
+            <p className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground">
+              {navTitle}
+            </p>
+            {!sidebarCollapsed ? (
               <div className="shrink-0">
-                <ThemeToggle align="end" />
+                <ThemeToggle variant="compact" />
               </div>
             ) : null}
           </header>
-          <main className="scrollbar-hidden flex-1 overflow-auto px-4 py-6 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:pb-6">
+          <main className="scrollbar-hidden flex-1 overflow-auto px-4 py-6 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:pb-8">
             {children}
           </main>
         </div>
       </div>
 
-      <MobileNavBottom />
+      <MobileNavBottom homeHref={homeHref} />
     </div>
   );
 }

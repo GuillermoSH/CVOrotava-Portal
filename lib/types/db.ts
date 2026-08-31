@@ -57,20 +57,129 @@ export type Payment = {
   notes: string | null;
 };
 
-export type ClothingItem = {
+/** supabase/migrations/20260831130000_clothing_warehouse.sql */
+
+export type ClothingProductCategory =
+  | "backpack"
+  | "shirt"
+  | "pants"
+  | "jacket"
+  | "other";
+
+export type ClothingOrderStatus =
+  | "draft"
+  | "ordered"
+  | "received"
+  | "at_serigraphy"
+  | "returned_from_serigraphy"
+  | "closed";
+
+export type ClothingLocationType = "cabinet" | "shelf" | "box";
+
+export type ClothingInventoryStatus = "pending_storage" | "stored";
+
+export type ClothingInventorySourceType = "order" | "manual";
+
+/** Matches `clothing_size` enum in Supabase. */
+export type ClothingSize =
+  | "xxs"
+  | "xs"
+  | "s"
+  | "m"
+  | "l"
+  | "xl"
+  | "xxl"
+  | "3xl"
+  | "4xl"
+  | "5xl"
+  | "104"
+  | "110"
+  | "116"
+  | "122"
+  | "128"
+  | "134"
+  | "140"
+  | "146"
+  | "152"
+  | "164"
+  | "176"
+  | "one_size";
+
+export type ClothingProduct = {
   id: string;
   name: string;
-  size: string;
-  stock: number;
-  price_cents: number;
-  image_url: string | null;
+  category: ClothingProductCategory;
+  season: string;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
-export type ClothingReservation = {
+export type ClothingSupplierOrder = {
   id: string;
-  parent_id: string;
-  item_id: string;
-  size: string;
+  reference: string;
+  supplier_name: string;
+  season: string;
+  status: ClothingOrderStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClothingSupplierOrderLine = {
+  id: string;
+  order_id: string;
+  product_id: string;
+  size: ClothingSize;
+  quantity_ordered: number;
+  quantity_received: number;
+  created_at: string;
+};
+
+export type ClothingStorageLocation = {
+  id: string;
+  parent_id: string | null;
+  location_type: ClothingLocationType;
+  label: string;
+  code: string;
+  season: string;
+  sort_order: number;
+  notes: string | null;
+  created_at: string;
+};
+
+export type ClothingInventoryLot = {
+  id: string;
+  product_id: string;
+  size: ClothingSize;
   quantity: number;
-  status: "pending" | "confirmed" | "cancelled";
+  status: ClothingInventoryStatus;
+  storage_location_id: string | null;
+  source_order_id: string | null;
+  source_line_id: string | null;
+  source_type: ClothingInventorySourceType;
+  notes: string | null;
+  returned_from_serigraphy_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Enriched types for UI snapshots */
+
+export type ClothingOrderLineWithProduct = ClothingSupplierOrderLine & {
+  product: ClothingProduct;
+};
+
+export type ClothingOrderWithLines = ClothingSupplierOrder & {
+  lines: ClothingOrderLineWithProduct[];
+};
+
+export type ClothingInventoryLotWithDetails = ClothingInventoryLot & {
+  product: ClothingProduct;
+  location_path: string | null;
+};
+
+export type ClothingStorageLocationNode = ClothingStorageLocation & {
+  children: ClothingStorageLocationNode[];
 };

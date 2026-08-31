@@ -1,8 +1,13 @@
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/club/Card";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function ParentsDashboardPage() {
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="Tu familia"
+        subtitle="Consulta cuotas anotadas y reservas de equipación cuando conectemos los datos."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Cuotas y ropa</CardTitle>

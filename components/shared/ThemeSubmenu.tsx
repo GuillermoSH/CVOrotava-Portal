@@ -10,7 +10,7 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/club/DropdownMenu";
 
 export function ThemeSubmenu() {
   const { theme, setTheme, resolvedTheme } = useTheme();

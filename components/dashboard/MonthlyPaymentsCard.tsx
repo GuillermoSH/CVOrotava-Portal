@@ -10,9 +10,9 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-} from "@/components/ui/card";
+  CardTitle,
+} from "@/components/club/Card";
 
 export function MonthlyPaymentsCard({
   paid,
@@ -28,14 +28,10 @@ export function MonthlyPaymentsCard({
 
   return (
     <Card size="sm" className="flex h-full flex-col">
-      <CardHeader className="gap-2">
+      <CardHeader className="gap-1">
         <div className="flex items-baseline justify-between gap-2">
-          <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Pagos este mes
-          </CardDescription>
-          <span className="text-[11px] font-normal normal-case text-muted-foreground">
-            Meta mensual
-          </span>
+          <CardTitle className="text-sm font-semibold">Pagos este mes</CardTitle>
+          <span className="text-xs text-muted-foreground">Meta mensual</span>
         </div>
       </CardHeader>
       <CardContent className="pt-0">

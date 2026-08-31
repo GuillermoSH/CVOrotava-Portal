@@ -3,7 +3,7 @@
 import { LogOut } from "lucide-react";
 
 import { AccountProfileMenu } from "@/components/layout/AccountProfileMenu";
-import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { signOut } from "@/lib/actions/auth";
 import { userInitials } from "@/lib/user-initials";
 import { cn } from "@/lib/utils";
@@ -26,26 +26,26 @@ export function SidebarUser({
 
   if (collapsed) {
     return (
-      <div className="flex justify-center">
+      <div className="flex justify-center border-t border-border pt-3">
         <AccountProfileMenu
           userName={user.name}
           userRole={user.role}
           onLogout={handleLogout}
           contentAlign="end"
           contentSide="right"
-          triggerClassName="bg-muted text-xs font-semibold text-foreground hover:bg-muted/80"
+          triggerClassName="bg-[var(--club-brand-soft)] text-xs font-semibold text-brand"
         />
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-border bg-muted/40 p-3">
-      <div className="flex items-center gap-3">
+    <div className="space-y-3 border-t border-border pt-4">
+      <div className="flex items-center gap-3 px-1">
         <div
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-md",
-            "bg-muted text-xs font-semibold text-foreground",
+            "flex size-9 shrink-0 items-center justify-center rounded-full border border-border",
+            "bg-[var(--club-brand-soft)] text-xs font-semibold text-brand",
           )}
           aria-hidden
         >
@@ -55,16 +55,16 @@ export function SidebarUser({
           <p className="truncate text-sm font-medium text-foreground">{user.name}</p>
           <p className="truncate text-xs text-muted-foreground">{user.role}</p>
         </div>
+        <ThemeToggle variant="compact" />
       </div>
-      <Button
+      <button
         type="button"
-        variant="ghost"
-        className="mt-3 w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
         onClick={handleLogout}
+        className="btn-secondary flex w-full items-center justify-center gap-2 py-2.5 text-sm"
       >
-        <LogOut className="size-4" />
+        <LogOut className="size-4" aria-hidden />
         Cerrar sesión
-      </Button>
+      </button>
     </div>
   );
 }

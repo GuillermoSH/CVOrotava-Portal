@@ -12,7 +12,7 @@
 ## Stack fijo
 
 - Next.js **15** App Router, TypeScript, ESLint.  
-- Tailwind **v4** + **shadcn/ui** (estilo actual del repo).  
+- Tailwind **v4** + componentes club en `components/club/` (Base UI solo en menús).  
 - **Supabase** (`@supabase/ssr` + `@supabase/supabase-js`).  
 - **pnpm** para dependencias.
 

@@ -1,94 +1,81 @@
 "use client";
 
 import * as React from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { type VariantProps } from "class-variance-authority";
-import { buttonVariants } from "@/components/ui/button";
+
+type ThemeToggleProps = {
+  /** Compact = icon only. Expanded = pill with label (login). */
+  variant?: "compact" | "expanded";
+  className?: string;
+  /** @deprecated Use `className`. Kept for call sites that pass custom sizing. */
+  triggerClassName?: string;
+  /** @deprecated Use `className`. Kept for call sites that pass custom icon sizing. */
+  iconClassName?: string;
+  /** @deprecated Ignored — toggle is always click-to-cycle. */
+  align?: "start" | "center" | "end";
+  /** @deprecated Ignored — kept for API compatibility. */
+  triggerVariant?: string;
+};
 
 export function ThemeToggle({
-  align = "end",
+  variant = "compact",
+  className,
   triggerClassName,
   iconClassName,
-  triggerVariant = "outline",
-}: {
-  align?: "start" | "center" | "end";
-  triggerClassName?: string;
-  iconClassName?: string;
-  triggerVariant?: VariantProps<typeof buttonVariants>["variant"];
-}) {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+}: ThemeToggleProps) {
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
-  const Icon =
-    !mounted || resolvedTheme === undefined
-      ? Monitor
-      : resolvedTheme === "dark"
-        ? Moon
-        : Sun;
+  const isLight = resolvedTheme === "light";
 
-  const value = theme ?? "system";
+  function handleToggle() {
+    setTheme(isLight ? "dark" : "light");
+  }
+
+  const base = cn(
+    "inline-flex cursor-pointer items-center justify-center rounded-xl border transition-all duration-200",
+    "border-border bg-card text-muted-foreground",
+    "hover:border-[var(--club-border-hover)] hover:bg-[var(--club-surface-hover)] hover:text-foreground",
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "disabled:cursor-default disabled:opacity-60",
+    variant === "compact" ? "size-9" : "gap-2 px-3.5 py-2 text-sm font-medium",
+    className,
+    triggerClassName,
+  );
+
+  const iconSize = variant === "compact" ? "size-4" : "size-3.5";
 
   if (!mounted) {
     return (
-      <Button
-        variant={triggerVariant}
-        size="icon"
-        aria-label="Elegir tema"
-        className={cn("opacity-70", triggerClassName)}
-      >
-        <Monitor className={cn("size-4", iconClassName)} />
-      </Button>
+      <button type="button" disabled aria-label="Cargando tema" className={base}>
+        <Sun className={cn(iconSize, iconClassName)} />
+      </button>
     );
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        nativeButton
-        render={
-          <Button
-            variant={triggerVariant}
-            size="icon"
-            aria-label="Elegir tema"
-            className={cn(!mounted && "opacity-70", triggerClassName)}
-          />
-        }
-      >
-        <Icon className={cn("size-4", iconClassName)} />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align={align} className="min-w-40">
-        <DropdownMenuRadioGroup
-          value={value}
-          onValueChange={(v) => {
-            setTheme(String(v));
-          }}
-        >
-          <DropdownMenuRadioItem value="system" inset>
-            Sistema
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="light" inset>
-            Claro
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark" inset>
-            Oscuro
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <button
+      type="button"
+      onClick={handleToggle}
+      aria-label={isLight ? "Activar modo oscuro" : "Activar modo claro"}
+      title={isLight ? "Modo oscuro" : "Modo claro"}
+      className={base}
+    >
+      {isLight ? (
+        <Moon className={cn(iconSize, iconClassName)} />
+      ) : (
+        <Sun className={cn(iconSize, iconClassName)} />
+      )}
+      {variant === "expanded" ? (
+        <span className="hidden sm:inline">{isLight ? "Oscuro" : "Claro"}</span>
+      ) : null}
+    </button>
   );
 }

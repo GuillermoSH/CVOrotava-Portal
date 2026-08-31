@@ -43,7 +43,7 @@
   --club-shadow-card-hover: 0 4px 14px rgba(0, 0, 0, 0.07), 0 12px 40px rgba(208, 30, 30, 0.05);
   --club-shadow-glow: 0 0 24px color-mix(in srgb, var(--club-brand) 18%, transparent);
 
-  /* Semantic (shadcn) — references club tokens */
+  /* Semantic aliases — references club tokens */
   --background: var(--club-bg);
   --foreground: var(--club-fg);
   --card: var(--club-surface);
@@ -76,6 +76,12 @@
   --sidebar-accent-foreground: var(--club-fg);
   --sidebar-border: var(--club-border);
   --sidebar-ring: var(--club-brand);
+
+  /* Mobile shell dock — must match MobileNavBottom (h-14 + inner safe padding) */
+  --shell-dock-height: 3.5rem;
+  --shell-dock-offset: var(--shell-dock-height);
+  /* Solo primary action: min-h-12 + vertical padding */
+  --clothing-sticky-bar-height: calc(3rem + 1.25rem);
 }
 
 html.dark {
@@ -161,9 +167,6 @@ html.dark {
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
@@ -309,6 +312,471 @@ html.dark {
   animation: float 3s ease-in-out infinite;
 }
 
+/* ── Buttons (Team-Manager pattern) ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fafaf9;
+  background: linear-gradient(135deg, var(--club-brand), var(--club-brand-strong));
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--club-brand) 30%, transparent);
+  outline: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--club-brand) 40%, transparent);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--club-brand) 35%, transparent);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary--lg {
+  height: 2.75rem;
+  font-size: 0.9375rem;
+}
+
+.btn-primary--block {
+  width: 100%;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--club-fg-muted);
+  background: var(--club-surface);
+  border: 1px solid var(--club-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  outline: none;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--club-surface-hover);
+  border-color: var(--club-border-hover);
+  color: var(--club-fg);
+}
+
+.btn-secondary:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--club-brand) 25%, transparent);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--club-fg-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  outline: none;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--club-surface-2);
+  color: var(--club-fg);
+}
+
+.btn-ghost:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--club-brand) 25%, transparent);
+}
+
+.btn-destructive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--club-brand-strong);
+  background: var(--club-brand-soft);
+  border: 1px solid color-mix(in srgb, var(--club-brand) 30%, transparent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+  outline: none;
+}
+
+.btn-destructive:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--club-brand-soft) 80%, var(--club-brand) 20%);
+}
+
+.btn-destructive:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--club-brand) 25%, transparent);
+}
+
+.btn-destructive:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  height: 1.75rem;
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
+}
+
+.btn-lg {
+  height: 2.25rem;
+}
+
+.btn-icon {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+}
+
+.btn-icon-xs {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+}
+
+/* ── Form controls ── */
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--club-fg);
+  margin-bottom: 0.375rem;
+}
+
+.form-input {
+  width: 100%;
+  height: 2.75rem;
+  padding: 0 0.85rem;
+  font-size: 0.9375rem;
+  color: var(--club-fg);
+  background: var(--club-surface);
+  border: 1px solid var(--club-border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+
+.form-input::placeholder {
+  color: var(--club-fg-muted);
+}
+
+.form-input:focus {
+  border-color: var(--club-brand);
+  box-shadow: 0 0 0 3px var(--club-brand-soft);
+}
+
+.form-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Cards ── */
+.club-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--club-border);
+  background: var(--club-surface);
+  padding: 1rem 0;
+  font-size: 0.875rem;
+  color: var(--club-fg);
+  box-shadow: var(--club-shadow-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.club-card:hover {
+  border-color: var(--club-border-hover);
+  background: var(--club-surface-hover);
+  box-shadow: var(--club-shadow-card-hover);
+}
+
+/* Dashboard / app surfaces — sin hover lift (Team-Manager) */
+.glass-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--club-border);
+  background: var(--club-surface);
+  border-radius: var(--radius-xl);
+  padding: 1rem 0;
+  font-size: 0.875rem;
+  color: var(--club-fg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.glass-panel--sm {
+  gap: 0.75rem;
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 0;
+}
+
+/* Tailwind `hidden` loses to component `display` — restore responsive intent */
+.glass-panel.hidden {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .glass-panel.hidden.md\:block {
+    display: flex;
+  }
+}
+
+.btn-primary.hidden,
+.btn-secondary.hidden,
+.btn-ghost.hidden,
+.btn-destructive.hidden {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .btn-primary.hidden.md\:inline-flex,
+  .btn-secondary.hidden.md\:inline-flex {
+    display: inline-flex;
+  }
+}
+
+.shell-sidebar {
+  border-right: 1px solid var(--club-border);
+  background: color-mix(in srgb, var(--club-bg) 94%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.shell-topbar {
+  border-bottom: 1px solid var(--club-border);
+  background: color-mix(in srgb, var(--club-bg) 94%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.shell-dock {
+  border-top: 1px solid var(--club-border);
+  background: color-mix(in srgb, var(--club-bg) 96%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--radius-lg);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--club-fg-muted);
+  transition: color 0.2s ease, background-color 0.2s ease;
+  outline: none;
+}
+
+.nav-link:hover {
+  color: var(--club-fg);
+  background: var(--club-surface);
+}
+
+.nav-link:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-brand) 40%, transparent);
+}
+
+.nav-link--active {
+  color: var(--club-fg);
+}
+
+.nav-link__pill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--club-border);
+  background: var(--club-surface);
+}
+
+.dock-link {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.25rem 0;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--club-fg-muted);
+  transition: color 0.2s ease;
+}
+
+.dock-link--active {
+  color: var(--club-brand);
+}
+
+.dock-link__indicator {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.5rem;
+  left: 0.5rem;
+  height: 2px;
+  border-radius: 9999px;
+  background: var(--club-brand);
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: var(--club-fg);
+}
+
+@media (min-width: 640px) {
+  .section-title {
+    font-size: 1.25rem;
+  }
+}
+
+.club-card--sm {
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+}
+
+.club-card__header {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0 1rem;
+}
+
+.club-card--sm .club-card__header {
+  padding: 0 0.75rem;
+}
+
+.club-card__title {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.375;
+}
+
+.club-card--sm .club-card__title {
+  font-size: 0.875rem;
+}
+
+.club-card__description {
+  font-size: 0.875rem;
+  color: var(--club-fg-muted);
+}
+
+.club-card__content {
+  padding: 0 1rem;
+}
+
+.club-card--sm .club-card__content {
+  padding: 0 0.75rem;
+}
+
+.club-card__footer {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--club-border);
+  background: color-mix(in srgb, var(--club-surface-2) 50%, transparent);
+  padding: 1rem;
+}
+
+.club-card--sm .club-card__footer {
+  padding: 0.75rem;
+}
+
+/* ── Table ── */
+.club-table-wrap {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.club-table {
+  width: 100%;
+  caption-side: bottom;
+  font-size: 0.875rem;
+}
+
+.club-table thead tr {
+  border-bottom: 1px solid var(--club-border);
+}
+
+.club-table tbody tr {
+  border-bottom: 1px solid var(--club-border);
+  transition: background-color 0.15s ease;
+}
+
+.club-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.club-table tbody tr:hover {
+  background: color-mix(in srgb, var(--club-surface-2) 60%, transparent);
+}
+
+.club-table th {
+  height: 2.5rem;
+  padding: 0 0.5rem;
+  text-align: left;
+  vertical-align: middle;
+  font-weight: 500;
+  color: var(--club-fg);
+  white-space: nowrap;
+}
+
+.club-table td {
+  padding: 0.5rem;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar {
   width: 6px;
@@ -325,4 +793,265 @@ html.dark {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--club-border-hover);
+}
+
+/* ── Clothing sheet: bottom (mobile) / side drawer (desktop) ── */
+.clothing-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.clothing-sheet-root--visible {
+  pointer-events: auto;
+}
+
+.clothing-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: color-mix(in srgb, #0d0d0f 55%, transparent);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.clothing-sheet-root--visible .clothing-sheet-backdrop {
+  opacity: 1;
+}
+
+.clothing-bottom-sheet {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  max-height: min(85dvh, 640px);
+  flex-direction: column;
+  overflow: hidden;
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  border: 1px solid var(--club-border);
+  border-bottom: none;
+  background: var(--club-surface);
+  box-shadow: 0 -8px 32px color-mix(in srgb, #0d0d0f 25%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: auto;
+}
+
+.clothing-sheet-root--visible .clothing-bottom-sheet:not(.clothing-bottom-sheet--dragging) {
+  transform: translateY(0);
+}
+
+.clothing-bottom-sheet--dragging {
+  transition: none;
+}
+
+.clothing-sheet-drag-zone {
+  flex-shrink: 0;
+  padding: 0.625rem 1.25rem 0.5rem;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.clothing-sheet-drag-zone:active {
+  cursor: grabbing;
+}
+
+.clothing-sheet-handle {
+  width: 2.5rem;
+  height: 0.25rem;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--club-border);
+}
+
+.clothing-sheet-body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .clothing-sheet-root {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  .clothing-bottom-sheet {
+    width: min(26rem, 92vw);
+    max-height: 100dvh;
+    height: 100%;
+    border-radius: 0;
+    border-top-left-radius: var(--radius-xl);
+    border-bottom-left-radius: var(--radius-xl);
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    box-shadow: -12px 0 40px color-mix(in srgb, #0d0d0f 22%, transparent);
+    transform: translateX(100%);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .clothing-sheet-root--visible .clothing-bottom-sheet:not(.clothing-bottom-sheet--dragging) {
+    transform: translateX(0);
+  }
+
+  .clothing-sheet-body {
+    padding: 1.5rem;
+  }
+}
+
+.clothing-sheet-option {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--club-border);
+  background: var(--club-surface-2);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--club-fg);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.clothing-sheet-option:hover {
+  border-color: var(--club-border-hover);
+}
+
+.clothing-sheet-option--selected {
+  border-color: var(--club-brand);
+  background: var(--club-brand-soft);
+}
+
+.clothing-sticky-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: var(--shell-dock-offset);
+  z-index: 35;
+  pointer-events: none;
+}
+
+.clothing-sticky-bar__inner {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--club-border);
+  background: color-mix(in srgb, var(--club-bg) 96%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.clothing-sticky-bar__inner--solo {
+  padding-block: 0.625rem;
+}
+
+.clothing-filter-chips {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  padding-bottom: 0.375rem;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 1rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.clothing-filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.clothing-filter-chip {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--club-border);
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--club-fg-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.clothing-filter-chip--active {
+  border-color: var(--club-brand);
+  background: var(--club-brand-soft);
+  color: var(--club-fg);
+}
+
+.clothing-list-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--club-border);
+  background: var(--club-surface);
+  padding: 1rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+a.clothing-list-card:hover {
+  border-color: var(--club-border-hover);
+  box-shadow: var(--club-shadow-card-hover);
+}
+
+.clothing-hub-tile {
+  display: flex;
+  min-height: 2.75rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--club-border);
+  background: var(--club-surface);
+  padding: 0.875rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--club-fg);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.clothing-hub-tile:hover {
+  border-color: var(--club-border-hover);
+  background: var(--club-surface-hover);
+}
+
+.clothing-hub-tile:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-brand) 40%, transparent);
+}
+
+.clothing-page-with-sticky {
+  padding-bottom: calc(var(--shell-dock-offset) + var(--clothing-sticky-bar-height));
+}
+
+.clothing-page-with-sticky--tall {
+  --clothing-sticky-bar-height: calc(5.5rem + 0.5rem);
+}
+
+@media (min-width: 768px) {
+  .clothing-page-with-sticky {
+    padding-bottom: 0;
+  }
 }

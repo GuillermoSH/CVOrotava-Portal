@@ -3,7 +3,7 @@
 import { CircleUserRound, LogOut } from "lucide-react";
 
 import { ThemeSubmenu } from "@/components/shared/ThemeSubmenu";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/club/Button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +12,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/club/DropdownMenu";
 import { userInitials } from "@/lib/user-initials";
 import { cn } from "@/lib/utils";
 

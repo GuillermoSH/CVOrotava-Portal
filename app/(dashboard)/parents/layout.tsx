@@ -18,6 +18,7 @@ export default async function ParentsLayout({
   return (
     <AppShell
       navTitle="Área familias"
+      homeHref={appRoutes.parents}
       sidebarUser={{ name: "Familia López", role: "Familia" }}
     >
       {children}

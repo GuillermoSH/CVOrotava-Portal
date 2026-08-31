@@ -10,9 +10,9 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-} from "@/components/ui/card";
+  CardTitle,
+} from "@/components/club/Card";
 
 export function ClothingReservationsCard({
   total,
@@ -29,14 +29,10 @@ export function ClothingReservationsCard({
 
   return (
     <Card size="sm" className="flex h-full flex-col">
-      <CardHeader className="gap-2">
+      <CardHeader className="gap-1">
         <div className="flex items-baseline justify-between gap-2">
-          <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Reservas de ropa
-          </CardDescription>
-          <span className="text-[11px] font-normal normal-case text-muted-foreground">
-            Temporada actual
-          </span>
+          <CardTitle className="text-sm font-semibold">Inventario de ropa</CardTitle>
+          <span className="text-xs text-muted-foreground">Almacén interno</span>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -64,11 +60,11 @@ export function ClothingReservationsCard({
             <span className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
               {pending}
             </span>
-            <span className="text-[11px] text-muted-foreground">Pendientes</span>
+            <span className="text-[11px] text-muted-foreground">Pend. ubicar</span>
           </div>
         </div>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          {fulfilled} / {total} entregadas · {pct}%
+          {fulfilled} / {total} en almacén · {pct}%
         </p>
       </CardContent>
     </Card>

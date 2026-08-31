@@ -1,0 +1,5 @@
+import { cn } from "@/lib/utils";
+
+export function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return <input type={type} className={cn("form-input", className)} {...props} />;
+}

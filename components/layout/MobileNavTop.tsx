@@ -18,9 +18,11 @@ const defaultUser = {
 
 export function MobileNavTop({
   navTitle,
+  homeHref,
   user = defaultUser,
 }: {
   navTitle: string;
+  homeHref: string;
   user?: { name: string; role: string };
 }) {
   const router = useRouter();
@@ -33,14 +35,14 @@ export function MobileNavTop({
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 flex h-10 min-h-10 shrink-0 items-center gap-2 border-b border-border bg-card/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:px-6",
+        "shell-topbar sticky top-0 z-40 flex h-14 min-h-14 shrink-0 items-center gap-2 px-4 md:px-6",
         "lg:hidden",
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Link
-          href={appRoutes.home}
-          className="shrink-0 rounded-md p-0.5 hover:bg-muted/60"
+          href={homeHref}
+          className="shrink-0 rounded-lg p-0.5 transition-colors hover:bg-[var(--club-surface)]"
           aria-label="Inicio — Club Voleibol Orotava"
         >
           <Logo className="size-7 sm:size-8" />

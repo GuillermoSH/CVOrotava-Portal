@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 
 import { isUserRole } from "@/lib/auth/roles";
+import { getDevBypassRole, isDevAuthBypassEnabled } from "@/lib/auth/dev-bypass";
 import { appRoutes, type UserRole } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,6 +17,10 @@ const ROLE_PRIORITY: readonly UserRole[] = ["admin", "manager", "coach", "parent
  * a /login en silencio y es indistinguible de "nunca hubo sesión".
  */
 export async function requirePortalRole(): Promise<UserRole> {
+  if (isDevAuthBypassEnabled()) {
+    return getDevBypassRole();
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

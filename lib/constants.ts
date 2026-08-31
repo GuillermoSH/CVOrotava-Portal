@@ -35,6 +35,15 @@ export const appRoutes = {
   parents: "/parents",
   admin: "/admin",
   profile: "/perfil",
+  clothing: {
+    hub: "/admin/ropa",
+    orders: "/admin/ropa/pedidos",
+    newOrder: "/admin/ropa/pedidos/nuevo",
+    orderDetail: (id: string) => `/admin/ropa/pedidos/${id}`,
+    products: "/admin/ropa/prendas",
+    warehouse: "/admin/ropa/almacen",
+    locations: "/admin/ropa/almacen/ubicaciones",
+  },
 } as const;
 
 /** Roles de Portal — deben coincidir con el CHECK de user_app_roles.role. */

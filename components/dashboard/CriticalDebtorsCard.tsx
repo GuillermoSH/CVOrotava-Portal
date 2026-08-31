@@ -7,14 +7,14 @@ import { toast } from "sonner";
 import { notifyCriticalDebtors } from "@/lib/actions/notifications";
 import type { CriticalDebtor } from "@/lib/mocks/admin";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/club/Button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
-} from "@/components/ui/card";
+  CardTitle,
+} from "@/components/club/Card";
 
 const eur = new Intl.NumberFormat("es-ES", {
   style: "currency",
@@ -52,14 +52,10 @@ export function CriticalDebtorsCard({
 
   return (
     <Card size="sm" className="flex h-full flex-col">
-      <CardHeader className="gap-2">
+      <CardHeader className="gap-1">
         <div className="flex items-baseline justify-between gap-2">
-          <CardDescription className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Morosos críticos
-          </CardDescription>
-          <span className="text-[11px] font-normal normal-case text-muted-foreground">
-            ≥ 2 cuotas
-          </span>
+          <CardTitle className="text-sm font-semibold">Morosos críticos</CardTitle>
+          <span className="text-xs text-muted-foreground">≥ 2 cuotas</span>
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col justify-center pt-0">
@@ -70,9 +66,7 @@ export function CriticalDebtorsCard({
             </p>
           </div>
           <div className="space-y-1 text-right">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              Deuda pendiente
-            </p>
+            <p className="text-sm text-muted-foreground">Deuda pendiente</p>
             <p className="text-3xl font-semibold tabular-nums tracking-tight text-brand">
               {eur.format(totalBalance)}
             </p>

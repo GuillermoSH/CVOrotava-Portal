@@ -5,7 +5,7 @@ Portal web del **Club Voleibol Orotava** para **familias** (padres/tutores) y **
 ## Stack
 
 - **Next.js 15** (App Router) + TypeScript + ESLint  
-- **Tailwind CSS v4** + **shadcn/ui** (Base UI primitives)  
+- **Tailwind CSS v4** + componentes club (`components/club/`, tokens en `globals.css`)  
 - **Supabase** (Auth, Postgres; RLS en migraciones futuras)  
 - **pnpm** (`packageManager` en `package.json`)
 
@@ -51,7 +51,7 @@ Portal web del **Club Voleibol Orotava** para **familias** (padres/tutores) y **
 | `app/(auth)/` | Login (sin registro público en la app) |
 | `app/(dashboard)/parents` | Área familias |
 | `app/(dashboard)/admin` | Área dirección |
-| `components/ui/` | shadcn |
+| `components/club/` | Botones, inputs, cards, tabla, menús |
 | `components/layout/`, `dashboard/`, `payments/`, `clothing/`, `shared/` | UI reutilizable por dominio |
 | `lib/supabase/` | Cliente browser, servidor, middleware (refresh sesión) |
 | `lib/constants.ts` | Rutas, roles, paleta en TS |
