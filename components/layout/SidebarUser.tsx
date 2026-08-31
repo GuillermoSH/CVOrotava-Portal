@@ -1,11 +1,10 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { AccountProfileMenu } from "@/components/layout/AccountProfileMenu";
 import { Button } from "@/components/ui/button";
-import { appRoutes } from "@/lib/constants";
+import { signOut } from "@/lib/actions/auth";
 import { userInitials } from "@/lib/user-initials";
 import { cn } from "@/lib/utils";
 
@@ -21,10 +20,8 @@ export function SidebarUser({
   user?: { name: string; role: string };
   collapsed?: boolean;
 }) {
-  const router = useRouter();
-
   function handleLogout() {
-    router.push(appRoutes.home);
+    void signOut();
   }
 
   if (collapsed) {

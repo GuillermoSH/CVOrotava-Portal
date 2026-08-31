@@ -1,24 +1,34 @@
-import * as React from "react";
+import Image from "next/image";
 
+import { CLUB_LOGO_TILE_BG, clubLogoSrc } from "@/lib/brand/logo";
 import { cn } from "@/lib/utils";
 
-/** Placeholder mark — replace with official club SVG when asset ready. */
-export function Logo({ className, ...props }: React.ComponentProps<"svg">) {
+/** Marca del club. El tamaño de caja lo fija `className` (p. ej. `size-9`); `px` solo elige el asset @2x. */
+export function Logo({
+  className,
+  px = 40,
+  priority = false,
+}: {
+  className?: string;
+  px?: number;
+  priority?: boolean;
+}) {
   return (
-    <svg
-      viewBox="0 0 40 40"
-      role="img"
-      aria-label="Club Voleibol Orotava"
-      className={cn("shrink-0", className)}
-      {...props}
+    <div
+      className={cn(
+        "relative shrink-0 overflow-hidden rounded-lg border border-white/12 shadow-[0_1px_0_rgba(255,255,255,0.06)]",
+        className,
+      )}
+      style={{ backgroundColor: CLUB_LOGO_TILE_BG }}
     >
-      <rect width="40" height="40" rx="8" className="fill-club-surface" />
-      <path
-        d="M8 28 L20 10 L32 28 Z"
-        className="fill-none stroke-brand stroke-[2.5]"
-        strokeLinejoin="round"
+      <Image
+        src={clubLogoSrc(px)}
+        alt="Club Voleibol Orotava"
+        fill
+        sizes={`${px}px`}
+        className="object-cover"
+        priority={priority}
       />
-      <circle cx="20" cy="24" r="3" className="fill-brand-soft" />
-    </svg>
+    </div>
   );
 }

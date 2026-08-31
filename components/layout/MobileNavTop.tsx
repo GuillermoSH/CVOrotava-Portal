@@ -2,12 +2,12 @@
 
 import { LogOut } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { AccountProfileMenu } from "@/components/layout/AccountProfileMenu";
 import { Logo } from "@/components/shared/Logo";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { Button } from "@/components/ui/button";
+import { signOut } from "@/lib/actions/auth";
 import { appRoutes } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -23,8 +23,6 @@ export function MobileNavTop({
   navTitle: string;
   user?: { name: string; role: string };
 }) {
-  const router = useRouter();
-
   return (
     <header
       className={cn(
@@ -60,7 +58,7 @@ export function MobileNavTop({
           size="sm"
           className="h-8 gap-1.5 px-2 text-xs font-medium text-muted-foreground hover:text-foreground sm:px-2.5"
           onClick={() => {
-            router.push(appRoutes.home);
+            void signOut();
           }}
         >
           <span>Salir</span>
