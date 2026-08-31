@@ -16,16 +16,32 @@
   --radius-3xl: 1.5rem;
   --radius-4xl: 2rem;
 
-  /* Club tokens — light (default) */
-  --club-bg: #fafaf9;
-  --club-surface: #fffffe;
-  --club-surface-2: #f4f4f5;
-  --club-border: #e4e4e7;
-  --club-brand: #c8102e;
-  --club-brand-strong: #9f0c24;
-  --club-brand-soft: #f2d7dc;
-  --club-fg: #1a1a1f;
-  --club-fg-muted: #52525b;
+  /* Club tokens — light (default). Portados de CVOrotava-Team-Manager. */
+  --club-bg: #f0f0f4;
+  --club-surface: rgba(255, 255, 255, 0.78);
+  --club-surface-hover: rgba(255, 255, 255, 0.92);
+  --club-surface-2: #e8e8ec;
+  --club-border: rgba(0, 0, 0, 0.09);
+  --club-border-hover: rgba(0, 0, 0, 0.14);
+  --club-brand: #d01e1e;
+  --club-brand-strong: #b91c1c;
+  --club-brand-soft: rgba(208, 30, 30, 0.12);
+  --club-fg: #12121a;
+  --club-fg-muted: #3f3f50;
+
+  --club-success: #047857;
+  --club-success-muted: rgba(4, 120, 87, 0.12);
+  --club-success-border: rgba(4, 120, 87, 0.35);
+  --club-warning: #eab308;
+  --club-warning-strong: #92400e;
+  --club-warning-muted: rgba(234, 179, 8, 0.12);
+  --club-info: #3b82f6;
+  --club-info-strong: #1e40af;
+  --club-info-muted: rgba(59, 130, 246, 0.12);
+
+  --club-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 24px rgba(0, 0, 0, 0.06);
+  --club-shadow-card-hover: 0 4px 14px rgba(0, 0, 0, 0.07), 0 12px 40px rgba(208, 30, 30, 0.05);
+  --club-shadow-glow: 0 0 24px color-mix(in srgb, var(--club-brand) 18%, transparent);
 
   /* Semantic (shadcn) — references club tokens */
   --background: var(--club-bg);
@@ -63,16 +79,32 @@
 }
 
 html.dark {
-  /* Club tokens — dark */
-  --club-bg: #0f0f12;
-  --club-surface: #18181b;
-  --club-surface-2: #27272a;
-  --club-border: #3f3f46;
-  --club-brand: #c8102e;
-  --club-brand-strong: #9f0c24;
-  --club-brand-soft: #f2d7dc;
-  --club-fg: #fafaf9;
-  --club-fg-muted: #a1a1aa;
+  /* Club tokens — dark (por defecto en Team-Manager) */
+  --club-bg: #0d0d0f;
+  --club-surface: rgba(255, 255, 255, 0.04);
+  --club-surface-hover: rgba(255, 255, 255, 0.08);
+  --club-surface-2: #1c1c1a;
+  --club-border: rgba(255, 255, 255, 0.08);
+  --club-border-hover: rgba(255, 255, 255, 0.16);
+  --club-brand: #e62222;
+  --club-brand-strong: #c41919;
+  --club-brand-soft: rgba(230, 34, 34, 0.15);
+  --club-fg: #f0f0f5;
+  --club-fg-muted: #a0a0b0;
+
+  --club-success: #6ee7b7;
+  --club-success-muted: rgba(110, 231, 183, 0.15);
+  --club-success-border: rgba(110, 231, 183, 0.28);
+  --club-warning: #eab308;
+  --club-warning-strong: #eab308;
+  --club-warning-muted: rgba(234, 179, 8, 0.15);
+  --club-info: #3b82f6;
+  --club-info-strong: #60a5fa;
+  --club-info-muted: rgba(59, 130, 246, 0.15);
+
+  --club-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2);
+  --club-shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.3);
+  --club-shadow-glow: 0 0 24px color-mix(in srgb, var(--club-brand) 25%, transparent);
 
   --chart-4: #7f1d1d;
 }
@@ -118,6 +150,12 @@ html.dark {
   --color-club-surface-2: var(--club-surface-2);
   --color-club-fg: var(--club-fg);
   --color-club-border: var(--club-border);
+  --color-success: var(--club-success);
+  --color-success-muted: var(--club-success-muted);
+  --color-warning: var(--club-warning-strong);
+  --color-warning-muted: var(--club-warning-muted);
+  --color-info: var(--club-info-strong);
+  --color-info-muted: var(--club-info-muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -130,4 +168,150 @@ html.dark {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   }
+}
+
+/* ═══════════════════════════════════════════════════
+   Componentes reutilizables — portados de Team-Manager
+   ═══════════════════════════════════════════════════ */
+
+/* Tarjetas de cuotas: mismo patrón paid/pending/overdue */
+.payment-card {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--radius-xl);
+}
+
+.payment-card--paid {
+  background: var(--club-success-muted);
+  border-color: var(--club-success-border);
+}
+
+.payment-card--pending {
+  background: var(--club-brand-soft);
+  border-color: color-mix(in srgb, var(--club-brand) 28%, transparent);
+}
+
+.payment-card--overdue {
+  background: var(--club-warning-muted);
+  border-color: color-mix(in srgb, var(--club-warning) 40%, transparent);
+}
+
+/* Badge de estado semántico (paid/pending/overdue, morosos, avisos...) */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.status-badge--success {
+  background: var(--club-success-muted);
+  border-color: var(--club-success-border);
+  color: var(--club-success);
+}
+
+.status-badge--danger {
+  background: var(--club-brand-soft);
+  border-color: color-mix(in srgb, var(--club-brand) 30%, transparent);
+  color: var(--club-brand-strong);
+}
+
+.status-badge--warning {
+  background: var(--club-warning-muted);
+  border-color: color-mix(in srgb, var(--club-warning) 30%, transparent);
+  color: var(--club-warning-strong);
+}
+
+.status-badge--info {
+  background: var(--club-info-muted);
+  border-color: color-mix(in srgb, var(--club-info) 30%, transparent);
+  color: var(--club-info-strong);
+}
+
+.status-badge--neutral {
+  background: var(--club-surface-2);
+  border-color: var(--club-border);
+  color: var(--club-fg-muted);
+}
+
+/* Cifras destacadas con degradado (stat cards) */
+.stat-value-gradient {
+  background: linear-gradient(135deg, var(--club-brand), #ff6b6b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ═══════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════ */
+
+@keyframes gradient-xy {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-xy {
+  background-size: 200% 200%;
+  animation: gradient-xy 12s ease infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 10s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--club-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--club-border-hover);
 }

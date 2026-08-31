@@ -37,7 +37,7 @@ export function StatCard({
         <CardTitle
           className={cn(
             "text-3xl font-semibold tabular-nums tracking-tight",
-            accent === "brand" && "text-brand",
+            accent === "brand" && "stat-value-gradient",
             accent === "warning" && "text-destructive",
           )}
         >
