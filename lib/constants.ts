@@ -34,6 +34,7 @@ export const appRoutes = {
   login: "/login",
   parents: "/parents",
   admin: "/admin",
+  profile: "/perfil",
 } as const;
 
 /** Roles de Portal — deben coincidir con el CHECK de user_app_roles.role. */

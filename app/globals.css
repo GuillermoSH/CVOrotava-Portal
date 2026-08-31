@@ -170,6 +170,17 @@ html.dark {
   }
 }
 
+@layer utilities {
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* ═══════════════════════════════════════════════════
    Componentes reutilizables — portados de Team-Manager
    ═══════════════════════════════════════════════════ */
