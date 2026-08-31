@@ -1,5 +1,8 @@
-import type { UserRole } from "@/lib/constants";
+import { userRoles, type UserRole } from "@/lib/constants";
 
 export function isUserRole(value: unknown): value is UserRole {
-  return value === "parent" || value === "admin";
+  return (
+    typeof value === "string" &&
+    (userRoles as readonly string[]).includes(value)
+  );
 }

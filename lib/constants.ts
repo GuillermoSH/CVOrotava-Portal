@@ -1,29 +1,29 @@
 /**
- * Club palette — off-black / deep red / off-white (no pure #000, #FFF, #F00).
+ * Club palette — portada de CVOrotava-Team-Manager (glass oscuro + rojo acento).
  * Mirrors CSS tokens in `app/globals.css` (`:root` / `html.dark`) for TS (charts, labels).
  */
 export const clubPaletteDark = {
-  bg: "#0F0F12",
-  surface: "#18181B",
-  surface2: "#27272A",
-  border: "#3F3F46",
-  brand: "#C8102E",
-  brandStrong: "#9F0C24",
-  brandSoft: "#F2D7DC",
-  fg: "#FAFAF9",
-  fgMuted: "#A1A1AA",
+  bg: "#0D0D0F",
+  surface: "rgba(255, 255, 255, 0.04)",
+  surface2: "#1C1C1A",
+  border: "rgba(255, 255, 255, 0.08)",
+  brand: "#E62222",
+  brandStrong: "#C41919",
+  brandSoft: "rgba(230, 34, 34, 0.15)",
+  fg: "#F0F0F5",
+  fgMuted: "#A0A0B0",
 } as const;
 
 export const clubPaletteLight = {
-  bg: "#FAFAF9",
-  surface: "#FFFFFE",
-  surface2: "#F4F4F5",
-  border: "#E4E4E7",
-  brand: "#C8102E",
-  brandStrong: "#9F0C24",
-  brandSoft: "#F2D7DC",
-  fg: "#1A1A1F",
-  fgMuted: "#52525B",
+  bg: "#F0F0F4",
+  surface: "rgba(255, 255, 255, 0.78)",
+  surface2: "#E8E8EC",
+  border: "rgba(0, 0, 0, 0.09)",
+  brand: "#D01E1E",
+  brandStrong: "#B91C1C",
+  brandSoft: "rgba(208, 30, 30, 0.12)",
+  fg: "#12121A",
+  fgMuted: "#3F3F50",
 } as const;
 
 /** Alias: dark tokens (legacy name). */
@@ -36,5 +36,6 @@ export const appRoutes = {
   admin: "/admin",
 } as const;
 
-export const userRoles = ["parent", "admin"] as const;
+/** Roles de Portal — deben coincidir con el CHECK de user_app_roles.role. */
+export const userRoles = ["admin", "manager", "coach", "parent"] as const;
 export type UserRole = (typeof userRoles)[number];
