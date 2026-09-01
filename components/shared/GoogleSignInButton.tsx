@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { GoogleIcon } from "@/components/shared/GoogleIcon";
+import { portalOAuthRedirectUrl } from "@/lib/auth/app-origin";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,7 +17,7 @@ export function GoogleSignInButton() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/admin`,
+        redirectTo: portalOAuthRedirectUrl(window.location.origin),
         queryParams: { prompt: "select_account" },
       },
     });

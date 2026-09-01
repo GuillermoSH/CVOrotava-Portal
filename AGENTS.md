@@ -38,6 +38,7 @@
 
 - `/` marketing  
 - `/login` (sin registro público en la app; cuentas las gestiona el club)  
+- `/api/auth/callback` — OAuth Google (PKCE; misma ruta que Team Manager)  
 - `/parents`, `/admin`  
 
 ## Convenciones

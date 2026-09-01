@@ -32,6 +32,8 @@ export const clubPalette = clubPaletteDark;
 export const appRoutes = {
   home: "/",
   login: "/login",
+  /** OAuth Google (PKCE). Misma ruta que Team Manager. */
+  authCallback: "/api/auth/callback",
   parents: "/parents",
   admin: "/admin",
   profile: "/perfil",

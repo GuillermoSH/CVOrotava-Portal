@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getRequestOrigin, toAbsoluteAppUrl } from "@/lib/auth/app-origin.server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 type PendingCookie = { name: string; value: string; options: Record<string, unknown> };
@@ -15,16 +16,16 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next") ?? "/admin";
-  const origin = url.origin;
+  const origin = getRequestOrigin(request);
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login", origin));
+    return NextResponse.redirect(toAbsoluteAppUrl("/login", origin));
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !anonKey) {
-    return NextResponse.redirect(new URL("/login?error=oauth", origin));
+    return NextResponse.redirect(toAbsoluteAppUrl("/login?error=oauth", origin));
   }
 
   const pending = new Map<string, PendingCookie>();
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
   });
 
   const finish = (path: string, clearAuth = false) => {
-    const response = NextResponse.redirect(new URL(path, origin));
+    const response = NextResponse.redirect(toAbsoluteAppUrl(path, origin));
     pending.forEach(({ name, value, options }) => {
       response.cookies.set(name, value, options);
     });
