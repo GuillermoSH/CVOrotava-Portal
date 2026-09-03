@@ -48,7 +48,7 @@ export function RecentPaymentsCard({ payments }: { payments: Payment[] }) {
           <TableBody>
             {payments.map((p) => (
               <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.parent}</TableCell>
+                <TableCell className="club-table__primary">{p.parent}</TableCell>
                 <TableCell>{p.child}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {eur.format(p.amount)}

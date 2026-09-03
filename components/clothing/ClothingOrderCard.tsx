@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge } from "@/components/club/Badge";
 import { OrderStatusBadge } from "@/components/clothing/OrderStatusBadge";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
+import { formatProductShort } from "@/lib/clothing/formatProduct";
 import { appRoutes } from "@/lib/constants";
 import type { ClothingOrderWithLines } from "@/lib/types/db";
 
@@ -30,7 +31,7 @@ export function ClothingOrderCard({ order }: { order: ClothingOrderWithLines }) 
         <div className="mt-3 flex flex-wrap gap-1">
           {order.lines.slice(0, 3).map((line) => (
             <Badge key={line.id} variant="secondary" className="text-[11px]">
-              {line.product.name} {formatClothingSize(line.size)}
+              {formatProductShort(line.product)} {formatClothingSize(line.size)}
             </Badge>
           ))}
           {order.lines.length > 3 ? (

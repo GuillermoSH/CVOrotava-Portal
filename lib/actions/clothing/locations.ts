@@ -16,6 +16,7 @@ import {
 } from "@/lib/clothing/repository/locations";
 import {
   createLocationSchema,
+  moveLocationSchema,
   updateLocationSchema,
 } from "@/lib/clothing/schemas";
 
@@ -95,6 +96,46 @@ export async function updateStorageLocation(input: unknown): Promise<ActionResul
       code,
       season,
       notes,
+    });
+
+    revalidateLocations();
+    return { ok: true, id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
+  }
+}
+
+export async function moveStorageLocation(input: unknown): Promise<ActionResult> {
+  try {
+    await requireClothingWriteAccess();
+    const parsed = moveLocationSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    }
+
+    const db = await getClothingDb();
+    const { id, parent_id } = parsed.data;
+
+    const existing = await getLocationById(db, id);
+    if (!existing) return { ok: false, error: "Ubicación no encontrada" };
+    if (existing.location_type !== "box") {
+      return { ok: false, error: "Solo se pueden mover cajas" };
+    }
+
+    const parent = parent_id ? await getLocationById(db, parent_id) : null;
+    if (parent_id && !parent) return { ok: false, error: "Ubicación padre no encontrada" };
+
+    const hierarchyError = validateLocationHierarchy("box", parent_id, parent);
+    if (hierarchyError) return { ok: false, error: hierarchyError };
+
+    await updateLocation(db, {
+      id,
+      parent_id,
+      location_type: existing.location_type,
+      label: existing.label,
+      code: existing.code,
+      season: existing.season,
+      notes: existing.notes,
     });
 
     revalidateLocations();

@@ -1,21 +1,78 @@
 import { getCurrentSeason } from "@/lib/season";
 
 export const CLOTHING_CATEGORIES = [
-  "backpack",
-  "shirt",
-  "pants",
+  "shirt_warmup",
+  "shirt_competition",
   "jacket",
-  "other",
+  "pants_short",
+  "shorts",
+  "sweatshirt",
+  "pants_long",
+  "backpack",
+  "socks",
 ] as const;
 
 export type ClothingCategory = (typeof CLOTHING_CATEGORIES)[number];
 
 export const CLOTHING_CATEGORY_LABELS: Record<ClothingCategory, string> = {
-  backpack: "Mochila",
-  shirt: "Camiseta",
-  pants: "Pantalón",
+  shirt_warmup: "Camiseta calentamiento",
+  shirt_competition: "Camiseta competición",
   jacket: "Chaqueta",
-  other: "Otro",
+  pants_short: "Pantalón corto",
+  shorts: "Malla corta",
+  sweatshirt: "Sudadera",
+  pants_long: "Pantalón largo",
+  backpack: "Mochila",
+  socks: "Calcetines",
+};
+
+export const CLOTHING_SOLID_COLORS = ["negro", "rojo", "blanco"] as const;
+
+export type ClothingSolidColorName = (typeof CLOTHING_SOLID_COLORS)[number];
+
+export const CLOTHING_COLORS = [
+  "negro",
+  "rojo",
+  "blanco",
+  "rojo_blanco",
+  "negro_blanco",
+  "rojo_negro",
+] as const;
+
+export type ClothingColorName = (typeof CLOTHING_COLORS)[number];
+
+export const CLOTHING_COLOR_LABELS: Record<ClothingColorName, string> = {
+  blanco: "Blanco",
+  negro: "Negro",
+  rojo: "Rojo",
+  rojo_blanco: "Rojo/Blanco",
+  negro_blanco: "Negro/Blanco",
+  rojo_negro: "Rojo/Negro",
+};
+
+export function isClothingComboColor(
+  color: ClothingColorName,
+): color is "rojo_blanco" | "negro_blanco" | "rojo_negro" {
+  return color.includes("_");
+}
+
+export function parseClothingComboColor(
+  color: ClothingColorName,
+): [ClothingSolidColorName, ClothingSolidColorName] | null {
+  if (!isClothingComboColor(color)) return null;
+  const [first, second] = color.split("_") as [ClothingSolidColorName, ClothingSolidColorName];
+  return [first, second];
+}
+
+export const CLOTHING_BRANDS = ["hummel", "aqua_royal", "joma", "errea"] as const;
+
+export type ClothingBrandName = (typeof CLOTHING_BRANDS)[number];
+
+export const CLOTHING_BRAND_LABELS: Record<ClothingBrandName, string> = {
+  hummel: "Hummel",
+  aqua_royal: "Aqua Royal",
+  joma: "Joma",
+  errea: "Errea",
 };
 
 export const ORDER_STATUSES = [

@@ -117,6 +117,6 @@ export async function getAllProductsSnapshot(): Promise<ClothingProduct[]> {
   const products = await listProducts(db);
   return [...products].sort((a, b) => {
     if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
-    return a.name.localeCompare(b.name, "es");
+    return a.model.localeCompare(b.model, "es");
   });
 }

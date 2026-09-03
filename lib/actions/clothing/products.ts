@@ -7,7 +7,7 @@ import { getClothingDb } from "@/lib/clothing/repository/client";
 import {
   createProduct,
   deleteProduct,
-  findProductByNameSeason,
+  findDuplicateProduct,
   getProductById,
   productUsedInInventory,
   productUsedInOrders,
@@ -33,6 +33,9 @@ function revalidateProducts() {
   }
 }
 
+const DUPLICATE_ERROR =
+  "Ya existe una prenda con esa marca, modelo, color y categoría en la temporada";
+
 export async function createClothingProduct(input: unknown): Promise<ActionResult> {
   try {
     await requireClothingWriteAccess();
@@ -42,13 +45,21 @@ export async function createClothingProduct(input: unknown): Promise<ActionResul
     }
 
     const db = await getClothingDb();
-    const { name, category, season, notes } = parsed.data;
-    const duplicate = await findProductByNameSeason(db, name, season);
+    const { model, brand, category, color, season, notes, is_shop_item } = parsed.data;
+    const duplicate = await findDuplicateProduct(db, model, brand, color, category, season);
     if (duplicate) {
-      return { ok: false, error: "Ya existe una prenda con ese nombre en la temporada" };
+      return { ok: false, error: DUPLICATE_ERROR };
     }
 
-    const product = await createProduct(db, { name, category, season, notes });
+    const product = await createProduct(db, {
+      model,
+      brand,
+      category,
+      color,
+      season,
+      notes,
+      is_shop_item,
+    });
     revalidateProducts();
     return { ok: true, id: product.id };
   } catch (e) {
@@ -65,16 +76,27 @@ export async function updateClothingProduct(input: unknown): Promise<ActionResul
     }
 
     const db = await getClothingDb();
-    const { id, name, category, season, notes, is_active } = parsed.data;
+    const { id, model, brand, category, color, season, notes, is_shop_item, is_active } =
+      parsed.data;
     const existing = await getProductById(db, id);
     if (!existing) return { ok: false, error: "Prenda no encontrada" };
 
-    const duplicate = await findProductByNameSeason(db, name, season, id);
+    const duplicate = await findDuplicateProduct(db, model, brand, color, category, season, id);
     if (duplicate) {
-      return { ok: false, error: "Ya existe una prenda con ese nombre en la temporada" };
+      return { ok: false, error: DUPLICATE_ERROR };
     }
 
-    await updateProduct(db, { id, name, category, season, notes, is_active });
+    await updateProduct(db, {
+      id,
+      model,
+      brand,
+      category,
+      color,
+      season,
+      notes,
+      is_shop_item,
+      is_active,
+    });
     revalidateProducts();
     return { ok: true, id };
   } catch (e) {
@@ -94,10 +116,13 @@ export async function setClothingProductActive(
 
     await updateProduct(db, {
       id,
-      name: product.name,
+      model: product.model,
+      brand: product.brand,
       category: product.category,
+      color: product.color,
       season: product.season,
       notes: product.notes,
+      is_shop_item: product.is_shop_item,
       is_active: isActive,
     });
 

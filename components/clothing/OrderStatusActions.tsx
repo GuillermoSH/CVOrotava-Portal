@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { appToast } from "@/lib/toast";
 
 import { Button } from "@/components/club/Button";
 import {
@@ -42,10 +42,10 @@ export function OrderStatusActions({
     startTransition(async () => {
       const result = await updateOrderStatus({ order_id: orderId, status: next });
       if (!result.ok) {
-        toast.error(result.error);
+        appToast.error(result.error);
         return;
       }
-      toast.success(`Estado actualizado: ${ORDER_STATUS_LABELS[next]}`);
+      appToast.success(`Estado actualizado: ${ORDER_STATUS_LABELS[next]}`);
       setSheetOpen(false);
       setConfirmNext(null);
       router.refresh();

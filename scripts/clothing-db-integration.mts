@@ -143,8 +143,10 @@ async function main() {
     await assertSchema(db);
     console.log("→ Creating test product…");
     const product = await createProduct(db, {
-      name: `${TEST_PREFIX} Camiseta`,
-      category: "shirt",
+      model: `${TEST_PREFIX} Camiseta`,
+      brand: "hummel",
+      category: "shirt_competition",
+      color: "blanco",
       season: SEASON,
       notes: "Integration test product",
     });

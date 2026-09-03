@@ -1,6 +1,4 @@
-import Link from "next/link";
-
-import { StorageLocationTree } from "@/components/clothing/StorageLocationTree";
+import { StorageLocationsBoard } from "@/components/clothing/StorageLocationsBoard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
 import { buildStorageTree } from "@/lib/clothing/snapshots";
@@ -14,11 +12,11 @@ export default async function ClothingLocationsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         back={{ href: appRoutes.clothing.warehouse, label: "Inventario" }}
-        title="Ubicaciones de almacén"
-        subtitle="Jerarquía Armario → Balda → Caja. Solo las cajas reciben stock."
+        title="Cajas de almacén"
+        subtitle="Identifica cada caja con un código. El armario es opcional: sirve para agruparlas cuando las tengas juntas."
       />
 
-      <StorageLocationTree tree={tree} />
+      <StorageLocationsBoard tree={tree} />
     </div>
   );
 }

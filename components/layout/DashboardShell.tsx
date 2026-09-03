@@ -9,7 +9,6 @@ import { MobileNavTop } from "@/components/layout/MobileNavTop";
 import { SidebarNav } from "@/components/layout/SidebarNav";
 import { SidebarUser } from "@/components/layout/SidebarUser";
 import { Logo } from "@/components/shared/Logo";
-import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { Button } from "@/components/club/Button";
 import { readSidebarCollapsed, writeSidebarCollapsed } from "@/lib/layout/shell-storage";
 import { cn } from "@/lib/utils";
@@ -107,17 +106,7 @@ export function DashboardShell({
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
-          <header className="shell-topbar hidden items-center justify-between gap-3 px-4 py-3 md:px-6 lg:flex">
-            <p className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground">
-              {navTitle}
-            </p>
-            {!sidebarCollapsed ? (
-              <div className="shrink-0">
-                <ThemeToggle variant="compact" />
-              </div>
-            ) : null}
-          </header>
-          <main className="scrollbar-hidden flex-1 overflow-auto px-4 py-6 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:pb-8">
+          <main className="scrollbar-hidden flex-1 overflow-auto px-4 py-6 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:pb-8 lg:pt-8">
             {children}
           </main>
         </div>

@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 import {
+  CLOTHING_BRANDS,
   CLOTHING_CATEGORIES,
+  CLOTHING_COLORS,
   CLOTHING_SIZES,
   LOCATION_TYPES,
   ORDER_STATUSES,
@@ -49,9 +51,12 @@ export const createManualInventorySchema = z.object({
 });
 
 export const createProductSchema = z.object({
-  name: z.string().min(1).max(120),
+  model: z.string().min(1).max(120),
+  brand: z.enum(CLOTHING_BRANDS),
   category: z.enum(CLOTHING_CATEGORIES),
+  color: z.enum(CLOTHING_COLORS),
   season: z.string().min(4).max(20),
+  is_shop_item: z.boolean().optional().default(false),
   notes: z.string().max(500).optional(),
 });
 
@@ -67,4 +72,9 @@ export const updateOrderLineReceivedSchema = z.object({
 
 export const updateLocationSchema = createLocationSchema.extend({
   id: z.string().uuid(),
+});
+
+export const moveLocationSchema = z.object({
+  id: z.string().uuid(),
+  parent_id: z.string().uuid().nullable(),
 });

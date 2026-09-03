@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MapPin, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 
 import { InventoryPageClient } from "@/components/clothing/InventoryPageClient";
@@ -30,7 +30,7 @@ export function InventoryWarehouseView({
       <PageHeader
         back={{ href: appRoutes.clothing.hub, label: "Gestión de ropa" }}
         title="Inventario"
-        subtitle="Lotes pendientes de ubicar y stock en almacén."
+        subtitle="Stock agrupado por caja. Lo que aún no tiene caja aparece arriba, por ubicar."
         actions={
           <div className="hidden items-center gap-2 md:flex">
             <button
@@ -42,7 +42,7 @@ export function InventoryWarehouseView({
               Añadir stock
             </button>
             <Link href={appRoutes.clothing.locations} className="btn-secondary inline-flex">
-              Ubicaciones
+              Cajas
             </Link>
           </div>
         }
@@ -50,10 +50,9 @@ export function InventoryWarehouseView({
 
       <Link
         href={appRoutes.clothing.locations}
-        className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm font-medium text-brand md:hidden"
+        className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-brand md:hidden"
       >
-        <MapPin className="size-4 shrink-0" aria-hidden />
-        Ubicaciones de almacén
+        Cajas
       </Link>
 
       <InventoryPageClient

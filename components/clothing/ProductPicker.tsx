@@ -1,14 +1,16 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   ClothingBottomSheet,
   ClothingSheetOption,
 } from "@/components/clothing/ClothingBottomSheet";
+import { Select } from "@/components/club/Select";
 import { Label } from "@/components/club/Label";
 import { PRODUCT_CATEGORY_LABELS } from "@/lib/clothing/constants";
+import { formatProductShort } from "@/lib/clothing/formatProduct";
 import { cn } from "@/lib/utils";
 import type { ClothingProduct } from "@/lib/types/db";
 
@@ -27,8 +29,17 @@ export function ProductPicker({
   const selected = products.find((product) => product.id === value);
 
   const labelText = selected
-    ? `${selected.name} (${PRODUCT_CATEGORY_LABELS[selected.category]})`
+    ? `${formatProductShort(selected)} (${PRODUCT_CATEGORY_LABELS[selected.category]})`
     : "Selecciona prenda…";
+
+  const selectOptions = useMemo(
+    () =>
+      products.map((product) => ({
+        value: product.id,
+        label: `${formatProductShort(product)} (${PRODUCT_CATEGORY_LABELS[product.category]})`,
+      })),
+    [products],
+  );
 
   function select(productId: string) {
     onChange(productId);
@@ -52,19 +63,16 @@ export function ProductPicker({
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </button>
 
-      <select
-        aria-labelledby={`${id}-label`}
-        className="form-input hidden min-h-11 md:block"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">Selecciona prenda…</option>
-        {products.map((product) => (
-          <option key={product.id} value={product.id}>
-            {product.name} ({PRODUCT_CATEGORY_LABELS[product.category]})
-          </option>
-        ))}
-      </select>
+      <div className="hidden md:block">
+        <Select
+          id={id}
+          aria-label="Prenda"
+          value={value}
+          onChange={onChange}
+          options={selectOptions}
+          placeholder="Selecciona prenda…"
+        />
+      </div>
 
       <ClothingBottomSheet
         open={sheetOpen}
@@ -82,7 +90,7 @@ export function ProductPicker({
               selected={value === product.id}
               onSelect={() => select(product.id)}
             >
-              <span className="font-medium">{product.name}</span>
+              <span className="font-medium">{formatProductShort(product)}</span>
               <span className="text-muted-foreground">
                 {" "}
                 ({PRODUCT_CATEGORY_LABELS[product.category]})

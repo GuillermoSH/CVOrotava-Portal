@@ -2,7 +2,7 @@
 
 import { Mail } from "lucide-react";
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { appToast } from "@/lib/toast";
 
 import { notifyCriticalDebtors } from "@/lib/actions/notifications";
 import type { CriticalDebtor } from "@/lib/mocks/admin";
@@ -39,14 +39,14 @@ export function CriticalDebtorsCard({
     startTransition(async () => {
       const result = await notifyCriticalDebtors();
       if (result.ok) {
-        toast.success(`Enviados ${result.sent} avisos.`);
+        appToast.success(`Enviados ${result.sent} avisos.`);
         return;
       }
       if (result.reason === "email-not-configured") {
-        toast.message("Envío de avisos pendiente de configurar Resend.");
+        appToast.info("Envío de avisos pendiente de configurar Resend.");
         return;
       }
-      toast.error("No hay destinatarios para avisar.");
+      appToast.error("No hay destinatarios para avisar.");
     });
   }
 

@@ -15,7 +15,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { appToast } from "@/lib/toast";
 
 import { Badge } from "@/components/club/Badge";
 import {
@@ -28,6 +28,7 @@ import {
   ORDER_STATUS_TRANSITIONS,
 } from "@/lib/clothing/constants";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
+import { formatProductShort } from "@/lib/clothing/formatProduct";
 import { appRoutes } from "@/lib/constants";
 import type { ClothingOrderStatus, ClothingOrderWithLines } from "@/lib/types/db";
 import { cn } from "@/lib/utils";
@@ -60,7 +61,7 @@ function OrderCard({
       <div className="mt-2 flex flex-wrap gap-1">
         {order.lines.slice(0, 2).map((line) => (
           <Badge key={line.id} variant="secondary" className="text-[10px]">
-            {line.product.name} {formatClothingSize(line.size)}
+            {formatProductShort(line.product)} {formatClothingSize(line.size)}
           </Badge>
         ))}
       </div>
@@ -156,10 +157,10 @@ export function OrderKanbanBoard({ orders }: { orders: ClothingOrderWithLines[] 
     startTransition(async () => {
       const result = await updateOrderStatus({ order_id: orderId, status: targetStatus });
       if (!result.ok) {
-        toast.error(result.error);
+        appToast.error(result.error);
         return;
       }
-      toast.success(`Movido a ${ORDER_STATUS_LABELS[targetStatus]}`);
+      appToast.success(`Movido a ${ORDER_STATUS_LABELS[targetStatus]}`);
       setConfirmStatus(null);
       router.refresh();
     });
@@ -183,7 +184,7 @@ export function OrderKanbanBoard({ orders }: { orders: ClothingOrderWithLines[] 
 
     const allowed = ORDER_STATUS_TRANSITIONS[order.status];
     if (!allowed.includes(targetStatus)) {
-      toast.error("Transición no permitida");
+      appToast.error("Transición no permitida");
       return;
     }
 

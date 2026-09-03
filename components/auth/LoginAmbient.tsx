@@ -1,6 +1,5 @@
 /**
- * Fondo ambiental del login — orbes de brillo sutiles (alternativa a las
- * partículas de Team-Manager). Solo CSS; el gradiente radial superior domina.
+ * Fondo ambiental del login — orbes de brillo (alternativa a partículas de Team Manager).
  */
 export function LoginAmbient() {
   return (
@@ -14,6 +13,13 @@ export function LoginAmbient() {
         style={{
           background: "radial-gradient(circle, var(--color-brand-strong), transparent 70%)",
           animationDelay: "1.4s",
+        }}
+      />
+      <div
+        className="absolute left-1/2 top-[8%] h-40 w-40 -translate-x-1/2 rounded-full opacity-15 blur-3xl motion-safe:animate-float"
+        style={{
+          background: "radial-gradient(circle, var(--color-brand), transparent 72%)",
+          animationDelay: "0.7s",
         }}
       />
     </div>

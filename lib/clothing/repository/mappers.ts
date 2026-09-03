@@ -3,7 +3,9 @@ import type {
   ClothingInventorySourceType,
   ClothingOrderStatus,
   ClothingProduct,
+  ClothingProductBrand,
   ClothingProductCategory,
+  ClothingProductColor,
   ClothingSize,
   ClothingStorageLocation,
   ClothingSupplierOrder,
@@ -12,10 +14,13 @@ import type {
 
 type ProductRow = {
   id: string;
-  name: string;
+  model: string;
+  brand: string;
   category: string;
+  color: string;
   season: string;
   is_active: boolean;
+  is_shop_item: boolean;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -73,10 +78,13 @@ type LotRow = {
 export function mapProduct(row: ProductRow): ClothingProduct {
   return {
     id: row.id,
-    name: row.name,
+    model: row.model,
+    brand: row.brand as ClothingProductBrand,
     category: row.category as ClothingProductCategory,
+    color: row.color as ClothingProductColor,
     season: row.season,
     is_active: row.is_active,
+    is_shop_item: row.is_shop_item ?? false,
     notes: row.notes,
     created_at: row.created_at,
     updated_at: row.updated_at,

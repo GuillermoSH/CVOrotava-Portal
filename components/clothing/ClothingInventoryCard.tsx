@@ -4,6 +4,7 @@ import { Badge } from "@/components/club/Badge";
 import { Button } from "@/components/club/Button";
 import { INVENTORY_SOURCE_LABELS, INVENTORY_STATUS_LABELS } from "@/lib/clothing/constants";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
+import { formatProductShort } from "@/lib/clothing/formatProduct";
 import type { ClothingInventoryLotWithDetails, ClothingInventoryStatus } from "@/lib/types/db";
 
 export function InventorySourceBadge({
@@ -39,7 +40,7 @@ export function ClothingInventoryCard({
     <article className="clothing-list-card">
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 truncate font-semibold tracking-tight text-foreground">
-          {lot.product.name}
+          {formatProductShort(lot.product)}
         </p>
         <InventoryStatusBadge status={lot.status} />
       </div>

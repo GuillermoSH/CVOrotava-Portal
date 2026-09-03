@@ -1,14 +1,13 @@
 "use client";
 
-import { MoreHorizontal, Plus, Shirt, Trash2 } from "lucide-react";
+import { Copy, MoreHorizontal, Pencil, Plus, Power, PowerOff, Shirt, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useMemo, useState, useTransition } from "react";
 
 import { Badge } from "@/components/club/Badge";
 import { Button } from "@/components/club/Button";
-import { Input } from "@/components/club/Input";
-import { Label } from "@/components/club/Label";
+import { ConfirmDialog } from "@/components/club/ConfirmDialog";
+import { FormInput, FormSelect, FormTextarea } from "@/components/club/forms";
 import {
   Table,
   TableBody,
@@ -17,7 +16,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/club/Table";
+import { TableActionsCell, TableIconAction } from "@/components/club/TableActions";
+import { TableRowInteractive } from "@/components/club/TableRowInteractive";
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
+import { ProductColorBadge } from "@/components/clothing/ProductColorBadge";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import {
   createClothingProduct,
@@ -25,30 +27,89 @@ import {
   setClothingProductActive,
   updateClothingProduct,
 } from "@/lib/actions/clothing/products";
-import { getCurrentSeason } from "@/lib/season";
 import {
+  CLOTHING_BRANDS,
+  CLOTHING_BRAND_LABELS,
   CLOTHING_CATEGORIES,
+  CLOTHING_COLORS,
+  CLOTHING_COLOR_LABELS,
   PRODUCT_CATEGORY_LABELS,
 } from "@/lib/clothing/constants";
-import type { ClothingProduct, ClothingProductCategory } from "@/lib/types/db";
+import { formatProductShort } from "@/lib/clothing/formatProduct";
+import { formatSeasonShort, getCurrentSeason, getSeasonSelectOptions } from "@/lib/season";
+import {
+  toFieldError,
+  validateProductFormInput,
+  type ProductFormField,
+  type ProductFormFieldErrors,
+} from "@/lib/clothing/validateProductForm";
+import type {
+  ClothingProduct,
+  ClothingProductBrand,
+  ClothingProductCategory,
+  ClothingProductColor,
+} from "@/lib/types/db";
 import { cn } from "@/lib/utils";
+import { appToast } from "@/lib/toast";
 
 type FormState = {
-  mode: "create" | "edit";
+  mode: "create" | "edit" | "duplicate";
   id?: string;
-  name: string;
+  duplicateFromLabel?: string;
+  brand: ClothingProductBrand;
+  model: string;
   category: ClothingProductCategory;
+  color: ClothingProductColor;
   season: string;
   notes: string;
+  is_shop_item: boolean;
 };
 
 const emptyForm = (): FormState => ({
   mode: "create",
-  name: "",
-  category: "shirt",
+  brand: "hummel",
+  model: "",
+  category: "shirt_competition",
+  color: "blanco",
   season: getCurrentSeason(),
   notes: "",
+  is_shop_item: false,
 });
+
+function formFromProduct(
+  product: ClothingProduct,
+  mode: "edit" | "duplicate",
+): FormState {
+  return {
+    mode,
+    id: mode === "edit" ? product.id : undefined,
+    duplicateFromLabel:
+      mode === "duplicate" ? formatProductShort(product) : undefined,
+    brand: product.brand,
+    model: product.model,
+    category: product.category,
+    color: product.color,
+    season: product.season,
+    notes: product.notes ?? "",
+    is_shop_item: product.is_shop_item,
+  };
+}
+
+function duplicateLabelFromForm(form: FormState): string {
+  return formatProductShort({
+    brand: form.brand,
+    model: form.model.trim() || "…",
+    color: form.color,
+  });
+}
+
+function ProductBrandBadge({ brand }: { brand: ClothingProductBrand }) {
+  return (
+    <Badge variant="secondary" className="text-[11px]">
+      {CLOTHING_BRAND_LABELS[brand]}
+    </Badge>
+  );
+}
 
 function ProductCategoryBadge({ category }: { category: ClothingProductCategory }) {
   return (
@@ -58,52 +119,110 @@ function ProductCategoryBadge({ category }: { category: ClothingProductCategory 
   );
 }
 
+function ProductShopBadge() {
+  return (
+    <Badge variant="info" className="text-[11px]">
+      Tienda
+    </Badge>
+  );
+}
+
 export function ProductsPageClient({ products }: { products: ClothingProduct[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [fieldErrors, setFieldErrors] = useState<ProductFormFieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClothingProduct | null>(null);
 
+  const seasonOptions = useMemo(
+    () => getSeasonSelectOptions(form.season ? [form.season] : []),
+    [form.season],
+  );
+
+  function resetForm(next: FormState) {
+    setForm(next);
+    setFieldErrors({});
+    setFormError(null);
+  }
+
+  function clearFieldError(field: ProductFormField) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+    setFormError(null);
+  }
+
   function openCreate() {
-    setForm(emptyForm());
+    resetForm(emptyForm());
     setFormOpen(true);
   }
 
   function openEdit(product: ClothingProduct) {
-    setForm({
-      mode: "edit",
-      id: product.id,
-      name: product.name,
-      category: product.category,
-      season: product.season,
-      notes: product.notes ?? "",
-    });
+    resetForm(formFromProduct(product, "edit"));
     setMenuId(null);
     setFormOpen(true);
   }
 
-  function submitForm() {
-    startTransition(async () => {
-      const payload = {
-        name: form.name.trim(),
-        category: form.category,
-        season: form.season.trim(),
-        notes: form.notes.trim() || undefined,
-      };
+  function openDuplicate(product: ClothingProduct) {
+    resetForm(formFromProduct(product, "duplicate"));
+    setMenuId(null);
+    setFormOpen(true);
+  }
 
+  function switchEditToDuplicate() {
+    setForm((current) => ({
+      ...current,
+      mode: "duplicate",
+      id: undefined,
+      duplicateFromLabel: duplicateLabelFromForm(current),
+    }));
+  }
+
+  function submitForm() {
+    const payload = {
+      brand: form.brand,
+      model: form.model.trim(),
+      category: form.category,
+      color: form.color,
+      season: form.season.trim(),
+      notes: form.notes.trim() || undefined,
+      is_shop_item: form.is_shop_item,
+    };
+
+    const validation = validateProductFormInput(payload);
+    if (!validation.ok) {
+      setFieldErrors(validation.fieldErrors);
+      setFormError("Revisa los campos marcados antes de continuar.");
+      return;
+    }
+
+    setFieldErrors({});
+    setFormError(null);
+
+    startTransition(async () => {
       const result =
-        form.mode === "create"
-          ? await createClothingProduct(payload)
-          : await updateClothingProduct({ ...payload, id: form.id! });
+        form.mode === "edit"
+          ? await updateClothingProduct({ ...validation.data, id: form.id! })
+          : await createClothingProduct(validation.data);
 
       if (!result.ok) {
-        toast.error(result.error);
+        setFormError(result.error);
         return;
       }
 
-      toast.success(form.mode === "create" ? "Prenda creada" : "Prenda actualizada");
+      appToast.success(
+        form.mode === "edit"
+          ? "Prenda actualizada"
+          : form.mode === "duplicate"
+            ? "Prenda duplicada"
+            : "Prenda creada",
+      );
       setFormOpen(false);
       router.refresh();
     });
@@ -114,12 +233,17 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
     startTransition(async () => {
       const result = await setClothingProductActive(product.id, !product.is_active);
       if (!result.ok) {
-        toast.error(result.error);
+        appToast.error(result.error);
         return;
       }
-      toast.success(product.is_active ? "Prenda desactivada" : "Prenda activada");
+      appToast.success(product.is_active ? "Prenda desactivada" : "Prenda activada");
       router.refresh();
     });
+  }
+
+  function requestDelete(product: ClothingProduct) {
+    setMenuId(null);
+    setDeleteTarget(product);
   }
 
   function confirmDelete() {
@@ -127,10 +251,10 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
     startTransition(async () => {
       const result = await deleteClothingProduct(deleteTarget.id);
       if (!result.ok) {
-        toast.error(result.error);
+        appToast.error(result.error);
         return;
       }
-      toast.success("Prenda eliminada");
+      appToast.success("Prenda eliminada");
       setDeleteTarget(null);
       router.refresh();
     });
@@ -180,7 +304,7 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-foreground">{product.name}</p>
+                      <p className="font-semibold text-foreground">{formatProductShort(product)}</p>
                       {!product.is_active ? (
                         <Badge variant="secondary" className="text-[10px]">
                           Inactiva
@@ -188,8 +312,12 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
                       ) : null}
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <ProductBrandBadge brand={product.brand} />
                       <ProductCategoryBadge category={product.category} />
-                      <span className="text-xs text-muted-foreground">{product.season}</span>
+                      {product.is_shop_item ? <ProductShopBadge /> : null}
+                      <span className="text-xs text-muted-foreground">
+                        {formatSeasonShort(product.season)}
+                      </span>
                     </div>
                     {product.notes ? (
                       <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
@@ -203,7 +331,7 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
                       variant="ghost"
                       size="sm"
                       className="min-h-11 min-w-11"
-                      aria-label={`Opciones de ${product.name}`}
+                      aria-label={`Opciones de ${formatProductShort(product)}`}
                       onClick={() => setMenuId(menuId === product.id ? null : product.id)}
                     >
                       <MoreHorizontal className="size-4" aria-hidden />
@@ -220,6 +348,13 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
                         <button
                           type="button"
                           className="block w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--club-surface-hover)]"
+                          onClick={() => openDuplicate(product)}
+                        >
+                          Duplicar
+                        </button>
+                        <button
+                          type="button"
+                          className="block w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--club-surface-hover)]"
                           onClick={() => toggleActive(product)}
                         >
                           {product.is_active ? "Desactivar" : "Activar"}
@@ -227,10 +362,7 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
                         <button
                           type="button"
                           className="block w-full px-3 py-2.5 text-left text-sm text-destructive hover:bg-[var(--club-surface-hover)]"
-                          onClick={() => {
-                            setMenuId(null);
-                            setDeleteTarget(product);
-                          }}
+                          onClick={() => requestDelete(product)}
                         >
                           Eliminar
                         </button>
@@ -246,19 +378,30 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
                 <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nombre</TableHead>
+                    <TableHead>Marca</TableHead>
+                    <TableHead>Modelo</TableHead>
                     <TableHead>Categoría</TableHead>
+                    <TableHead>Color</TableHead>
                     <TableHead>Temporada</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead className="w-[8rem]" />
+                    <TableHead className="club-table__actions">
+                      <span className="sr-only">Acciones</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {products.map((product) => (
-                    <TableRow key={product.id} className={cn(!product.is_active && "opacity-60")}>
+                    <TableRowInteractive
+                      key={product.id}
+                      className={cn(!product.is_active && "opacity-60")}
+                      onActivate={() => openEdit(product)}
+                    >
+                      <TableCell>
+                        <ProductBrandBadge brand={product.brand} />
+                      </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{product.name}</p>
+                          <p className="club-table__primary">{product.model}</p>
                           {product.notes ? (
                             <p className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">
                               {product.notes}
@@ -269,52 +412,50 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
                       <TableCell>
                         <ProductCategoryBadge category={product.category} />
                       </TableCell>
+                      <TableCell>
+                        <ProductColorBadge color={product.color} />
+                      </TableCell>
                       <TableCell className="tabular-nums text-muted-foreground">
-                        {product.season}
+                        {formatSeasonShort(product.season)}
                       </TableCell>
                       <TableCell>
-                        {product.is_active ? (
-                          <Badge variant="secondary" className="text-[11px]">
-                            Activa
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-[11px]">
-                            Inactiva
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="min-h-9"
-                            onClick={() => openEdit(product)}
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="min-h-9"
-                            onClick={() => toggleActive(product)}
-                          >
-                            {product.is_active ? "Desactivar" : "Activar"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="min-h-9 text-destructive hover:text-destructive"
-                            onClick={() => setDeleteTarget(product)}
-                          >
-                            <Trash2 className="size-4" aria-hidden />
-                          </Button>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {product.is_active ? (
+                            <Badge variant="secondary" className="text-[11px]">
+                              Activa
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[11px]">
+                              Inactiva
+                            </Badge>
+                          )}
+                          {product.is_shop_item ? <ProductShopBadge /> : null}
                         </div>
                       </TableCell>
-                    </TableRow>
+                      <TableActionsCell>
+                        <TableIconAction
+                          label="Editar"
+                          icon={Pencil}
+                          onClick={() => openEdit(product)}
+                        />
+                        <TableIconAction
+                          label="Duplicar"
+                          icon={Copy}
+                          onClick={() => openDuplicate(product)}
+                        />
+                        <TableIconAction
+                          label={product.is_active ? "Desactivar" : "Activar"}
+                          icon={product.is_active ? PowerOff : Power}
+                          onClick={() => toggleActive(product)}
+                        />
+                        <TableIconAction
+                          label="Eliminar"
+                          icon={Trash2}
+                          destructive
+                          onClick={() => requestDelete(product)}
+                        />
+                      </TableActionsCell>
+                    </TableRowInteractive>
                   ))}
                 </TableBody>
               </Table>
@@ -327,10 +468,25 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
       <ClothingBottomSheet
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        title={form.mode === "create" ? "Nueva prenda" : "Editar prenda"}
-        description="Las prendas activas aparecen al crear pedidos a proveedor."
+        title={
+          form.mode === "edit"
+            ? "Editar prenda"
+            : form.mode === "duplicate"
+              ? "Duplicar prenda"
+              : "Nueva prenda"
+        }
+        description={
+          form.mode === "duplicate"
+            ? `Copia de «${form.duplicateFromLabel}». Ajusta lo que necesites y créala como nueva.`
+            : "Las prendas activas aparecen al crear pedidos a proveedor."
+        }
         primaryAction={{
-          label: form.mode === "create" ? "Crear prenda" : "Guardar cambios",
+          label:
+            form.mode === "edit"
+              ? "Guardar cambios"
+              : form.mode === "duplicate"
+                ? "Crear copia"
+                : "Crear prenda",
           pending,
           onClick: submitForm,
         }}
@@ -340,81 +496,153 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
         }}
       >
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="product-name">Nombre</Label>
-            <Input
-              id="product-name"
-              className="min-h-11"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Camiseta competición"
-              required
-            />
-          </div>
+          {formError ? (
+            <div
+              className="rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
+              role="alert"
+            >
+              {formError}
+            </div>
+          ) : null}
+          {form.mode === "edit" ? (
+            <button
+              type="button"
+              className="inline-flex min-h-10 w-fit items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand/80"
+              onClick={switchEditToDuplicate}
+            >
+              <Copy className="size-4" aria-hidden />
+              Duplicar como nueva prenda
+            </button>
+          ) : null}
+          <FormSelect
+            label="Marca"
+            name="product-brand"
+            id="product-brand"
+            value={form.brand}
+            error={toFieldError(fieldErrors.brand)}
+            onChange={(e) => {
+              clearFieldError("brand");
+              setForm((f) => ({
+                ...f,
+                brand: e.target.value as ClothingProductBrand,
+              }));
+            }}
+            options={CLOTHING_BRANDS.map((brand) => ({
+              value: brand,
+              label: CLOTHING_BRAND_LABELS[brand],
+            }))}
+          />
+          <FormInput
+            label="Modelo"
+            name="product-model"
+            id="product-model"
+            className="min-h-11"
+            value={form.model}
+            error={toFieldError(fieldErrors.model)}
+            onChange={(e) => {
+              clearFieldError("model");
+              setForm((f) => ({ ...f, model: e.target.value }));
+            }}
+            placeholder="Essential Jersey S/S"
+          />
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-category">Categoría</Label>
-              <select
-                id="product-category"
-                className="form-input min-h-11"
-                value={form.category}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    category: e.target.value as ClothingProductCategory,
-                  }))
-                }
-              >
-                {CLOTHING_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {PRODUCT_CATEGORY_LABELS[cat]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-season">Temporada</Label>
-              <Input
-                id="product-season"
-                className="min-h-11"
-                value={form.season}
-                onChange={(e) => setForm((f) => ({ ...f, season: e.target.value }))}
-                required
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="product-notes">Notas</Label>
-            <Input
-              id="product-notes"
-              className="min-h-11"
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              placeholder="Opcional"
+            <FormSelect
+              label="Categoría"
+              name="product-category"
+              id="product-category"
+              value={form.category}
+              error={toFieldError(fieldErrors.category)}
+              onChange={(e) => {
+                clearFieldError("category");
+                setForm((f) => ({
+                  ...f,
+                  category: e.target.value as ClothingProductCategory,
+                }));
+              }}
+              options={CLOTHING_CATEGORIES.map((cat) => ({
+                value: cat,
+                label: PRODUCT_CATEGORY_LABELS[cat],
+              }))}
+            />
+            <FormSelect
+              label="Color"
+              name="product-color"
+              id="product-color"
+              value={form.color}
+              error={toFieldError(fieldErrors.color)}
+              onChange={(e) => {
+                clearFieldError("color");
+                setForm((f) => ({
+                  ...f,
+                  color: e.target.value as ClothingProductColor,
+                }));
+              }}
+              options={CLOTHING_COLORS.map((color) => ({
+                value: color,
+                label: CLOTHING_COLOR_LABELS[color],
+              }))}
             />
           </div>
+          <FormSelect
+            label="Temporada"
+            name="product-season"
+            id="product-season"
+            value={form.season}
+            error={toFieldError(fieldErrors.season)}
+            onChange={(e) => {
+              clearFieldError("season");
+              setForm((f) => ({ ...f, season: e.target.value }));
+            }}
+            options={seasonOptions}
+          />
+          <div className="rounded-lg border border-[var(--club-border)] p-3">
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 shrink-0 rounded border-[var(--club-border)] accent-brand"
+                checked={form.is_shop_item}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, is_shop_item: e.target.checked }))
+                }
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-foreground">Artículo de tienda</span>
+                <span className="text-xs text-muted-foreground">
+                  Marca si se vende en la tienda del club además de la equipación de equipo.
+                </span>
+              </span>
+            </label>
+          </div>
+          <FormTextarea
+            label="Notas"
+            name="product-notes"
+            id="product-notes"
+            className="min-h-[4.5rem] resize-none"
+            value={form.notes}
+            error={toFieldError(fieldErrors.notes)}
+            onChange={(e) => {
+              clearFieldError("notes");
+              setForm((f) => ({ ...f, notes: e.target.value }));
+            }}
+            placeholder="Opcional"
+            rows={2}
+          />
         </div>
       </ClothingBottomSheet>
 
-      <ClothingBottomSheet
+      <ConfirmDialog
         open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         title="Eliminar prenda"
         description={
           deleteTarget
-            ? `¿Eliminar «${deleteTarget.name}»? Solo es posible si no tiene pedidos ni stock.`
+            ? `¿Eliminar «${formatProductShort(deleteTarget)}»? Solo es posible si no tiene pedidos ni stock.`
             : undefined
         }
-        primaryAction={{
-          label: "Eliminar",
-          variant: "destructive",
-          pending,
-          onClick: confirmDelete,
-        }}
-        secondaryAction={{
-          label: "Cancelar",
-          onClick: () => setDeleteTarget(null),
-        }}
+        confirmLabel="Eliminar"
+        destructive
+        pending={pending}
+        onConfirm={confirmDelete}
       />
 
       <ClothingStickyActionBar

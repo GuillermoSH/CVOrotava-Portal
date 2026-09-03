@@ -4,11 +4,9 @@ import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/club/Button";
-import { Input } from "@/components/club/Input";
-import { Label } from "@/components/club/Label";
+import { FormInput, FormTextarea } from "@/components/club/forms";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { ProductPicker } from "@/components/clothing/ProductPicker";
 import { SizePicker } from "@/components/clothing/SizePicker";
@@ -16,6 +14,7 @@ import { createSupplierOrder } from "@/lib/actions/clothing/orders";
 import { formatSeasonShort, getCurrentSeason } from "@/lib/season";
 import { appRoutes } from "@/lib/constants";
 import type { ClothingProduct, ClothingSize } from "@/lib/types/db";
+import { appToast } from "@/lib/toast";
 
 type LineDraft = {
   productId: string;
@@ -78,11 +77,11 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
       });
 
       if (!result.ok) {
-        toast.error(result.error);
+        appToast.error(result.error);
         return;
       }
 
-      toast.success("Pedido creado");
+      appToast.success("Pedido creado");
       router.push(appRoutes.clothing.orderDetail(result.orderId!));
       router.refresh();
     });
@@ -94,39 +93,41 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
         <section className="flex flex-col gap-5">
           <h2 className="section-title">Datos del pedido</h2>
           <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="supplier">Proveedor</Label>
-              <Input
-                id="supplier"
-                className="min-h-11"
-                value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
-                placeholder="Nombre del proveedor"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="season">Temporada</Label>
-              <Input
+            <FormInput
+              label="Proveedor"
+              name="supplier"
+              id="supplier"
+              className="min-h-11"
+              value={supplierName}
+              onChange={(e) => setSupplierName(e.target.value)}
+              placeholder="Nombre del proveedor"
+              required
+            />
+            <div>
+              <FormInput
+                label="Temporada"
+                name="season"
                 id="season"
                 className="min-h-11"
                 value={season}
                 onChange={(e) => setSeason(e.target.value)}
                 required
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Activa: {formatSeasonShort(getCurrentSeason())} (desde 1 sep). Puedes elegir otra
                 para pedidos históricos.
               </p>
             </div>
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label htmlFor="notes">Notas</Label>
-              <Input
+            <div className="sm:col-span-2">
+              <FormTextarea
+                label="Notas"
+                name="notes"
                 id="notes"
-                className="min-h-11"
+                className="min-h-[4.5rem] resize-none"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Opcional"
+                rows={2}
               />
             </div>
           </div>
@@ -170,19 +171,18 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
                   onChange={(size) => updateLine(index, { size })}
                   id={`size-${index}`}
                 />
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor={`qty-${index}`}>Cantidad</Label>
-                    <Input
-                      id={`qty-${index}`}
-                      className="min-h-11"
-                      type="number"
-                      min={1}
-                      inputMode="numeric"
-                      value={line.quantityOrdered}
-                      onChange={(e) => updateLine(index, { quantityOrdered: e.target.value })}
-                      required
-                    />
-                  </div>
+                  <FormInput
+                    label="Cantidad"
+                    name={`qty-${index}`}
+                    id={`qty-${index}`}
+                    className="min-h-11"
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={line.quantityOrdered}
+                    onChange={(e) => updateLine(index, { quantityOrdered: e.target.value })}
+                    required
+                  />
                 </div>
                 <div className="flex items-end justify-end sm:justify-start">
                   <Button

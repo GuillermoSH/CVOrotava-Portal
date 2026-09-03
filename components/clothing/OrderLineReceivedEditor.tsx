@@ -2,11 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { appToast } from "@/lib/toast";
 
 import { Input } from "@/components/club/Input";
 import { updateOrderLineReceived } from "@/lib/actions/clothing/orders";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
+import { formatProductShort } from "@/lib/clothing/formatProduct";
 import type { ClothingOrderLineWithProduct } from "@/lib/types/db";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,7 @@ export function OrderLineReceivedEditor({
         quantity_received: qty,
       });
       if (!result.ok) {
-        toast.error(result.error);
+        appToast.error(result.error);
         return;
       }
       router.refresh();
@@ -46,7 +47,7 @@ export function OrderLineReceivedEditor({
       max={line.quantity_ordered}
       defaultValue={line.quantity_received}
       disabled={pending}
-      aria-label={`Unidades recibidas de ${line.product.name}, talla ${formatClothingSize(line.size)}`}
+      aria-label={`Unidades recibidas de ${formatProductShort(line.product)}, talla ${formatClothingSize(line.size)}`}
       className={cn(
         "tabular-nums",
         layout === "mobile"

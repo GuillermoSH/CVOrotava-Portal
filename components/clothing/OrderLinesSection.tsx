@@ -10,6 +10,7 @@ import {
 } from "@/components/club/Table";
 import { OrderLineReceivedEditor } from "@/components/clothing/OrderLineReceivedEditor";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
+import { formatProductShort } from "@/lib/clothing/formatProduct";
 import type { ClothingOrderLineWithProduct } from "@/lib/types/db";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +21,7 @@ function OrderLineCard({ line }: { line: ClothingOrderLineWithProduct }) {
     <div className="clothing-list-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="font-semibold leading-snug text-foreground">{line.product.name}</p>
+          <p className="font-semibold leading-snug text-foreground">{formatProductShort(line.product)}</p>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Talla {formatClothingSize(line.size)} · {line.quantity_ordered} pedidas
           </p>
@@ -79,7 +80,7 @@ export function OrderLinesSection({ lines }: { lines: ClothingOrderLineWithProdu
 
               return (
                 <TableRow key={line.id}>
-                  <TableCell className="font-medium">{line.product.name}</TableCell>
+                  <TableCell className="club-table__primary">{formatProductShort(line.product)}</TableCell>
                   <TableCell>{formatClothingSize(line.size)}</TableCell>
                   <TableCell className="tabular-nums">{line.quantity_ordered}</TableCell>
                   <TableCell>

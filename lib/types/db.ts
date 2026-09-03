@@ -60,11 +60,25 @@ export type Payment = {
 /** supabase/migrations/20260831130000_clothing_warehouse.sql */
 
 export type ClothingProductCategory =
-  | "backpack"
-  | "shirt"
-  | "pants"
+  | "shirt_warmup"
+  | "shirt_competition"
   | "jacket"
-  | "other";
+  | "pants_short"
+  | "shorts"
+  | "sweatshirt"
+  | "pants_long"
+  | "backpack"
+  | "socks";
+
+export type ClothingProductColor =
+  | "blanco"
+  | "negro"
+  | "rojo"
+  | "rojo_blanco"
+  | "negro_blanco"
+  | "rojo_negro";
+
+export type ClothingProductBrand = "hummel" | "aqua_royal" | "joma" | "errea";
 
 export type ClothingOrderStatus =
   | "draft"
@@ -107,10 +121,13 @@ export type ClothingSize =
 
 export type ClothingProduct = {
   id: string;
-  name: string;
+  model: string;
+  brand: ClothingProductBrand;
   category: ClothingProductCategory;
+  color: ClothingProductColor;
   season: string;
   is_active: boolean;
+  is_shop_item: boolean;
   notes: string | null;
   created_at: string;
   updated_at: string;

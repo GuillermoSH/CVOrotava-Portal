@@ -76,15 +76,14 @@ export function validateLocationHierarchy(
   if (locationType === "cabinet" && parentId) {
     return "Un armario no puede tener padre";
   }
-  if (locationType !== "cabinet" && !parentId) {
-    return "Balda y caja requieren un padre";
+  if (locationType === "shelf") {
+    if (!parentId || !parent) return "La balda debe estar bajo un armario";
+    if (parent.location_type !== "cabinet") return "La balda debe estar bajo un armario";
   }
-  if (parentId && parent) {
-    if (locationType === "shelf" && parent.location_type !== "cabinet") {
-      return "La balda debe estar bajo un armario";
-    }
-    if (locationType === "box" && parent.location_type !== "shelf") {
-      return "La caja debe estar bajo una balda";
+  if (locationType === "box" && parentId) {
+    if (!parent) return "Ubicación padre no encontrada";
+    if (parent.location_type !== "cabinet" && parent.location_type !== "shelf") {
+      return "La caja debe estar suelta o dentro de un armario";
     }
   }
   return null;

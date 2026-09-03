@@ -1,13 +1,18 @@
 import type { ClothingDb } from "@/lib/clothing/repository/client";
 import { dbErrorMessage } from "@/lib/clothing/repository/helpers";
 import { mapProduct } from "@/lib/clothing/repository/mappers";
-import type { ClothingProduct, ClothingProductCategory } from "@/lib/types/db";
+import type {
+  ClothingProduct,
+  ClothingProductBrand,
+  ClothingProductCategory,
+  ClothingProductColor,
+} from "@/lib/types/db";
 
 export async function listProducts(db: ClothingDb): Promise<ClothingProduct[]> {
   const { data, error } = await db
     .from("clothing_products")
     .select("*")
-    .order("name", { ascending: true });
+    .order("model", { ascending: true });
 
   if (error) throw new Error(dbErrorMessage(error));
   return (data ?? []).map(mapProduct);
@@ -18,7 +23,7 @@ export async function listActiveProducts(db: ClothingDb): Promise<ClothingProduc
     .from("clothing_products")
     .select("*")
     .eq("is_active", true)
-    .order("name", { ascending: true });
+    .order("model", { ascending: true });
 
   if (error) throw new Error(dbErrorMessage(error));
   return (data ?? []).map(mapProduct);
@@ -33,17 +38,23 @@ export async function getProductById(
   return data ? mapProduct(data) : null;
 }
 
-export async function findProductByNameSeason(
+export async function findDuplicateProduct(
   db: ClothingDb,
-  name: string,
+  model: string,
+  brand: ClothingProductBrand,
+  color: ClothingProductColor,
+  category: ClothingProductCategory,
   season: string,
   excludeId?: string,
 ): Promise<ClothingProduct | null> {
   let query = db
     .from("clothing_products")
     .select("*")
-    .eq("season", season)
-    .ilike("name", name.trim());
+    .eq("season", season.trim())
+    .eq("brand", brand)
+    .eq("color", color)
+    .eq("category", category)
+    .ilike("model", model.trim());
 
   if (excludeId) query = query.neq("id", excludeId);
 
@@ -55,19 +66,25 @@ export async function findProductByNameSeason(
 export async function createProduct(
   db: ClothingDb,
   input: {
-    name: string;
+    model: string;
+    brand: ClothingProductBrand;
     category: ClothingProductCategory;
+    color: ClothingProductColor;
     season: string;
     notes?: string | null;
+    is_shop_item?: boolean;
   },
 ): Promise<ClothingProduct> {
   const { data, error } = await db
     .from("clothing_products")
     .insert({
-      name: input.name.trim(),
+      model: input.model.trim(),
+      brand: input.brand,
       category: input.category,
+      color: input.color,
       season: input.season.trim(),
       notes: input.notes ?? null,
+      is_shop_item: input.is_shop_item ?? false,
       is_active: true,
     })
     .select("*")
@@ -81,20 +98,26 @@ export async function updateProduct(
   db: ClothingDb,
   input: {
     id: string;
-    name: string;
+    model: string;
+    brand: ClothingProductBrand;
     category: ClothingProductCategory;
+    color: ClothingProductColor;
     season: string;
     notes?: string | null;
+    is_shop_item?: boolean;
     is_active?: boolean;
   },
 ): Promise<ClothingProduct> {
   const patch: Record<string, unknown> = {
-    name: input.name.trim(),
+    model: input.model.trim(),
+    brand: input.brand,
     category: input.category,
+    color: input.color,
     season: input.season.trim(),
     notes: input.notes ?? null,
     updated_at: new Date().toISOString(),
   };
+  if (input.is_shop_item !== undefined) patch.is_shop_item = input.is_shop_item;
   if (input.is_active !== undefined) patch.is_active = input.is_active;
 
   const { data, error } = await db

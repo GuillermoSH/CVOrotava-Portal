@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Shirt } from "lucide-react";
 
@@ -12,10 +13,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/club/Table";
+import { TableRowInteractive } from "@/components/club/TableRowInteractive";
 import { ClothingFilterChips } from "@/components/clothing/ClothingFilterChips";
 import { ClothingOrderCard } from "@/components/clothing/ClothingOrderCard";
 import { OrderStatusBadge } from "@/components/clothing/OrderStatusBadge";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
+import { formatProductShort } from "@/lib/clothing/formatProduct";
 import { ORDER_STATUS_LABELS } from "@/lib/clothing/constants";
 import { appRoutes } from "@/lib/constants";
 import type { ClothingOrderStatus, ClothingOrderWithLines } from "@/lib/types/db";
@@ -74,6 +77,7 @@ export function OrderListView({
   statusFilter: ClothingOrderStatus | "all" | "open";
   onStatusFilterChange: (value: ClothingOrderStatus | "all" | "open") => void;
 }) {
+  const router = useRouter();
   const filtered = orders.filter((order) => {
     if (statusFilter === "all") return true;
     if (statusFilter === "open") return order.status !== "closed";
@@ -125,15 +129,11 @@ export function OrderListView({
               </TableHeader>
               <TableBody>
                 {filtered.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      <Link
-                        href={appRoutes.clothing.orderDetail(order.id)}
-                        className="font-medium text-brand hover:underline"
-                      >
-                        {order.reference}
-                      </Link>
-                    </TableCell>
+                  <TableRowInteractive
+                    key={order.id}
+                    onActivate={() => router.push(appRoutes.clothing.orderDetail(order.id))}
+                  >
+                    <TableCell className="club-table__primary text-brand">{order.reference}</TableCell>
                     <TableCell>{order.supplier_name}</TableCell>
                     <TableCell>
                       <OrderStatusBadge status={order.status} />
@@ -142,7 +142,7 @@ export function OrderListView({
                       <div className="flex flex-wrap gap-1">
                         {order.lines.slice(0, 3).map((line) => (
                           <Badge key={line.id} variant="secondary" className="text-[10px]">
-                            {line.product.name} {formatClothingSize(line.size)}
+                            {formatProductShort(line.product)} {formatClothingSize(line.size)}
                           </Badge>
                         ))}
                         {order.lines.length > 3 ? (
@@ -155,7 +155,7 @@ export function OrderListView({
                     <TableCell className="tabular-nums text-muted-foreground">
                       {formatOrderDate(order.updated_at)}
                     </TableCell>
-                  </TableRow>
+                  </TableRowInteractive>
                 ))}
               </TableBody>
             </Table>

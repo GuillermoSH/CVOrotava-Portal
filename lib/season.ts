@@ -42,3 +42,42 @@ export function seasonStartYear(season: SeasonId): number {
   const year = Number(season.split("-")[0]);
   return Number.isFinite(year) ? year : new Date().getFullYear();
 }
+
+export function buildSeasonId(startYear: number): SeasonId {
+  const endShort = (startYear + 1) % 100;
+  return `${startYear}-${String(endShort).padStart(2, "0")}`;
+}
+
+export type SeasonSelectOption = {
+  value: SeasonId;
+  label: string;
+};
+
+/** Temporadas seleccionables (pasadas + actual + futuras). */
+export function getSeasonSelectOptions(
+  extraSeasons: SeasonId[] = [],
+  config?: {
+    referenceDate?: Date;
+    pastCount?: number;
+    futureCount?: number;
+  },
+): SeasonSelectOption[] {
+  const { referenceDate = new Date(), pastCount = 2, futureCount = 1 } = config ?? {};
+  const currentStart = seasonStartYear(getCurrentSeason(referenceDate));
+  const ids = new Set<SeasonId>();
+
+  for (let year = currentStart - pastCount; year <= currentStart + futureCount; year += 1) {
+    ids.add(buildSeasonId(year));
+  }
+
+  for (const season of extraSeasons) {
+    if (season.trim()) ids.add(season.trim());
+  }
+
+  return [...ids]
+    .sort((a, b) => b.localeCompare(a, "es"))
+    .map((value) => ({
+      value,
+      label: formatSeasonShort(value),
+    }));
+}

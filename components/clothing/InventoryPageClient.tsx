@@ -1,19 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Package, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { ClothingFilterChips } from "@/components/clothing/ClothingFilterChips";
-import { ClothingInventoryCard } from "@/components/clothing/ClothingInventoryCard";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { InventoryAssignDialog } from "@/components/clothing/InventoryAssignDialog";
-import { InventoryTable } from "@/components/clothing/InventoryTable";
+import { InventoryBoxBoard } from "@/components/clothing/InventoryBoxBoard";
 import { Button } from "@/components/club/Button";
 import { INVENTORY_STATUS_LABELS } from "@/lib/clothing/constants";
+import { flattenBoxNodes } from "@/lib/clothing/storageBoxes";
 import type {
   ClothingInventoryLotWithDetails,
   ClothingInventoryStatus,
-  ClothingProduct,
   ClothingStorageLocationNode,
 } from "@/lib/types/db";
 
@@ -30,16 +29,13 @@ function InventoryEmptyState({
 
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
-      <div className="flex size-11 items-center justify-center rounded-full bg-[var(--club-brand-soft)] text-brand">
-        <Package className="size-5" aria-hidden />
-      </div>
-      <p className="mt-4 font-medium text-foreground">
+      <p className="font-medium text-foreground">
         {isFiltered ? "Ningún lote con este filtro" : "Inventario vacío"}
       </p>
       <p className="mt-1.5 max-w-xs text-sm leading-relaxed text-muted-foreground">
         {isFiltered
           ? "Prueba otro estado o muestra todos los lotes."
-          : "Añade stock manualmente o recibe pedidos para generar lotes en almacén."}
+          : "Añade stock y colócalo en cajas para ver el almacén."}
       </p>
       {isFiltered ? (
         <button type="button" onClick={onResetFilter} className="btn-secondary mt-5 min-h-11">
@@ -67,10 +63,6 @@ export function InventoryPageClient({
   const [statusFilter, setStatusFilter] = useState<ClothingInventoryStatus | "all">("all");
   const [assignLot, setAssignLot] = useState<ClothingInventoryLotWithDetails | null>(null);
 
-  const filtered = lots.filter((lot) =>
-    statusFilter === "all" ? true : lot.status === statusFilter,
-  );
-
   const pendingCount = lots.filter((lot) => lot.status === "pending_storage").length;
   const storedCount = lots.filter((lot) => lot.status === "stored").length;
 
@@ -88,9 +80,16 @@ export function InventoryPageClient({
     },
   ];
 
+  const showBoxes = statusFilter !== "pending_storage";
+  const boxCount = flattenBoxNodes(storageTree).length;
+  const filteredEmpty =
+    (statusFilter === "pending_storage" && pendingCount === 0) ||
+    (statusFilter === "stored" && storedCount === 0) ||
+    (statusFilter === "all" && lots.length === 0 && boxCount === 0);
+
   return (
     <>
-      <div className="clothing-page-with-sticky flex flex-col gap-3">
+      <div className="clothing-page-with-sticky flex flex-col gap-4">
         <ClothingFilterChips
           options={filterOptions}
           value={statusFilter}
@@ -98,25 +97,22 @@ export function InventoryPageClient({
           ariaLabel="Filtrar inventario por estado"
         />
 
-        {filtered.length === 0 ? (
+        {filteredEmpty ? (
           <InventoryEmptyState
             statusFilter={statusFilter}
             onResetFilter={() => setStatusFilter("all")}
             onAddStock={() => onManualOpenChange(true)}
           />
         ) : (
-          <>
-            <div className="flex flex-col gap-2.5 md:hidden">
-              {filtered.map((lot) => (
-                <ClothingInventoryCard
-                  key={lot.id}
-                  lot={lot}
-                  onAssign={() => setAssignLot(lot)}
-                />
-              ))}
-            </div>
-            <InventoryTable lots={filtered} onAssign={setAssignLot} />
-          </>
+          <InventoryBoxBoard
+            lots={lots}
+            storageTree={storageTree}
+            showPending={
+              statusFilter === "pending_storage" || (statusFilter === "all" && pendingCount > 0)
+            }
+            showBoxes={showBoxes}
+            onAssign={setAssignLot}
+          />
         )}
       </div>
 

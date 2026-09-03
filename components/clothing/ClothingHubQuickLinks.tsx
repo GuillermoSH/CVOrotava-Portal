@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { MapPin, Shirt } from "lucide-react";
+import { Shirt } from "lucide-react";
 
+import { WarehouseBoxMark } from "@/components/clothing/WarehouseBoxMark";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { appRoutes } from "@/lib/constants";
 
@@ -15,8 +16,8 @@ export function ClothingHubQuickLinks() {
           Prendas
         </Link>
         <Link href={appRoutes.clothing.locations} className="clothing-hub-tile min-h-11">
-          <MapPin className="size-5 shrink-0 text-brand" aria-hidden />
-          Ubicaciones
+          <WarehouseBoxMark size="icon" />
+          Cajas
         </Link>
       </div>
 
@@ -28,7 +29,7 @@ export function ClothingHubQuickLinks() {
           Prendas
         </Link>
         <Link href={appRoutes.clothing.locations} className="btn-secondary min-h-11">
-          Ubicaciones
+          Cajas
         </Link>
       </div>
 

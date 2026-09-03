@@ -1,12 +1,13 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   ClothingBottomSheet,
   ClothingSheetOption,
 } from "@/components/clothing/ClothingBottomSheet";
+import { Select } from "@/components/club/Select";
 import { Label } from "@/components/club/Label";
 import {
   CLOTHING_SIZE_GROUPS,
@@ -26,6 +27,18 @@ export function SizePicker({
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const labelText = value ? CLOTHING_SIZE_LABELS[value] : "Selecciona talla…";
+
+  const selectOptions = useMemo(
+    () =>
+      CLOTHING_SIZE_GROUPS.map((group) => ({
+        label: group.label,
+        options: group.sizes.map((size) => ({
+          value: size,
+          label: CLOTHING_SIZE_LABELS[size],
+        })),
+      })),
+    [],
+  );
 
   function select(size: ClothingSize) {
     onChange(size);
@@ -49,24 +62,16 @@ export function SizePicker({
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </button>
 
-      <select
-        aria-labelledby={`${id}-label`}
-        className="form-input hidden min-h-11 md:block"
-        value={value}
-        onChange={(e) => onChange(e.target.value as ClothingSize)}
-        required
-      >
-        <option value="">Selecciona talla…</option>
-        {CLOTHING_SIZE_GROUPS.map((group) => (
-          <optgroup key={group.id} label={group.label}>
-            {group.sizes.map((size) => (
-              <option key={size} value={size}>
-                {CLOTHING_SIZE_LABELS[size]}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
+      <div className="hidden md:block">
+        <Select
+          id={id}
+          aria-label="Talla"
+          value={value}
+          onChange={(next) => onChange(next as ClothingSize)}
+          options={selectOptions}
+          placeholder="Selecciona talla…"
+        />
+      </div>
 
       <ClothingBottomSheet
         open={sheetOpen}

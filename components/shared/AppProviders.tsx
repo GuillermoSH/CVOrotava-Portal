@@ -9,7 +9,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       {children}
-      <Toaster richColors position="top-center" />
+      <Toaster />
     </ThemeProvider>
   );
 }

@@ -9,8 +9,7 @@ import { LoginAmbient } from "@/components/auth/LoginAmbient";
 import { GoogleSignInButton } from "@/components/shared/GoogleSignInButton";
 import { Logo } from "@/components/shared/Logo";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
-import { Input } from "@/components/club/Input";
-import { Label } from "@/components/club/Label";
+import { FormInput } from "@/components/club/forms";
 import { appRoutes } from "@/lib/constants";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -106,31 +105,27 @@ export function LoginScreen({ errorMessage }: { errorMessage: string | null }) {
             <form action={signInWithPassword} className="space-y-4">
               <p className="text-sm font-medium text-muted-foreground">Familias</p>
 
-              <div className="space-y-2">
-                <Label htmlFor="login-email">Correo electrónico</Label>
-                <Input
-                  id="login-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="tu@correo.es"
-                  className="h-11"
-                  required
-                />
-              </div>
+              <FormInput
+                label="Correo electrónico"
+                name="email"
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                placeholder="tu@correo.es"
+                className="h-11"
+                required
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="login-password">Contraseña</Label>
-                <Input
-                  id="login-password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="h-11"
-                  required
-                />
-              </div>
+              <FormInput
+                label="Contraseña"
+                name="password"
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="h-11"
+                required
+              />
 
               <button type="submit" className="btn-primary btn-primary--lg btn-primary--block">
                 Entrar
