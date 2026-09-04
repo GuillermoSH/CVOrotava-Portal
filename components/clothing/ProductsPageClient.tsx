@@ -269,8 +269,8 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
           <p className="text-sm text-muted-foreground">
             {activeCount} activa{activeCount === 1 ? "" : "s"} · {products.length} total
           </p>
-          <div className="hidden md:block">
-            <Button type="button" className="min-h-11" onClick={openCreate}>
+          <div className="clothing-toolbar hidden md:flex">
+            <Button type="button" onClick={openCreate}>
               <Plus className="size-4" aria-hidden />
               Nueva prenda
             </Button>
@@ -284,8 +284,8 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
             <p className="mt-1 text-sm text-muted-foreground">
               Añade camisetas, pantalones y otras piezas para usarlas al crear pedidos.
             </p>
-            <div className="mt-5 hidden md:block">
-              <Button type="button" className="min-h-11" onClick={openCreate}>
+            <div className="clothing-toolbar mt-5 hidden md:flex md:justify-center">
+              <Button type="button" onClick={openCreate}>
                 <Plus className="size-4" aria-hidden />
                 Nueva prenda
               </Button>

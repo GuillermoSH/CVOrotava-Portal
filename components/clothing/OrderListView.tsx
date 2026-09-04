@@ -53,13 +53,13 @@ function OrdersEmptyState({
           ? "Prueba otro estado o muestra todos los pedidos."
           : "Crea un pedido a proveedor para iniciar el flujo de compra y serigrafía."}
       </p>
-      <div className="mt-5 hidden md:block">
+      <div className="clothing-toolbar mt-5 hidden md:flex md:justify-center">
           {isFiltered ? (
-            <button type="button" onClick={onResetFilter} className="btn-secondary min-h-11">
+            <button type="button" onClick={onResetFilter} className="btn-secondary">
               Ver abiertos
             </button>
           ) : (
-            <Link href={appRoutes.clothing.newOrder} className="btn-primary min-h-11">
+            <Link href={appRoutes.clothing.newOrder} className="btn-primary">
               Nuevo pedido
             </Link>
           )}

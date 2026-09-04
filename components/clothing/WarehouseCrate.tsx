@@ -9,9 +9,8 @@ export function WarehouseCrate({
   home,
   variant = "manage",
   selected = false,
-  filled = false,
   onSelect,
-  menu,
+  actions,
   children,
   emptyLabel,
   className,
@@ -21,9 +20,8 @@ export function WarehouseCrate({
   home?: string;
   variant?: "manage" | "inventory" | "pick";
   selected?: boolean;
-  filled?: boolean;
   onSelect?: () => void;
-  menu?: ReactNode;
+  actions?: ReactNode;
   children?: ReactNode;
   emptyLabel?: string;
   className?: string;
@@ -33,24 +31,26 @@ export function WarehouseCrate({
     variant === "inventory" && "warehouse-crate--inventory",
     variant === "pick" && "warehouse-crate--pick",
     onSelect && "warehouse-crate--interactive",
-    filled && "warehouse-crate--filled",
     className,
   );
 
-  const markSize = variant === "manage" ? "md" : "sm";
+  const meta =
+    [home, !children ? emptyLabel : undefined].filter(Boolean).join(" · ") || null;
 
   const inner = (
     <>
       <div className="warehouse-crate__figure">
-        <WarehouseBoxMark code={code} filled={filled} size={markSize} />
-        {menu ? <div className="warehouse-crate__menu-slot">{menu}</div> : null}
+        <WarehouseBoxMark size={variant === "manage" ? "md" : "sm"} />
       </div>
       <div className="warehouse-crate__body">
-        <p className="warehouse-crate__label">{label}</p>
-        {home ? <p className="warehouse-crate__home">{home}</p> : null}
+        <div className="warehouse-crate__identity">
+          <p className="warehouse-crate__code">{code}</p>
+          <p className="warehouse-crate__label">{label}</p>
+        </div>
+        {meta ? <p className="warehouse-crate__meta">{meta}</p> : null}
         {children}
-        {!children && emptyLabel ? <p className="warehouse-crate__empty">{emptyLabel}</p> : null}
       </div>
+      {actions ? <div className="warehouse-crate__actions-slot">{actions}</div> : null}
     </>
   );
 

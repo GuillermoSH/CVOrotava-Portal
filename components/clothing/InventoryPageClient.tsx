@@ -38,11 +38,11 @@ function InventoryEmptyState({
           : "Añade stock y colócalo en cajas para ver el almacén."}
       </p>
       {isFiltered ? (
-        <button type="button" onClick={onResetFilter} className="btn-secondary mt-5 min-h-11">
+        <button type="button" onClick={onResetFilter} className="btn-secondary mt-5 min-h-11 md:min-h-8">
           Ver todos
         </button>
       ) : (
-        <Button type="button" variant="primary" className="mt-5 min-h-11" onClick={onAddStock}>
+        <Button type="button" variant="primary" className="mt-5 min-h-11 md:min-h-8" onClick={onAddStock}>
           <Plus className="size-4" aria-hidden />
           Añadir stock
         </Button>

@@ -48,7 +48,7 @@
   --foreground: var(--club-fg);
   --card: var(--club-surface);
   --card-foreground: var(--club-fg);
-  --popover: var(--club-surface);
+  --popover: var(--club-drawer-bg);
   --popover-foreground: var(--club-fg);
   --primary: var(--club-brand);
   --primary-foreground: #fafaf9;
@@ -1408,122 +1408,115 @@ a.clothing-list-card:hover {
   .clothing-page-with-sticky {
     padding-bottom: 0;
   }
+
+  .clothing-filter-chip {
+    min-height: 2rem;
+    padding: 0 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .clothing-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .clothing-toolbar .btn-primary,
+  .clothing-toolbar .btn-secondary,
+  .clothing-toolbar a.btn-primary,
+  .clothing-toolbar a.btn-secondary {
+    min-height: 2rem;
+    height: 2rem;
+    padding: 0 0.7rem;
+    font-size: 0.8125rem;
+    gap: 0.35rem;
+  }
+
+  .clothing-toolbar .btn-primary svg,
+  .clothing-toolbar .btn-secondary svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  .clothing-toolbar [role="group"] button {
+    min-height: 2rem;
+    padding-inline: 0.55rem;
+  }
+
+  .clothing-sheet-actions {
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+
+  .clothing-sheet-actions .btn-primary,
+  .clothing-sheet-actions .btn-secondary,
+  .clothing-sheet-actions .btn-destructive {
+    width: auto;
+    min-height: 2.25rem;
+    padding-inline: 0.9rem;
+  }
 }
 
 .warehouse-box-mark {
   display: block;
-  width: 100%;
-  max-width: 11.5rem;
+  width: 2.75rem;
   height: auto;
+  flex-shrink: 0;
   overflow: visible;
 }
 
 .warehouse-box-mark--icon {
-  width: 1.35rem;
-  max-width: 1.35rem;
-  flex-shrink: 0;
+  width: 1.25rem;
 }
 
 .warehouse-box-mark--sm {
-  max-width: 5.25rem;
+  width: 2.25rem;
 }
 
 .warehouse-box-mark--lg {
-  max-width: 13.5rem;
+  width: 4.5rem;
 }
 
-.warehouse-box-mark__shadow {
-  fill: color-mix(in srgb, var(--club-fg) 14%, transparent);
-}
-
-.warehouse-box-mark__body {
-  fill: color-mix(in srgb, var(--club-fg) 7%, var(--club-surface-2));
-  stroke: color-mix(in srgb, var(--club-fg) 18%, var(--club-border));
-  stroke-width: 1.4;
-}
-
-.warehouse-box-mark__side {
-  fill: color-mix(in srgb, var(--club-fg) 12%, var(--club-surface-2));
-  stroke: color-mix(in srgb, var(--club-fg) 18%, var(--club-border));
-  stroke-width: 1.4;
-  stroke-linejoin: round;
-}
-
-.warehouse-box-mark__lid-group {
-  transform-box: fill-box;
-  transform-origin: 70px 40px;
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.warehouse-box-mark__lid {
-  fill: color-mix(in srgb, var(--club-brand) 68%, var(--club-surface-2));
-  stroke: color-mix(in srgb, var(--club-brand) 42%, var(--club-fg));
-  stroke-width: 1.2;
-  stroke-linejoin: round;
-}
-
-.warehouse-box-mark__lip {
-  fill: color-mix(in srgb, var(--club-brand) 42%, var(--club-surface-2));
-}
-
-.warehouse-box-mark__tape {
-  fill: color-mix(in srgb, var(--club-brand) 88%, var(--club-fg));
-}
-
-.warehouse-box-mark__handle {
-  fill: none;
-  stroke: color-mix(in srgb, var(--club-fg) 28%, var(--club-border));
+.warehouse-box-mark__lid,
+.warehouse-box-mark__left,
+.warehouse-box-mark__right {
+  stroke: color-mix(in srgb, var(--club-fg) 22%, var(--club-border));
   stroke-width: 1.6;
-}
-
-.warehouse-box-mark__label {
-  fill: var(--club-surface);
-  stroke: color-mix(in srgb, var(--club-fg) 16%, var(--club-border));
-  stroke-width: 1;
-}
-
-.warehouse-box-mark__code {
-  fill: var(--club-fg);
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-}
-
-.warehouse-box-mark__code--compact {
-  font-size: 9px;
-  letter-spacing: 0.03em;
-}
-
-.warehouse-box-mark__contents path {
-  fill: color-mix(in srgb, var(--club-brand) 22%, var(--club-surface));
-  stroke: color-mix(in srgb, var(--club-brand) 35%, var(--club-fg));
-  stroke-width: 0.8;
-}
-
-.warehouse-box-mark__plus {
-  stroke: var(--club-fg-muted);
-  stroke-width: 2.2;
+  stroke-linejoin: round;
   stroke-linecap: round;
 }
 
-.warehouse-box-mark--ghost .warehouse-box-mark__body,
-.warehouse-box-mark--ghost .warehouse-box-mark__side,
+.warehouse-box-mark__lid {
+  fill: color-mix(in srgb, var(--club-brand) 55%, var(--club-surface-2));
+}
+
+.warehouse-box-mark__left {
+  fill: color-mix(in srgb, var(--club-fg) 10%, var(--club-surface-2));
+}
+
+.warehouse-box-mark__right {
+  fill: color-mix(in srgb, var(--club-fg) 4%, var(--club-surface-2));
+}
+
+.warehouse-box-mark__seam {
+  stroke: color-mix(in srgb, var(--club-brand) 35%, var(--club-fg));
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+
 .warehouse-box-mark--ghost .warehouse-box-mark__lid,
-.warehouse-box-mark--ghost .warehouse-box-mark__lip,
-.warehouse-box-mark--ghost .warehouse-box-mark__label {
+.warehouse-box-mark--ghost .warehouse-box-mark__left,
+.warehouse-box-mark--ghost .warehouse-box-mark__right {
   fill: none;
-  stroke-dasharray: 4 3.5;
+  stroke-dasharray: 3.5 2.5;
 }
 
-.warehouse-box-mark--ghost .warehouse-box-mark__tape,
-.warehouse-box-mark--ghost .warehouse-box-mark__shadow {
-  fill: none;
-}
-
-.warehouse-box-mark--ghost .warehouse-box-mark__handle {
-  stroke-dasharray: 3 3;
+.warehouse-box-mark--ghost .warehouse-box-mark__seam {
+  stroke: var(--club-fg-muted);
+  stroke-dasharray: 3 2.5;
 }
 
 .warehouse-cabinet-mark {
@@ -1535,7 +1528,7 @@ a.clothing-list-card:hover {
 .warehouse-cabinet-mark__body {
   fill: color-mix(in srgb, var(--club-fg) 6%, var(--club-surface-2));
   stroke: color-mix(in srgb, var(--club-fg) 22%, var(--club-border));
-  stroke-width: 1.4;
+  stroke-width: 1.5;
 }
 
 .warehouse-cabinet-mark__split {
@@ -1550,35 +1543,30 @@ a.clothing-list-card:hover {
 .warehouse-crate {
   position: relative;
   display: flex;
-  flex-direction: column;
   min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
   overflow: hidden;
   border: 1px solid var(--club-border);
   border-radius: var(--radius-lg);
   background: var(--club-surface);
   box-shadow: var(--club-shadow-card);
+  padding: 0.7rem 0.8rem;
   text-align: left;
   transition:
     border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
+    box-shadow 0.18s ease;
 }
 
 button.warehouse-crate {
   font: inherit;
   color: inherit;
-  padding: 0;
   cursor: pointer;
 }
 
 .warehouse-crate--interactive:hover {
   border-color: var(--club-border-hover);
   box-shadow: var(--club-shadow-card-hover);
-  transform: translateY(-1px);
-}
-
-.warehouse-crate--interactive:hover .warehouse-box-mark__lid-group {
-  transform: translateY(-3px);
 }
 
 .warehouse-crate:focus-visible {
@@ -1587,16 +1575,42 @@ button.warehouse-crate {
 }
 
 .warehouse-crate__figure {
-  position: relative;
   display: flex;
-  justify-content: center;
-  padding: 0.7rem 0.85rem 0.15rem;
+  flex-shrink: 0;
+  align-items: center;
 }
 
-.warehouse-crate__menu-slot {
-  position: absolute;
-  top: 0.15rem;
-  right: 0.15rem;
+.warehouse-crate__actions-slot,
+.warehouse-crate__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.05rem;
+}
+
+.warehouse-crate__action {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--club-fg-muted);
+  cursor: pointer;
+}
+
+.warehouse-crate__action:hover,
+.warehouse-crate__action:active {
+  background: color-mix(in srgb, var(--club-fg) 6%, transparent);
+  color: var(--club-fg);
+}
+
+.warehouse-crate__action--danger:hover,
+.warehouse-crate__action--danger:active {
+  color: var(--destructive);
 }
 
 .warehouse-crate__menu {
@@ -1604,8 +1618,8 @@ button.warehouse-crate {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -1621,37 +1635,57 @@ button.warehouse-crate {
 
 .warehouse-crate__body {
   display: flex;
+  min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.15rem 0.9rem 0.9rem;
+  gap: 0.1rem;
+}
+
+.warehouse-crate__identity {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.45rem;
+  row-gap: 0;
+}
+
+.warehouse-crate__code {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  color: var(--club-fg);
 }
 
 .warehouse-crate__label {
-  font-size: 0.9375rem;
-  font-weight: 600;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
   line-height: 1.3;
   color: var(--club-fg);
 }
 
-.warehouse-crate__home {
+.warehouse-crate__meta {
   font-size: 0.75rem;
+  line-height: 1.3;
   color: var(--club-fg-muted);
 }
 
 .warehouse-crate__lines {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  margin-top: 0.45rem;
+  gap: 0.2rem;
+  margin-top: 0.35rem;
 }
 
 .warehouse-crate__line {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 0.5rem 0.65rem;
+  gap: 0.35rem 0.55rem;
   align-items: baseline;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   line-height: 1.3;
 }
 
@@ -1668,37 +1702,15 @@ button.warehouse-crate {
   font-variant-numeric: tabular-nums;
 }
 
-.warehouse-crate__empty {
-  margin-top: 0.15rem;
-  font-size: 0.8125rem;
-  color: var(--club-fg-muted);
-}
-
 .warehouse-crate--inventory,
 .warehouse-crate--pick {
-  flex-direction: row;
-  align-items: center;
-  min-height: 0;
-}
-
-.warehouse-crate--inventory .warehouse-crate__figure,
-.warehouse-crate--pick .warehouse-crate__figure {
-  flex-shrink: 0;
-  padding: 0.55rem 0.15rem 0.55rem 0.55rem;
-}
-
-.warehouse-crate--inventory .warehouse-crate__body,
-.warehouse-crate--pick .warehouse-crate__body {
-  padding: 0.7rem 0.9rem 0.7rem 0.35rem;
-}
-
-.warehouse-crate--inventory .warehouse-crate__label,
-.warehouse-crate--pick .warehouse-crate__label {
-  font-size: 0.875rem;
-}
-
-.warehouse-crate--pick {
   width: 100%;
+  padding-right: 0.8rem;
+}
+
+.warehouse-crate--inventory:has(.warehouse-crate__lines),
+.warehouse-crate--pick:has(.warehouse-crate__lines) {
+  align-items: flex-start;
 }
 
 .warehouse-crate--pick[aria-pressed="true"] {
@@ -1707,49 +1719,94 @@ button.warehouse-crate {
 }
 
 .warehouse-crate--add {
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  min-height: 0;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.8rem;
   border-style: dashed;
   background: transparent;
   box-shadow: none;
 }
 
-.warehouse-crate--add .warehouse-crate__figure {
-  padding-bottom: 0;
-}
-
 .warehouse-crate--add .warehouse-crate__add-label {
-  padding: 0 0.9rem 0.85rem;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--club-fg-muted);
-  text-align: center;
 }
 
 .warehouse-board {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  align-items: start;
 }
 
-@media (min-width: 640px) {
-  .warehouse-board {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.9rem;
+@media (min-width: 768px) {
+  .warehouse-crate {
+    gap: 0.5rem;
+    min-width: max-content;
+    max-width: min(22rem, 100%);
+    width: max-content;
+    padding: 0.4rem 0.5rem 0.4rem 0.55rem;
   }
-}
 
-@media (min-width: 1024px) {
+  .warehouse-crate .warehouse-box-mark {
+    width: 1.5rem;
+  }
+
+  .warehouse-crate__identity {
+    flex-wrap: nowrap;
+  }
+
+  .warehouse-crate__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .warehouse-crate__action,
+  .warehouse-crate__menu {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+
+  .warehouse-crate--inventory,
+  .warehouse-crate--pick {
+    padding-right: 0.55rem;
+  }
+
+  .warehouse-crate--pick {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .warehouse-crate--inventory:has(.warehouse-crate__lines) {
+    width: 17.5rem;
+    min-width: 15rem;
+  }
+
+  .warehouse-crate--add {
+    min-height: 0;
+    min-width: max-content;
+    width: max-content;
+    padding: 0.4rem 0.7rem;
+  }
+
   .warehouse-board {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.45rem;
   }
 }
 
 .warehouse-bay {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .warehouse-bay__title {
@@ -1759,6 +1816,23 @@ button.warehouse-crate {
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--club-fg);
+}
+
+.warehouse-bay__code {
+  flex-shrink: 0;
+  font-weight: 400;
+  color: var(--club-fg-muted);
+}
+
+.warehouse-bay__menu {
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .warehouse-bay__menu {
+    width: 2rem;
+    height: 2rem;
+  }
 }
 
 .warehouse-bay__meta {

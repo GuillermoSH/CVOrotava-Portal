@@ -9,9 +9,7 @@ import { WarehouseCrate } from "@/components/clothing/WarehouseCrate";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { formatProductShort } from "@/lib/clothing/formatProduct";
 import {
-  boxHomeLabel,
   buildBoxBoard,
-  collectBoxHomes,
   flattenBoxNodes,
   groupLotsByBox,
 } from "@/lib/clothing/storageBoxes";
@@ -36,7 +34,6 @@ export function InventoryBoxBoard({
 }) {
   const { pending, groups } = useMemo(() => groupLotsByBox(lots, storageTree), [lots, storageTree]);
   const board = useMemo(() => buildBoxBoard(storageTree), [storageTree]);
-  const homes = useMemo(() => collectBoxHomes(storageTree), [storageTree]);
   const hasCabinets = board.cabinets.length > 0;
   const boxCount = flattenBoxNodes(storageTree).length;
 
@@ -45,7 +42,7 @@ export function InventoryBoxBoard({
     return map;
   }, [groups]);
 
-  function crateFor(box: ClothingStorageLocationNode, home?: string) {
+  function crateFor(box: ClothingStorageLocationNode) {
     const group = groupById.get(box.id);
     const boxLots = group?.lots ?? [];
     return (
@@ -54,8 +51,6 @@ export function InventoryBoxBoard({
         variant="inventory"
         code={box.code}
         label={box.label}
-        home={home}
-        filled={boxLots.length > 0}
         emptyLabel={boxLots.length === 0 ? "Vacía" : undefined}
       >
         {boxLots.length > 0 ? (
@@ -107,7 +102,7 @@ export function InventoryBoxBoard({
                     type="button"
                     variant="secondary"
                     size="sm"
-                    className="min-h-11 shrink-0"
+                    className="min-h-11 shrink-0 md:min-h-8 md:px-2.5"
                     onClick={() => onAssign(lot)}
                   >
                     Ubicar
@@ -137,7 +132,7 @@ export function InventoryBoxBoard({
                   Cajas sueltas
                 </h2>
                 <div className="warehouse-board">
-                  {board.loose.map((box) => crateFor(box, "Suelta"))}
+                  {board.loose.map((box) => crateFor(box))}
                 </div>
               </section>
             ) : null}
@@ -152,10 +147,7 @@ export function InventoryBoxBoard({
                   <p className="text-sm text-muted-foreground">Sin cajas en este armario.</p>
                 ) : (
                   <div className="warehouse-board">
-                    {boxes.map((box) => {
-                      const home = homes.find((item) => item.box.id === box.id);
-                      return crateFor(box, home ? boxHomeLabel(home) : cabinet.label);
-                    })}
+                    {boxes.map((box) => crateFor(box))}
                   </div>
                 )}
               </section>

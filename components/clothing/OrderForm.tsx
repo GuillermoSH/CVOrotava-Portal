@@ -213,8 +213,8 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
           </Button>
         </section>
 
-        <div className="hidden items-center gap-3 border-t border-[var(--club-border)] pt-6 md:flex">
-          <Button type="submit" className="min-h-11 px-6" disabled={pending}>
+        <div className="clothing-toolbar hidden border-t border-[var(--club-border)] pt-6 md:flex">
+          <Button type="submit" disabled={pending}>
             {pending ? "Guardando…" : "Crear borrador"}
           </Button>
           <Link

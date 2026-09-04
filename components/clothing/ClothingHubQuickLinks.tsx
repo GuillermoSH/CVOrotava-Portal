@@ -11,24 +11,31 @@ export function ClothingHubQuickLinks() {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 md:hidden">
-        <Link href={appRoutes.clothing.products} className="clothing-hub-tile min-h-11">
-          <Shirt className="size-5 shrink-0 text-brand" aria-hidden />
-          Prendas
+        <Link href={appRoutes.clothing.warehouse} className="clothing-hub-tile min-h-11">
+          <WarehouseBoxMark size="icon" />
+          Inventario
         </Link>
         <Link href={appRoutes.clothing.locations} className="clothing-hub-tile min-h-11">
           <WarehouseBoxMark size="icon" />
           Cajas
         </Link>
-      </div>
-
-      <div className="hidden flex-wrap gap-3 md:flex">
-        <Link href={appRoutes.clothing.newOrder} className="btn-primary min-h-11">
-          Nuevo pedido
-        </Link>
-        <Link href={appRoutes.clothing.products} className="btn-secondary min-h-11">
+        <Link href={appRoutes.clothing.products} className="clothing-hub-tile min-h-11 col-span-2">
+          <Shirt className="size-5 shrink-0 text-brand" aria-hidden />
           Prendas
         </Link>
-        <Link href={appRoutes.clothing.locations} className="btn-secondary min-h-11">
+      </div>
+
+      <div className="clothing-toolbar hidden md:flex">
+        <Link href={appRoutes.clothing.newOrder} className="btn-primary">
+          Nuevo pedido
+        </Link>
+        <Link href={appRoutes.clothing.warehouse} className="btn-secondary">
+          Inventario
+        </Link>
+        <Link href={appRoutes.clothing.products} className="btn-secondary">
+          Prendas
+        </Link>
+        <Link href={appRoutes.clothing.locations} className="btn-secondary">
           Cajas
         </Link>
       </div>

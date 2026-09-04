@@ -32,10 +32,10 @@ export function InventoryWarehouseView({
         title="Inventario"
         subtitle="Stock agrupado por caja. Lo que aún no tiene caja aparece arriba, por ubicar."
         actions={
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="clothing-toolbar hidden md:flex">
             <button
               type="button"
-              className="btn-primary inline-flex min-h-11 items-center gap-1.5"
+              className="btn-primary inline-flex items-center gap-1.5"
               onClick={() => setManualOpen(true)}
             >
               <Plus className="size-4" aria-hidden />

@@ -22,7 +22,7 @@ export function PageHeader({
       {back ? (
         <Link
           href={back.href}
-          className="inline-flex min-h-11 w-fit items-center gap-0.5 text-sm font-medium text-brand transition-colors hover:text-brand/80"
+          className="inline-flex min-h-11 w-fit items-center gap-0.5 text-sm font-medium text-brand transition-colors hover:text-brand/80 md:min-h-8"
         >
           <ChevronLeft className="size-4 shrink-0" aria-hidden />
           {back.label}

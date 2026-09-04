@@ -168,12 +168,12 @@ export function ClothingBottomSheet({
           ) : null}
           {children ? <div className="mt-4">{children}</div> : null}
           {(primaryAction || secondaryAction) && (
-            <div className="mt-6 flex flex-col gap-2">
+            <div className="clothing-sheet-actions mt-6 flex flex-col gap-2">
               {primaryAction ? (
                 <Button
                   type="button"
                   variant={primaryAction.variant === "destructive" ? "destructive" : "primary"}
-                  className="btn-primary--block min-h-11"
+                  className="btn-primary--block min-h-11 md:min-h-9"
                   disabled={primaryAction.disabled || primaryAction.pending}
                   onClick={primaryAction.onClick}
                 >
@@ -184,7 +184,7 @@ export function ClothingBottomSheet({
                 <Button
                   type="button"
                   variant="secondary"
-                  className="btn-primary--block min-h-11"
+                  className="btn-primary--block min-h-11 md:min-h-9"
                   disabled={secondaryAction.disabled}
                   onClick={secondaryAction.onClick}
                 >

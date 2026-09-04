@@ -24,9 +24,9 @@ export function OrdersPageClient({ orders }: { orders: ClothingOrderWithLines[] 
         title="Pedidos a proveedor"
         subtitle="Flujo desde borrador hasta serigrafía. En escritorio puedes alternar kanban o lista."
         actions={
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="clothing-toolbar hidden md:flex">
             <OrdersViewToggle view={view} onChange={setView} />
-            <Link href={appRoutes.clothing.newOrder} className="btn-primary min-h-11">
+            <Link href={appRoutes.clothing.newOrder} className="btn-primary">
               Nuevo pedido
             </Link>
           </div>

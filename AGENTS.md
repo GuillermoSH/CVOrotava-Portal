@@ -7,7 +7,8 @@
 - **Dos audiencias:** familias (`/parents`) y dirección (`/admin`).  
 - **Pagos:** solo **anotación** en sistema (transferencia o efectivo); **no** pasarela de pago en web.  
 - **Accesos:** sin registro público ni alta desde la app; cuentas las gestiona el club.  
-- **Ropa:** reservas / catálogo (detalle en siguientes iteraciones).
+- **Ropa:** reservas / catálogo (detalle en siguientes iteraciones).  
+- **Ideas pendientes (no implementar hasta que se pida):** QR por caja en almacén — `.cursor/rules/clothing-qr-cajas.mdc`.
 
 ## Stack fijo
 
