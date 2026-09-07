@@ -855,6 +855,34 @@ textarea.form-input {
   -webkit-backdrop-filter: blur(16px);
 }
 
+.nav-progress {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 60;
+  height: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--club-brand) 18%, transparent);
+}
+
+.nav-progress__bar {
+  display: block;
+  height: 100%;
+  width: 38%;
+  background: var(--club-brand);
+  animation: nav-progress-slide 1s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes nav-progress-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
+}
+
 .nav-link {
   position: relative;
   display: flex;
@@ -1264,6 +1292,107 @@ html.dark .club-confirm-panel {
   }
 }
 
+.clothing-sheet-search {
+  position: relative;
+}
+
+.clothing-sheet-search__icon {
+  position: absolute;
+  top: 50%;
+  left: 0.85rem;
+  width: 1rem;
+  height: 1rem;
+  color: var(--club-fg-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.clothing-bottom-sheet .clothing-sheet-search .form-input {
+  padding-left: 2.35rem;
+}
+
+.clothing-sheet-group {
+  overflow: hidden;
+  border: 1px solid var(--club-border);
+  border-radius: var(--radius-lg);
+  background: var(--club-drawer-field-bg);
+}
+
+.clothing-sheet-fold {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 0;
+  background: transparent;
+  padding: 0.8rem 1rem;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--club-fg);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.clothing-sheet-fold:hover {
+  background: color-mix(in srgb, var(--club-fg) 4%, transparent);
+}
+
+.clothing-sheet-fold:focus-visible,
+.clothing-sheet-option:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--club-brand) 45%, transparent);
+}
+
+.clothing-sheet-fold__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clothing-sheet-fold__meta {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clothing-sheet-fold__count {
+  display: inline-flex;
+  min-width: 1.5rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--club-fg) 8%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--club-fg-muted);
+}
+
+.clothing-sheet-fold__chevron {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: var(--club-fg-muted);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clothing-sheet-fold__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.clothing-sheet-group__items {
+  display: flex;
+  flex-direction: column;
+}
+
 .clothing-sheet-option {
   display: flex;
   width: 100%;
@@ -1290,6 +1419,180 @@ html.dark .club-confirm-panel {
 .clothing-sheet-option--selected {
   border-color: var(--club-brand);
   background: var(--club-brand-soft);
+}
+
+.clothing-sheet-option--danger {
+  color: var(--destructive);
+}
+
+.clothing-sheet-option--stack {
+  align-items: flex-start;
+}
+
+.clothing-sheet-option__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.clothing-sheet-option__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clothing-sheet-option__title > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.clothing-sheet-option__meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5rem;
+  row-gap: 0.1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--club-fg-muted);
+}
+
+.clothing-sheet-option__size,
+.clothing-sheet-option__jersey {
+  font-variant-numeric: tabular-nums;
+  color: var(--club-fg);
+}
+
+.clothing-sheet-option__jersey {
+  font-weight: 600;
+}
+
+.clothing-sheet-option__src {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clothing-sheet-qty {
+  display: inline-flex;
+  flex-shrink: 0;
+  min-width: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--club-fg) 7%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--club-fg-muted);
+}
+
+.clothing-sheet-option--selected .clothing-sheet-qty {
+  background: color-mix(in srgb, var(--club-brand) 16%, transparent);
+  color: var(--club-fg);
+}
+
+.clothing-sheet-group .clothing-sheet-option {
+  border: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--club-border);
+  background: transparent;
+}
+
+.clothing-sheet-group .clothing-sheet-option:hover {
+  background: color-mix(in srgb, var(--club-fg) 4%, transparent);
+}
+
+.clothing-sheet-group .clothing-sheet-option--selected {
+  background: var(--club-brand-soft);
+}
+
+.clothing-add-card {
+  display: flex;
+  min-height: 6rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  border-radius: var(--radius-xl);
+  border: 1px dashed var(--club-border);
+  background: transparent;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.clothing-add-card:hover {
+  border-color: color-mix(in srgb, var(--club-brand) 55%, var(--club-border));
+  background: var(--club-brand-soft);
+}
+
+.clothing-add-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-brand) 40%, transparent);
+}
+
+.clothing-add-card__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--club-fg);
+}
+
+.clothing-add-card__hint {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--club-fg-muted);
+}
+
+.clothing-qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.clothing-qty-stepper__value {
+  width: 2rem;
+  text-align: center;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--club-fg);
+}
+
+.warehouse-crate__line--action {
+  width: 100%;
+  margin: 0;
+  padding: 0.2rem 0.15rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.warehouse-crate__line--action:hover,
+.warehouse-crate__line--action:active {
+  background: color-mix(in srgb, var(--club-fg) 6%, transparent);
+}
+
+.warehouse-crate__line--action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-brand) 40%, transparent);
 }
 
 .clothing-sticky-bar {
@@ -1334,6 +1637,9 @@ html.dark .club-confirm-panel {
 }
 
 .clothing-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   scroll-snap-align: start;
   min-height: 2.75rem;

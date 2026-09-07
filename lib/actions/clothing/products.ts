@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireClothingWriteAccess } from "@/lib/clothing/auth";
 import { getClothingDb } from "@/lib/clothing/repository/client";
+import { productUsedInStockMovements } from "@/lib/clothing/repository/inventory";
 import {
   createProduct,
   deleteProduct,
@@ -149,6 +150,13 @@ export async function deleteClothingProduct(id: string): Promise<ActionResult> {
       return {
         ok: false,
         error: "No se puede eliminar: hay stock asociado. Desactívala en su lugar.",
+      };
+    }
+
+    if (await productUsedInStockMovements(db, id)) {
+      return {
+        ok: false,
+        error: "No se puede eliminar: hay entregas o bajas registradas. Desactívala en su lugar.",
       };
     }
 

@@ -39,6 +39,7 @@ export function ManualInventorySheet({
   const [assignBox, setAssignBox] = useState(false);
   const [boxId, setBoxId] = useState("");
   const [notes, setNotes] = useState("");
+  const [jerseyNumber, setJerseyNumber] = useState("");
 
   function resetForm() {
     setProductId("");
@@ -47,6 +48,7 @@ export function ManualInventorySheet({
     setAssignBox(false);
     setBoxId("");
     setNotes("");
+    setJerseyNumber("");
   }
 
   function handleClose() {
@@ -68,6 +70,19 @@ export function ManualInventorySheet({
       appToast.error("Indica una cantidad válida");
       return;
     }
+    let jersey: number | null = null;
+    if (jerseyNumber.trim()) {
+      const parsed = Number.parseInt(jerseyNumber, 10);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 99) {
+        appToast.error("El dorsal debe estar entre 0 y 99");
+        return;
+      }
+      jersey = parsed;
+    }
+    if (jersey != null && qty !== 1) {
+      appToast.error("Una prenda con dorsal es una sola unidad");
+      return;
+    }
     if (assignBox && !boxId) {
       appToast.error("Selecciona una caja o desactiva la ubicación");
       return;
@@ -77,9 +92,10 @@ export function ManualInventorySheet({
       const result = await createManualInventoryLotAction({
         product_id: productId,
         size,
-        quantity: qty,
+        quantity: jersey == null ? qty : 1,
         storage_location_id: assignBox && boxId ? boxId : null,
         notes: notes.trim() || undefined,
+        jersey_number: jersey,
       });
 
       if (!result.ok) {
@@ -115,15 +131,33 @@ export function ManualInventorySheet({
         <SizePicker value={size} onChange={setSize} id="manual-size" />
 
         <FormInput
+          label="Dorsal (opcional)"
+          name="manual-jersey"
+          id="manual-jersey"
+          type="number"
+          min={0}
+          max={99}
+          inputMode="numeric"
+          className="min-h-11 tabular-nums"
+          placeholder="Ej. 7"
+          value={jerseyNumber}
+          onChange={(e) => {
+            setJerseyNumber(e.target.value);
+            if (e.target.value.trim()) setQuantity("1");
+          }}
+        />
+
+        <FormInput
           label="Cantidad"
           name="manual-quantity"
           id="manual-quantity"
           type="number"
           min={1}
-          max={9999}
+          max={jerseyNumber.trim() ? 1 : 9999}
           inputMode="numeric"
           className="min-h-11 tabular-nums"
-          value={quantity}
+          value={jerseyNumber.trim() ? "1" : quantity}
+          disabled={Boolean(jerseyNumber.trim())}
           onChange={(e) => setQuantity(e.target.value)}
         />
 

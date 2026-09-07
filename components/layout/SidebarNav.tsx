@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 import { Home, Shirt, Users } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
+import { useDashboardNavigation } from "@/components/layout/DashboardNavigation";
 import { appRoutes } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ export function SidebarNav({
   collapsed?: boolean;
   variant?: "sidebar" | "dock";
 }) {
-  const pathname = usePathname();
+  const { visiblePath: pathname } = useDashboardNavigation();
   const homeActive = pathname === homeHref || pathname.startsWith(`${homeHref}/`);
   const showAdminNav = homeHref === appRoutes.admin;
   const clothingActive =

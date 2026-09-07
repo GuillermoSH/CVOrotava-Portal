@@ -205,19 +205,23 @@ export function ClothingSheetOption({
   onSelect,
   children,
   className,
+  danger = false,
 }: {
   selected?: boolean;
   onSelect: () => void;
   children: React.ReactNode;
   className?: string;
+  danger?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
+      aria-pressed={selected}
       className={cn(
         "clothing-sheet-option",
         selected && "clothing-sheet-option--selected",
+        danger && "clothing-sheet-option--danger",
         className,
       )}
     >

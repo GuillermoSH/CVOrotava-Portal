@@ -16,10 +16,16 @@ export function formatProductLabel(
   return `${CLOTHING_BRAND_LABELS[product.brand]} · ${product.model} · ${CLOTHING_COLOR_LABELS[product.color]} · ${PRODUCT_CATEGORY_LABELS[product.category]}`;
 }
 
+export function formatProductName(
+  product: Pick<ClothingProduct, "model" | "brand">,
+): string {
+  return `${CLOTHING_BRAND_LABELS[product.brand]} · ${product.model}`;
+}
+
 export function formatProductShort(
   product: Pick<ClothingProduct, "model" | "brand" | "color">,
 ): string {
-  return `${CLOTHING_BRAND_LABELS[product.brand]} · ${product.model} (${CLOTHING_COLOR_LABELS[product.color]})`;
+  return `${formatProductName(product)} (${CLOTHING_COLOR_LABELS[product.color]})`;
 }
 
 export function formatProductCategoryColor(

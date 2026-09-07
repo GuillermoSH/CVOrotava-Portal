@@ -9,6 +9,7 @@ import {
 import { listInventoryLots } from "@/lib/clothing/repository/inventory";
 import { listLocations } from "@/lib/clothing/repository/locations";
 import { listOrdersWithLines } from "@/lib/clothing/repository/orders";
+import { listActivePlayers } from "@/lib/clothing/repository/players";
 import { listActiveProducts, listProducts } from "@/lib/clothing/repository/products";
 import type {
   ClothingInventoryLotWithDetails,
@@ -16,6 +17,7 @@ import type {
   ClothingOrderWithLines,
   ClothingProduct,
   ClothingStorageLocationNode,
+  PlayerWithTeam,
 } from "@/lib/types/db";
 
 function enrichOrderLines(
@@ -119,4 +121,9 @@ export async function getAllProductsSnapshot(): Promise<ClothingProduct[]> {
     if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
     return a.model.localeCompare(b.model, "es");
   });
+}
+
+export async function getRosterSnapshot(): Promise<PlayerWithTeam[]> {
+  const db = await getClothingDb();
+  return listActivePlayers(db);
 }

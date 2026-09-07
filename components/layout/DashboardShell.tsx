@@ -4,6 +4,8 @@ import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
+import { DashboardMain } from "@/components/layout/DashboardMain";
+import { DashboardNavigationProvider } from "@/components/layout/DashboardNavigation";
 import { MobileNavBottom } from "@/components/layout/MobileNavBottom";
 import { MobileNavTop } from "@/components/layout/MobileNavTop";
 import { SidebarNav } from "@/components/layout/SidebarNav";
@@ -39,7 +41,8 @@ export function DashboardShell({
   }
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden lg:flex-row">
+    <DashboardNavigationProvider>
+      <div className="relative flex h-dvh flex-col overflow-hidden lg:flex-row">
       <MobileNavTop navTitle={navTitle} homeHref={homeHref} user={sidebarUser} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
@@ -106,13 +109,12 @@ export function DashboardShell({
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
-          <main className="scrollbar-hidden flex-1 overflow-auto px-4 py-6 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:pb-8 lg:pt-8">
-            {children}
-          </main>
+          <DashboardMain>{children}</DashboardMain>
         </div>
       </div>
 
       <MobileNavBottom homeHref={homeHref} />
-    </div>
+      </div>
+    </DashboardNavigationProvider>
   );
 }

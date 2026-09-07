@@ -3,14 +3,17 @@
 import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { ClothingCategoryFold } from "@/components/clothing/ClothingCategoryFold";
 import {
   ClothingBottomSheet,
   ClothingSheetOption,
 } from "@/components/clothing/ClothingBottomSheet";
+import { ProductColorBadge } from "@/components/clothing/ProductColorBadge";
 import { Select } from "@/components/club/Select";
 import { Label } from "@/components/club/Label";
 import { PRODUCT_CATEGORY_LABELS } from "@/lib/clothing/constants";
-import { formatProductShort } from "@/lib/clothing/formatProduct";
+import { formatProductName, formatProductShort } from "@/lib/clothing/formatProduct";
+import { groupByProductCategory } from "@/lib/clothing/groupByCategory";
 import { cn } from "@/lib/utils";
 import type { ClothingProduct } from "@/lib/types/db";
 
@@ -26,7 +29,13 @@ export function ProductPicker({
   id?: string;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const selected = products.find((product) => product.id === value);
+
+  const groups = useMemo(
+    () => groupByProductCategory(products, (product) => product.category),
+    [products],
+  );
 
   const labelText = selected
     ? `${formatProductShort(selected)} (${PRODUCT_CATEGORY_LABELS[selected.category]})`
@@ -34,15 +43,34 @@ export function ProductPicker({
 
   const selectOptions = useMemo(
     () =>
-      products.map((product) => ({
-        value: product.id,
-        label: `${formatProductShort(product)} (${PRODUCT_CATEGORY_LABELS[product.category]})`,
+      groups.map((group) => ({
+        label: group.label,
+        options: group.items.map((product) => ({
+          value: product.id,
+          label: formatProductShort(product),
+        })),
       })),
-    [products],
+    [groups],
   );
+
+  function isGroupOpen(category: string) {
+    if (selected?.category === category) return true;
+    if (groups.length === 1) return true;
+    return openCategories.has(category);
+  }
+
+  function toggleGroup(category: string) {
+    if (groups.length === 1) return;
+    setOpenCategories((prev) => (prev.has(category) ? new Set() : new Set([category])));
+  }
 
   function select(productId: string) {
     onChange(productId);
+    setSheetOpen(false);
+  }
+
+  function handleSheetClose() {
+    setOpenCategories(new Set());
     setSheetOpen(false);
   }
 
@@ -76,26 +104,40 @@ export function ProductPicker({
 
       <ClothingBottomSheet
         open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
+        onClose={handleSheetClose}
         title="Seleccionar prenda"
+        description="Abre el tipo para ver las prendas."
         secondaryAction={{
           label: "Cerrar",
-          onClick: () => setSheetOpen(false),
+          onClick: handleSheetClose,
         }}
       >
-        <div className="flex max-h-[50dvh] flex-col gap-2 overflow-y-auto">
-          {products.map((product) => (
-            <ClothingSheetOption
-              key={product.id}
-              selected={value === product.id}
-              onSelect={() => select(product.id)}
+        <div className="flex flex-col gap-2">
+          {groups.map((group) => (
+            <ClothingCategoryFold
+              key={group.category}
+              id={`product-type-${group.category}`}
+              label={group.label}
+              count={group.items.length}
+              open={isGroupOpen(group.category)}
+              onToggle={() => toggleGroup(group.category)}
             >
-              <span className="font-medium">{formatProductShort(product)}</span>
-              <span className="text-muted-foreground">
-                {" "}
-                ({PRODUCT_CATEGORY_LABELS[product.category]})
-              </span>
-            </ClothingSheetOption>
+              {group.items.map((product) => (
+                <ClothingSheetOption
+                  key={product.id}
+                  selected={value === product.id}
+                  onSelect={() => select(product.id)}
+                  className="clothing-sheet-option--stack"
+                >
+                  <span className="clothing-sheet-option__body">
+                    <span className="clothing-sheet-option__title">
+                      <span>{formatProductName(product)}</span>
+                      <ProductColorBadge color={product.color} className="shrink-0" />
+                    </span>
+                  </span>
+                </ClothingSheetOption>
+              ))}
+            </ClothingCategoryFold>
           ))}
         </div>
       </ClothingBottomSheet>

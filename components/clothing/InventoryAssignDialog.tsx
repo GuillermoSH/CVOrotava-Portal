@@ -8,6 +8,7 @@ import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { WarehouseCrate } from "@/components/clothing/WarehouseCrate";
 import { assignInventoryToLocation } from "@/lib/actions/clothing/inventory";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
+import { formatJerseyNumber } from "@/lib/clothing/formatJersey";
 import { formatProductShort } from "@/lib/clothing/formatProduct";
 import { boxHomeLabel, collectBoxHomes, flattenBoxNodes } from "@/lib/clothing/storageBoxes";
 import { appRoutes } from "@/lib/constants";
@@ -55,7 +56,7 @@ export function InventoryAssignDialog({
       open
       onClose={onClose}
       title="Ubicar en caja"
-      description={`${formatProductShort(lot.product)} · ${formatClothingSize(lot.size)} · ${lot.quantity} uds.`}
+      description={`${formatProductShort(lot.product)} · ${formatClothingSize(lot.size)}${lot.jersey_number != null ? ` · ${formatJerseyNumber(lot.jersey_number)}` : ""} · ${lot.quantity} uds.`}
       primaryAction={{
         label: "Asignar a esta caja",
         pending,

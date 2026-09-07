@@ -1,15 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 
 import { ClothingFilterChips } from "@/components/clothing/ClothingFilterChips";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { InventoryAssignDialog } from "@/components/clothing/InventoryAssignDialog";
+import { InventoryAssignJerseysSheet } from "@/components/clothing/InventoryAssignJerseysSheet";
 import { InventoryBoxBoard } from "@/components/clothing/InventoryBoxBoard";
+import { InventoryBoxWriteOffSheet } from "@/components/clothing/InventoryBoxWriteOffSheet";
 import { Button } from "@/components/club/Button";
+import { Input } from "@/components/club/Input";
 import { INVENTORY_STATUS_LABELS } from "@/lib/clothing/constants";
+import { lotMatchesQuery } from "@/lib/clothing/formatJersey";
 import { flattenBoxNodes } from "@/lib/clothing/storageBoxes";
+import { buildStockPools, poolsInLocation } from "@/lib/clothing/stockSources";
+import { appRoutes } from "@/lib/constants";
 import type {
   ClothingInventoryLotWithDetails,
   ClothingInventoryStatus,
@@ -18,24 +24,32 @@ import type {
 
 function InventoryEmptyState({
   statusFilter,
+  searching,
   onResetFilter,
   onAddStock,
 }: {
   statusFilter: ClothingInventoryStatus | "all";
+  searching: boolean;
   onResetFilter: () => void;
   onAddStock: () => void;
 }) {
-  const isFiltered = statusFilter !== "all";
+  const isFiltered = statusFilter !== "all" || searching;
 
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
       <p className="font-medium text-foreground">
-        {isFiltered ? "Ningún lote con este filtro" : "Inventario vacío"}
+        {searching
+          ? "Ningún lote coincide"
+          : isFiltered
+            ? "Ningún lote con este filtro"
+            : "Inventario vacío"}
       </p>
       <p className="mt-1.5 max-w-xs text-sm leading-relaxed text-muted-foreground">
-        {isFiltered
-          ? "Prueba otro estado o muestra todos los lotes."
-          : "Añade stock y colócalo en cajas para ver el almacén."}
+        {searching
+          ? "Prueba otro nombre, talla o dorsal."
+          : isFiltered
+            ? "Prueba otro estado o muestra todos los lotes."
+            : "Añade stock y colócalo en cajas para ver el almacén."}
       </p>
       {isFiltered ? (
         <button type="button" onClick={onResetFilter} className="btn-secondary mt-5 min-h-11 md:min-h-8">
@@ -61,13 +75,26 @@ export function InventoryPageClient({
   onManualOpenChange: (open: boolean) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState<ClothingInventoryStatus | "all">("all");
+  const [query, setQuery] = useState("");
   const [assignLot, setAssignLot] = useState<ClothingInventoryLotWithDetails | null>(null);
+  const [jerseyLot, setJerseyLot] = useState<ClothingInventoryLotWithDetails | null>(null);
+  const [writeOff, setWriteOff] = useState<{
+    storageLocationId: string | null;
+    locationLabel: string;
+  } | null>(null);
 
-  const pendingCount = lots.filter((lot) => lot.status === "pending_storage").length;
-  const storedCount = lots.filter((lot) => lot.status === "stored").length;
+  const searching = query.trim().length > 0;
+  const visibleLots = useMemo(
+    () => lots.filter((lot) => lotMatchesQuery(lot, query)),
+    [lots, query],
+  );
+
+  const pendingCount = visibleLots.filter((lot) => lot.status === "pending_storage").length;
+  const storedCount = visibleLots.filter((lot) => lot.status === "stored").length;
+  const pools = buildStockPools(lots, storageTree);
 
   const filterOptions = [
-    { value: "all" as const, label: "Todos", count: lots.length },
+    { value: "all" as const, label: "Todos", count: visibleLots.length },
     {
       value: "pending_storage" as const,
       label: INVENTORY_STATUS_LABELS.pending_storage,
@@ -85,11 +112,24 @@ export function InventoryPageClient({
   const filteredEmpty =
     (statusFilter === "pending_storage" && pendingCount === 0) ||
     (statusFilter === "stored" && storedCount === 0) ||
-    (statusFilter === "all" && lots.length === 0 && boxCount === 0);
+    (statusFilter === "all" && visibleLots.length === 0 && (searching || boxCount === 0));
+
+  const writeOffPools = writeOff
+    ? poolsInLocation(pools, writeOff.storageLocationId)
+    : [];
 
   return (
     <>
       <div className="clothing-page-with-sticky flex flex-col gap-4">
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar prenda, talla o #dorsal"
+          aria-label="Buscar en inventario"
+          className="min-h-11"
+        />
+
         <ClothingFilterChips
           options={filterOptions}
           value={statusFilter}
@@ -100,24 +140,39 @@ export function InventoryPageClient({
         {filteredEmpty ? (
           <InventoryEmptyState
             statusFilter={statusFilter}
-            onResetFilter={() => setStatusFilter("all")}
+            searching={searching}
+            onResetFilter={() => {
+              setStatusFilter("all");
+              setQuery("");
+            }}
             onAddStock={() => onManualOpenChange(true)}
           />
         ) : (
           <InventoryBoxBoard
-            lots={lots}
+            lots={visibleLots}
             storageTree={storageTree}
             showPending={
               statusFilter === "pending_storage" || (statusFilter === "all" && pendingCount > 0)
             }
             showBoxes={showBoxes}
+            hideEmptyBoxes={searching}
             onAssign={setAssignLot}
+            onAssignJerseys={setJerseyLot}
+            onWriteOff={(storageLocationId, locationLabel) =>
+              setWriteOff({ storageLocationId, locationLabel })
+            }
           />
         )}
       </div>
 
       <ClothingStickyActionBar
         actions={[
+          {
+            type: "link",
+            label: "Registrar entrega",
+            href: appRoutes.clothing.deliveries,
+            variant: "secondary",
+          },
           {
             type: "button",
             label: "Añadir stock",
@@ -131,6 +186,19 @@ export function InventoryPageClient({
           lot={assignLot}
           storageTree={storageTree}
           onClose={() => setAssignLot(null)}
+        />
+      ) : null}
+
+      {jerseyLot ? (
+        <InventoryAssignJerseysSheet lot={jerseyLot} onClose={() => setJerseyLot(null)} />
+      ) : null}
+
+      {writeOff ? (
+        <InventoryBoxWriteOffSheet
+          storageLocationId={writeOff.storageLocationId}
+          locationLabel={writeOff.locationLabel}
+          pools={writeOffPools}
+          onClose={() => setWriteOff(null)}
         />
       ) : null}
     </>

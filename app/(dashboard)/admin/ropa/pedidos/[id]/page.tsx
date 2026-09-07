@@ -4,10 +4,9 @@ import { OrderLinesSection } from "@/components/clothing/OrderLinesSection";
 import { OrderStatusActions } from "@/components/clothing/OrderStatusActions";
 import { OrderStatusBadge } from "@/components/clothing/OrderStatusBadge";
 import { OrderStatusStepper } from "@/components/clothing/OrderStatusStepper";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { DashboardPage } from "@/components/layout/DashboardPage";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
 import { getOrderById } from "@/lib/clothing/snapshots";
-import { appRoutes } from "@/lib/constants";
 
 export default async function ClothingOrderDetailPage({
   params,
@@ -20,13 +19,11 @@ export default async function ClothingOrderDetailPage({
   if (!order) notFound();
 
   return (
-    <div className="clothing-page-with-sticky flex flex-col gap-6">
-      <PageHeader
-        back={{ href: appRoutes.clothing.orders, label: "Pedidos" }}
-        title={order.reference}
-        subtitle={`${order.supplier_name} · Temporada ${order.season}`}
-      />
-
+    <DashboardPage
+      title={order.reference}
+      subtitle={`${order.supplier_name} · Temporada ${order.season}`}
+      className="flex flex-col gap-6"
+    >
       <div className="glass-panel gap-0 !p-0">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-4 sm:px-5 sm:py-5">
           <OrderStatusBadge status={order.status} />
@@ -66,6 +63,6 @@ export default async function ClothingOrderDetailPage({
         <h2 className="section-title md:hidden">Líneas del pedido</h2>
         <OrderLinesSection lines={order.lines} />
       </section>
-    </div>
+    </DashboardPage>
   );
 }

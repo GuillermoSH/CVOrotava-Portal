@@ -9,6 +9,7 @@ import { Logo } from "@/components/shared/Logo";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { signOut } from "@/lib/actions/auth";
 import { appRoutes } from "@/lib/constants";
+import { markDashboardNavigating } from "@/lib/layout/navigation-pending";
 import { cn } from "@/lib/utils";
 
 const defaultUser = {
@@ -65,6 +66,7 @@ export function MobileNavTop({
             userName={user.name}
             userRole={user.role}
             onViewProfile={() => {
+              markDashboardNavigating(appRoutes.profile);
               router.push(appRoutes.profile);
             }}
             onLogout={() => {

@@ -10,7 +10,7 @@ import {
   OrdersViewToggle,
   useClothingOrdersView,
 } from "@/components/clothing/OrdersViewToggle";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { DashboardPage } from "@/components/layout/DashboardPage";
 import { appRoutes } from "@/lib/constants";
 import type { ClothingOrderStatus, ClothingOrderWithLines } from "@/lib/types/db";
 
@@ -19,20 +19,16 @@ export function OrdersPageClient({ orders }: { orders: ClothingOrderWithLines[] 
   const [statusFilter, setStatusFilter] = useState<ClothingOrderStatus | "all" | "open">("open");
 
   return (
-    <div className="clothing-page-with-sticky flex flex-col gap-5">
-      <PageHeader
-        title="Pedidos a proveedor"
-        subtitle="Flujo desde borrador hasta serigrafía. En escritorio puedes alternar kanban o lista."
-        actions={
-          <div className="clothing-toolbar hidden md:flex">
-            <OrdersViewToggle view={view} onChange={setView} />
-            <Link href={appRoutes.clothing.newOrder} className="btn-primary">
-              Nuevo pedido
-            </Link>
-          </div>
-        }
-      />
-
+    <DashboardPage
+      actions={
+        <div className="clothing-toolbar hidden md:flex">
+          <OrdersViewToggle view={view} onChange={setView} />
+          <Link href={appRoutes.clothing.newOrder} className="btn-primary">
+            Nuevo pedido
+          </Link>
+        </div>
+      }
+    >
       {view === "kanban" ? (
         <OrderKanbanBoard orders={orders} />
       ) : (
@@ -46,6 +42,6 @@ export function OrdersPageClient({ orders }: { orders: ClothingOrderWithLines[] 
       <ClothingStickyActionBar
         actions={[{ type: "link", label: "Nuevo pedido", href: appRoutes.clothing.newOrder }]}
       />
-    </div>
+    </DashboardPage>
   );
 }

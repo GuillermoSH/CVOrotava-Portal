@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { InventoryPageClient } from "@/components/clothing/InventoryPageClient";
 import { ManualInventorySheet } from "@/components/clothing/ManualInventorySheet";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { DashboardPage } from "@/components/layout/DashboardPage";
 import { appRoutes } from "@/lib/constants";
 import type {
   ClothingInventoryLotWithDetails,
@@ -26,34 +26,41 @@ export function InventoryWarehouseView({
   const [manualOpen, setManualOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader
-        back={{ href: appRoutes.clothing.hub, label: "Gestión de ropa" }}
-        title="Inventario"
-        subtitle="Stock agrupado por caja. Lo que aún no tiene caja aparece arriba, por ubicar."
-        actions={
-          <div className="clothing-toolbar hidden md:flex">
-            <button
-              type="button"
-              className="btn-primary inline-flex items-center gap-1.5"
-              onClick={() => setManualOpen(true)}
-            >
-              <Plus className="size-4" aria-hidden />
-              Añadir stock
-            </button>
-            <Link href={appRoutes.clothing.locations} className="btn-secondary inline-flex">
-              Cajas
-            </Link>
-          </div>
-        }
-      />
-
-      <Link
-        href={appRoutes.clothing.locations}
-        className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-brand md:hidden"
-      >
-        Cajas
-      </Link>
+    <DashboardPage
+      className="flex flex-col gap-5"
+      actions={
+        <div className="clothing-toolbar hidden md:flex">
+          <button
+            type="button"
+            className="btn-primary inline-flex items-center gap-1.5"
+            onClick={() => setManualOpen(true)}
+          >
+            <Plus className="size-4" aria-hidden />
+            Añadir stock
+          </button>
+          <Link href={appRoutes.clothing.deliveries} className="btn-secondary inline-flex">
+            Registrar entrega
+          </Link>
+          <Link href={appRoutes.clothing.locations} className="btn-secondary inline-flex">
+            Cajas
+          </Link>
+        </div>
+      }
+    >
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 md:hidden">
+        <Link
+          href={appRoutes.clothing.deliveries}
+          className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-brand"
+        >
+          Registrar entrega
+        </Link>
+        <Link
+          href={appRoutes.clothing.locations}
+          className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-brand"
+        >
+          Cajas
+        </Link>
+      </div>
 
       <InventoryPageClient
         lots={lots}
@@ -67,6 +74,6 @@ export function InventoryWarehouseView({
         products={products}
         storageTree={storageTree}
       />
-    </div>
+    </DashboardPage>
   );
 }

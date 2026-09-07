@@ -15,5 +15,9 @@ export default async function AdminLayout({
     redirect(appRoutes.parents);
   }
 
-  return <AppShell navTitle="Área dirección" homeHref={appRoutes.admin}>{children}</AppShell>;
+  return (
+    <AppShell navTitle="Área dirección" homeHref={appRoutes.admin}>
+      {children}
+    </AppShell>
+  );
 }

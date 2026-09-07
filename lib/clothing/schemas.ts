@@ -42,12 +42,48 @@ export const assignInventorySchema = z.object({
   storage_location_id: z.string().uuid(),
 });
 
-export const createManualInventorySchema = z.object({
+export const createManualInventorySchema = z
+  .object({
+    product_id: z.string().uuid(),
+    size: z.enum(CLOTHING_SIZES),
+    quantity: z.coerce.number().int().min(1).max(9999),
+    storage_location_id: z.string().uuid().nullable().optional(),
+    notes: z.string().max(500).optional(),
+    jersey_number: z.number().int().min(0).max(99).nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.jersey_number != null && value.quantity !== 1) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Una prenda con dorsal es una sola unidad",
+        path: ["quantity"],
+      });
+    }
+  });
+
+const stockOutLineSchema = z.object({
   product_id: z.string().uuid(),
   size: z.enum(CLOTHING_SIZES),
+  storage_location_id: z.string().uuid().nullable(),
   quantity: z.coerce.number().int().min(1).max(9999),
-  storage_location_id: z.string().uuid().nullable().optional(),
+  jersey_number: z.number().int().min(0).max(99).nullable().optional(),
+});
+
+export const deliverInventorySchema = z.object({
+  player_id: z.string().uuid(),
   notes: z.string().max(500).optional(),
+  lines: z.array(stockOutLineSchema).min(1),
+});
+
+export const writeOffInventorySchema = z.object({
+  storage_location_id: z.string().uuid().nullable(),
+  notes: z.string().max(500).optional(),
+  lines: z.array(stockOutLineSchema).min(1),
+});
+
+export const assignJerseyNumbersSchema = z.object({
+  lot_id: z.string().uuid(),
+  jersey_numbers: z.array(z.coerce.number().int().min(0).max(99)).min(1),
 });
 
 export const createProductSchema = z.object({
