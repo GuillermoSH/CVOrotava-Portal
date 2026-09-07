@@ -25,12 +25,20 @@ export type Team = {
 export type Player = {
   id: string;
   full_name: string;
+  first_name: string;
+  last_name: string;
   birth_date: string | null;
   team_id: string | null;
   /** Set when the player has their own login (senior players). */
   user_id: string | null;
   season: string;
   is_active: boolean;
+  dni: string | null;
+  license_completed: boolean;
+  registration_papers_received: boolean;
+  medical_notes: string | null;
+  clothing_size: ClothingSize | null;
+  address: string | null;
 };
 
 export type PlayerGuardian = {
@@ -38,6 +46,27 @@ export type PlayerGuardian = {
   player_id: string;
   guardian_user_id: string;
   relationship: string | null;
+};
+
+export type PlayerContactRelationship = "madre" | "padre" | "tutor" | "otro" | "jugador";
+
+export type PlayerContact = {
+  id: string;
+  player_id: string;
+  full_name: string;
+  relationship: PlayerContactRelationship;
+  phone: string | null;
+  email: string | null;
+  is_primary: boolean;
+  portal_user_id: string | null;
+};
+
+export type PlayerWithTeam = Player & {
+  team: Team | null;
+};
+
+export type PlayerWithDetails = PlayerWithTeam & {
+  contacts: PlayerContact[];
 };
 
 export type UserAppRole = {
@@ -93,6 +122,8 @@ export type ClothingLocationType = "cabinet" | "shelf" | "box";
 export type ClothingInventoryStatus = "pending_storage" | "stored";
 
 export type ClothingInventorySourceType = "order" | "manual";
+
+export type ClothingStockMovementKind = "delivery" | "write_off";
 
 /** Matches `clothing_size` enum in Supabase. */
 export type ClothingSize =
@@ -178,6 +209,7 @@ export type ClothingInventoryLot = {
   source_type: ClothingInventorySourceType;
   notes: string | null;
   returned_from_serigraphy_at: string | null;
+  jersey_number: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -195,6 +227,21 @@ export type ClothingOrderWithLines = ClothingSupplierOrder & {
 export type ClothingInventoryLotWithDetails = ClothingInventoryLot & {
   product: ClothingProduct;
   location_path: string | null;
+};
+
+export type ClothingStockMovement = {
+  id: string;
+  kind: ClothingStockMovementKind;
+  lot_id: string | null;
+  product_id: string;
+  size: ClothingSize;
+  quantity: number;
+  recipient_name: string | null;
+  notes: string | null;
+  created_by: string | null;
+  jersey_number: number | null;
+  player_id: string | null;
+  created_at: string;
 };
 
 export type ClothingStorageLocationNode = ClothingStorageLocation & {

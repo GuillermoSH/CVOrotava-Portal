@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Home, Shirt } from "lucide-react";
+import { Home, Shirt, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -19,19 +19,27 @@ export function SidebarNav({
 }) {
   const pathname = usePathname();
   const homeActive = pathname === homeHref || pathname.startsWith(`${homeHref}/`);
-  const showClothing = homeHref === appRoutes.admin;
+  const showAdminNav = homeHref === appRoutes.admin;
   const clothingActive =
     pathname === appRoutes.clothing.hub || pathname.startsWith(`${appRoutes.clothing.hub}/`);
+  const playersActive =
+    pathname === appRoutes.players.list || pathname.startsWith(`${appRoutes.players.list}/`);
 
   const items = [
     {
       href: homeHref,
       label: "Inicio",
       icon: Home,
-      active: homeActive && !clothingActive,
+      active: homeActive && !clothingActive && !playersActive,
     },
-    ...(showClothing
+    ...(showAdminNav
       ? [
+          {
+            href: appRoutes.players.list,
+            label: "Jugadores",
+            icon: Users,
+            active: playersActive,
+          },
           {
             href: appRoutes.clothing.hub,
             label: "Ropa",

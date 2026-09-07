@@ -2,6 +2,8 @@ import type {
   ClothingInventoryLot,
   ClothingInventorySourceType,
   ClothingOrderStatus,
+  ClothingStockMovement,
+  ClothingStockMovementKind,
   ClothingProduct,
   ClothingProductBrand,
   ClothingProductCategory,
@@ -71,6 +73,7 @@ type LotRow = {
   source_type: string;
   notes: string | null;
   returned_from_serigraphy_at: string | null;
+  jersey_number: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -143,9 +146,42 @@ export function mapLot(row: LotRow): ClothingInventoryLot {
     source_type: row.source_type as ClothingInventorySourceType,
     notes: row.notes,
     returned_from_serigraphy_at: row.returned_from_serigraphy_at,
+    jersey_number: row.jersey_number ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
 }
 
-export type { ProductRow, OrderRow, OrderLineRow, LocationRow, LotRow };
+type MovementRow = {
+  id: string;
+  kind: string;
+  lot_id: string | null;
+  product_id: string;
+  size: string;
+  quantity: number;
+  recipient_name: string | null;
+  notes: string | null;
+  created_by: string | null;
+  jersey_number: number | null;
+  player_id: string | null;
+  created_at: string;
+};
+
+export function mapStockMovement(row: MovementRow): ClothingStockMovement {
+  return {
+    id: row.id,
+    kind: row.kind as ClothingStockMovementKind,
+    lot_id: row.lot_id,
+    product_id: row.product_id,
+    size: row.size as ClothingSize,
+    quantity: row.quantity,
+    recipient_name: row.recipient_name,
+    notes: row.notes,
+    created_by: row.created_by,
+    jersey_number: row.jersey_number ?? null,
+    player_id: row.player_id ?? null,
+    created_at: row.created_at,
+  };
+}
+
+export type { ProductRow, OrderRow, OrderLineRow, LocationRow, LotRow, MovementRow };

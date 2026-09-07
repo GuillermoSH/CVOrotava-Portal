@@ -45,6 +45,12 @@ export const appRoutes = {
     products: "/admin/ropa/prendas",
     warehouse: "/admin/ropa/almacen",
     locations: "/admin/ropa/almacen/ubicaciones",
+    deliveries: "/admin/ropa/entregas",
+  },
+  players: {
+    list: "/admin/jugadores",
+    new: "/admin/jugadores/nuevo",
+    detail: (id: string) => `/admin/jugadores/${id}`,
   },
 } as const;
 
