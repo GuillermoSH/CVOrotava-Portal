@@ -54,7 +54,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     return {
       title: "Jugadores",
       subtitle: "Equipo principal, trámites y contacto familiar.",
-      sticky: true,
+      sticky: "tall",
       skeleton: "players",
       action: { href: appRoutes.players.new, label: "Nuevo jugador" },
     };
@@ -168,13 +168,13 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
 
 export function getDashboardFrameClassName(chrome: DashboardRouteChrome | null) {
   if (chrome?.sticky === "tall") {
-    return "clothing-page-with-sticky clothing-page-with-sticky--tall flex flex-col gap-6 sm:gap-8";
+    return "clothing-page-with-sticky clothing-page-with-sticky--tall flex flex-col gap-4";
   }
   if (chrome?.sticky) {
-    return "clothing-page-with-sticky flex flex-col gap-6";
+    return "clothing-page-with-sticky flex flex-col gap-4";
   }
   if (chrome?.skeleton === "hub" || chrome?.skeleton === "admin") {
-    return "flex flex-col gap-8 lg:gap-10";
+    return "flex flex-col gap-6";
   }
-  return "flex flex-col gap-6";
+  return "flex flex-col gap-4";
 }

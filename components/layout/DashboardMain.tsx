@@ -28,9 +28,11 @@ export function DashboardMain({ children }: { children: React.ReactNode }) {
     activeOverride && activeOverride.actions !== undefined
       ? activeOverride.actions
       : routeChrome?.action ? (
-          <Link href={routeChrome.action.href} className="btn-primary hidden min-h-11 md:inline-flex">
-            {routeChrome.action.label}
-          </Link>
+          <div className="clothing-toolbar hidden md:flex">
+            <Link href={routeChrome.action.href} className="btn-primary">
+              {routeChrome.action.label}
+            </Link>
+          </div>
         ) : undefined;
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export function DashboardMain({ children }: { children: React.ReactNode }) {
       ) : null}
       <main
         ref={mainRef}
-        className="scrollbar-hidden flex-1 overflow-auto px-4 py-6 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:pb-8 lg:pt-8"
+        className="scrollbar-hidden flex-1 overflow-auto px-4 py-4 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:py-6"
         aria-busy={navigating}
       >
         <div className={getDashboardFrameClassName(routeChrome)}>

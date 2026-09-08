@@ -35,6 +35,9 @@ function friendlyDbError(message: string): string {
   if (/player_contacts_primary/i.test(message)) {
     return "Solo puede haber un contacto principal";
   }
+  if (/player_contacts_relationship_chk/i.test(message)) {
+    return "El parentesco no es válido. Si es mayor de edad, aplica en Supabase la migración 20260907150000_player_self_contact.sql.";
+  }
   if (/clothing_size/i.test(message) && /does not exist|schema cache/i.test(message)) {
     return "Falta aplicar la migración de ficha de jugador en Supabase.";
   }

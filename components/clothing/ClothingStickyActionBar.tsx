@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/club/Button";
@@ -29,7 +30,13 @@ export function ClothingStickyActionBar({
   actions: Action[];
   className?: string;
 }) {
-  if (typeof document === "undefined") return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   const primaryActions = actions.filter(
     (action) => action.type !== "link" || action.variant !== "secondary",

@@ -21,11 +21,15 @@ export function SizePicker({
   onChange,
   id = "size",
   sizes,
+  clearable = false,
+  disabled = false,
 }: {
   value: ClothingSize | "";
-  onChange: (size: ClothingSize) => void;
+  onChange: (size: ClothingSize | "") => void;
   id?: string;
   sizes?: ClothingSize[];
+  clearable?: boolean;
+  disabled?: boolean;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const labelText = value ? CLOTHING_SIZE_LABELS[value] : "Selecciona talla…";
@@ -58,17 +62,28 @@ export function SizePicker({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label id={`${id}-label`}>Talla</Label>
+      <div className="flex items-center justify-between gap-3">
+        <Label id={`${id}-label`}>Talla</Label>
+        {clearable && value && !disabled ? (
+          <button
+            type="button"
+            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            onClick={() => onChange("")}
+          >
+            Quitar
+          </button>
+        ) : null}
+      </div>
 
       <button
         type="button"
         aria-labelledby={`${id}-label`}
-        onClick={() => groups.length > 0 && setSheetOpen(true)}
-        disabled={groups.length === 0}
+        onClick={() => !disabled && groups.length > 0 && setSheetOpen(true)}
+        disabled={disabled || groups.length === 0}
         className={cn(
           "form-input flex min-h-11 items-center justify-between gap-2 text-left md:hidden",
           !value && "text-muted-foreground",
-          groups.length === 0 && "cursor-not-allowed opacity-50",
+          (disabled || groups.length === 0) && "cursor-not-allowed opacity-50",
         )}
       >
         <span className="truncate">
@@ -85,7 +100,7 @@ export function SizePicker({
           onChange={(next) => onChange(next as ClothingSize)}
           options={selectOptions}
           placeholder={groups.length === 0 ? "Sin tallas en stock" : "Selecciona talla…"}
-          disabled={groups.length === 0}
+          disabled={disabled || groups.length === 0}
         />
       </div>
 

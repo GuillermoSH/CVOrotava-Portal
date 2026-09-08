@@ -9,12 +9,12 @@ export default async function ClothingHubPage() {
 
   return (
     <>
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         <h2 className="section-title">Indicadores</h2>
         <ClothingHubCards kpis={kpis} />
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         <h2 className="section-title">Operaciones</h2>
         <ClothingHubQuickLinks />
       </section>

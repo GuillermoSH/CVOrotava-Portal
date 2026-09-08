@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 export function PageHeaderSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", className)}>
+    <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between", className)}>
       <div className="min-w-0 space-y-2">
         <Bone className="h-8 w-48 max-w-full rounded-lg sm:h-9 sm:w-64" />
         <Bone className="h-4 w-72 max-w-full rounded-md" />
@@ -143,7 +143,7 @@ function AdminBody() {
   return (
     <>
       <section>
-        <h2 className="section-title mb-4">Indicadores</h2>
+        <h2 className="section-title mb-3">Indicadores</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <AdminMetricCard title="Inventario de ropa" helper="Almacén interno" chart />
           <AdminMetricCard title="Morosos críticos" helper="≥ 2 cuotas" />
@@ -189,7 +189,7 @@ function AdminBody() {
 function HubBody() {
   return (
     <>
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         <h2 className="section-title">Indicadores</h2>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
           <KpiTile title="Pedidos abiertos" helper="activos" href={appRoutes.clothing.orders} />
@@ -197,7 +197,7 @@ function HubBody() {
           <KpiTile title="En almacén" helper="unidades" href={appRoutes.clothing.warehouse} wide />
         </div>
       </section>
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         <h2 className="section-title">Operaciones</h2>
         <ClothingHubQuickLinks />
       </section>
@@ -210,7 +210,6 @@ function PlayersBody() {
     <div className="flex flex-col gap-4">
       <SearchBone />
       <FilterChipsSkeleton count={4} className="" />
-      <FilterChipRow labels={["Activos", "Todos"]} />
       <ul className="flex flex-col gap-3">
         {Array.from({ length: 5 }, (_, index) => (
           <li key={index}>
@@ -225,18 +224,18 @@ function PlayersBody() {
 function PlayerFormBody() {
   return (
     <div className="flex flex-col gap-8">
-      <FormSection title="Jugador">
+      <FormSection title="Identidad">
         <div className="grid gap-4 sm:grid-cols-2">
           <FormFieldBone />
           <FormFieldBone />
           <FormFieldBone />
           <FormFieldBone />
         </div>
+        <FormFieldBone wide />
       </FormSection>
-      <FormSection title="Club">
+      <FormSection title="Equipo y talla">
         <FormFieldBone />
-        <Bone className="h-10 w-40 rounded-lg" />
-        <Bone className="h-11 w-full rounded-lg" />
+        <FormFieldBone />
       </FormSection>
       <FormSection title="Trámites">
         <Bone className="h-14 w-full rounded-xl" />
@@ -508,7 +507,7 @@ export function DashboardBodySkeleton({
 
 export function DashboardPageSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeaderSkeleton className="mb-0" />
       <DashboardBodySkeleton />
     </div>

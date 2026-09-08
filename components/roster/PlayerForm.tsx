@@ -4,8 +4,11 @@ import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
+import { Badge } from "@/components/club/Badge";
 import { Button } from "@/components/club/Button";
 import { FormDate, FormInput, FormSelect, FormTextarea } from "@/components/club/forms";
+import { Label } from "@/components/club/Label";
+import { SegmentedControl } from "@/components/club/SegmentedControl";
 import { SizePicker } from "@/components/clothing/SizePicker";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { TeamCreateSheet } from "@/components/roster/TeamCreateSheet";
@@ -22,12 +25,19 @@ import { appRoutes } from "@/lib/constants";
 import { getCurrentSeason } from "@/lib/season";
 import type { ClothingSize, PlayerContact, PlayerWithDetails, Team } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 type ContactDraft = {
   full_name: string;
   relationship: GuardianRelationship;
   phone: string;
   email: string;
+};
+
+type FieldErrors = {
+  firstName?: string;
+  lastName?: string;
+  teamId?: string;
 };
 
 const emptyContact = (): ContactDraft => ({
@@ -71,24 +81,42 @@ function ToggleRow({
   onChange: (value: boolean) => void;
   disabled?: boolean;
 }) {
+  const hintId = hint ? `${id}-hint` : undefined;
   return (
-    <label
-      htmlFor={id}
-      className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-[var(--club-border)] px-4 py-3"
-    >
+    <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--club-border)] px-4 py-3">
       <span>
-        <span className="block text-sm font-medium text-foreground">{label}</span>
-        {hint ? <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span> : null}
+        <span id={`${id}-label`} className="block text-sm font-medium text-foreground">
+          {label}
+        </span>
+        {hint ? (
+          <span id={hintId} className="mt-0.5 block text-xs text-muted-foreground">
+            {hint}
+          </span>
+        ) : null}
       </span>
-      <input
+      <button
         id={id}
-        type="checkbox"
-        className="size-5 rounded border-[var(--club-border)] accent-brand"
-        checked={checked}
+        type="button"
+        role="switch"
+        aria-labelledby={`${id}-label`}
+        aria-checked={checked}
+        aria-describedby={hintId}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-    </label>
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+          checked ? "bg-brand" : "bg-[var(--club-surface-2)] ring-1 ring-inset ring-[var(--club-border)]",
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "absolute top-0.5 left-0.5 size-6 rounded-full bg-[var(--club-drawer-bg)] shadow-[0_1px_3px_rgba(16,16,24,0.28)] transition-transform duration-200 ease-out",
+            checked && "translate-x-5",
+          )}
+        />
+      </button>
+    </div>
   );
 }
 
@@ -104,6 +132,7 @@ export function PlayerForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [teamSheetOpen, setTeamSheetOpen] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const season = player?.season ?? getCurrentSeason();
 
   const [firstName, setFirstName] = useState(player?.first_name ?? "");
@@ -125,8 +154,8 @@ export function PlayerForm({
   );
 
   const isAdult = useMemo(() => isLegalAdult(birthDate || null), [birthDate]);
-
   const readOnly = !canWrite;
+  const saveLabel = pending ? "Guardando…" : player ? "Guardar ficha" : "Dar de alta";
   const teamOptions = teams.map((team) => ({
     value: team.id,
     label: `${team.name} · ${formatTeamCategory(team.category)}`,
@@ -165,6 +194,16 @@ export function PlayerForm({
   function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     if (!canWrite) return;
+
+    const nextErrors: FieldErrors = {};
+    if (!firstName.trim()) nextErrors.firstName = "Indica el nombre";
+    if (!lastName.trim()) nextErrors.lastName = "Indica los apellidos";
+    if (!teamId) nextErrors.teamId = "Selecciona un equipo";
+    setFieldErrors(nextErrors);
+    if (nextErrors.firstName || nextErrors.lastName || nextErrors.teamId) {
+      appToast.error("Faltan datos para guardar la ficha");
+      return;
+    }
 
     if (!isAdult) {
       const incomplete = contacts.some(
@@ -241,7 +280,7 @@ export function PlayerForm({
     <>
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
         <section className="flex flex-col gap-4">
-          <h2 className="section-title">Jugador</h2>
+          <h2 className="section-title">Identidad</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormInput
               label="Nombre"
@@ -250,7 +289,11 @@ export function PlayerForm({
               autoComplete="given-name"
               value={firstName}
               disabled={readOnly}
-              onChange={(e) => setFirstName(e.target.value)}
+              error={fieldErrors.firstName ? { type: "manual", message: fieldErrors.firstName } : undefined}
+              onChange={(e) => {
+                setFirstName(e.target.value);
+                if (fieldErrors.firstName) setFieldErrors((prev) => ({ ...prev, firstName: undefined }));
+              }}
               required
             />
             <FormInput
@@ -260,7 +303,11 @@ export function PlayerForm({
               autoComplete="family-name"
               value={lastName}
               disabled={readOnly}
-              onChange={(e) => setLastName(e.target.value)}
+              error={fieldErrors.lastName ? { type: "manual", message: fieldErrors.lastName } : undefined}
+              onChange={(e) => {
+                setLastName(e.target.value);
+                if (fieldErrors.lastName) setFieldErrors((prev) => ({ ...prev, lastName: undefined }));
+              }}
               required
             />
             <div className="flex flex-col gap-1.5">
@@ -272,13 +319,22 @@ export function PlayerForm({
                 disabled={readOnly}
                 onChange={(e) => handleBirthDateChange(e.target.value)}
               />
-              {birthDate ? (
-                <p className="text-xs text-muted-foreground">
-                  {isAdult
-                    ? "Mayor de edad: el contacto de la ficha es el del jugador."
-                    : "Menor de edad: el contacto es de madre, padre o tutor."}
-                </p>
-              ) : null}
+              <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                {birthDate ? (
+                  <>
+                    <Badge variant={isAdult ? "info" : "secondary"} className="text-[11px]">
+                      {isAdult ? "Mayor de edad" : "Menor"}
+                    </Badge>
+                    <span>
+                      {isAdult
+                        ? "El teléfono y el email son los del jugador."
+                        : "El contacto es de madre, padre o tutor."}
+                    </span>
+                  </>
+                ) : (
+                  "Si no hay fecha, la ficha se trata como menor."
+                )}
+              </p>
             </div>
             <FormInput
               label="DNI / NIE"
@@ -290,46 +346,6 @@ export function PlayerForm({
               onChange={(e) => setDni(e.target.value.toUpperCase())}
             />
           </div>
-        </section>
-
-        <section className="flex flex-col gap-4 border-t border-[var(--club-border)] pt-8">
-          <h2 className="section-title">Club</h2>
-          {teams.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Crea un equipo para asignar el equipo principal.
-            </p>
-          ) : (
-            <FormSelect
-              label="Equipo principal"
-              name="team_id"
-              value={teamId}
-              disabled={readOnly}
-              onChange={(e) => setTeamId(e.target.value)}
-              options={teamOptions}
-              placeholder="Selecciona equipo…"
-            />
-          )}
-          {canWrite ? (
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 w-fit"
-              onClick={() => setTeamSheetOpen(true)}
-            >
-              <Plus className="size-4" aria-hidden />
-              Nuevo equipo
-            </Button>
-          ) : null}
-          <SizePicker value={size} onChange={setSize} id="player-size" />
-          {size && canWrite ? (
-            <button
-              type="button"
-              className="w-fit text-sm font-medium text-muted-foreground"
-              onClick={() => setSize("")}
-            >
-              Quitar talla
-            </button>
-          ) : null}
           <FormTextarea
             label="Dirección"
             name="address"
@@ -340,6 +356,60 @@ export function PlayerForm({
             value={address}
             disabled={readOnly}
             onChange={(e) => setAddress(e.target.value)}
+          />
+        </section>
+
+        <section className="flex flex-col gap-4 border-t border-[var(--club-border)] pt-8">
+          <h2 className="section-title">Equipo y talla</h2>
+          {teams.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Crea un equipo para asignar el equipo principal.</p>
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
+                <FormSelect
+                  label="Equipo principal"
+                  name="team_id"
+                  value={teamId}
+                  disabled={readOnly}
+                  error={fieldErrors.teamId ? { type: "manual", message: fieldErrors.teamId } : undefined}
+                  onChange={(e) => {
+                    setTeamId(e.target.value);
+                    if (fieldErrors.teamId) setFieldErrors((prev) => ({ ...prev, teamId: undefined }));
+                  }}
+                  options={teamOptions}
+                  placeholder="Selecciona equipo…"
+                />
+              </div>
+              {canWrite ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-11 w-fit shrink-0"
+                  onClick={() => setTeamSheetOpen(true)}
+                >
+                  <Plus className="size-4" aria-hidden />
+                  Nuevo equipo
+                </Button>
+              ) : null}
+            </div>
+          )}
+          {teams.length === 0 && canWrite ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 w-fit"
+              onClick={() => setTeamSheetOpen(true)}
+            >
+              <Plus className="size-4" aria-hidden />
+              Nuevo equipo
+            </Button>
+          ) : null}
+          <SizePicker
+            value={size}
+            onChange={setSize}
+            id="player-size"
+            clearable={canWrite}
+            disabled={readOnly}
           />
         </section>
 
@@ -416,7 +486,7 @@ export function PlayerForm({
                 <div>
                   <h2 className="section-title">Contacto familiar</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Madre/padre o tutor. No hace falta que tengan cuenta en el portal.
+                    Madre, padre o tutor. No hace falta que tengan cuenta en el portal.
                   </p>
                 </div>
                 {canWrite && contacts.length < 2 ? (
@@ -468,21 +538,24 @@ export function PlayerForm({
                     disabled={readOnly}
                     onChange={(e) => updateContact(index, { full_name: e.target.value })}
                   />
-                  <FormSelect
-                    label="Parentesco"
-                    name={`contact-rel-${index}`}
-                    value={contact.relationship}
-                    disabled={readOnly}
-                    onChange={(e) =>
-                      updateContact(index, {
-                        relationship: e.target.value as GuardianRelationship,
-                      })
-                    }
-                    options={GUARDIAN_RELATIONSHIPS.map((item) => ({
-                      value: item,
-                      label: GUARDIAN_RELATIONSHIP_LABELS[item],
-                    }))}
-                  />
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Parentesco</Label>
+                    {readOnly ? (
+                      <p className="flex min-h-11 items-center text-sm text-foreground">
+                        {GUARDIAN_RELATIONSHIP_LABELS[contact.relationship]}
+                      </p>
+                    ) : (
+                      <SegmentedControl
+                        aria-label={`Parentesco del contacto ${index + 1}`}
+                        value={contact.relationship}
+                        onChange={(value) => updateContact(index, { relationship: value })}
+                        options={GUARDIAN_RELATIONSHIPS.map((item) => ({
+                          value: item,
+                          label: GUARDIAN_RELATIONSHIP_LABELS[item],
+                        }))}
+                      />
+                    )}
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <FormInput
                       label="Teléfono"
@@ -513,9 +586,9 @@ export function PlayerForm({
         </section>
 
         {canWrite ? (
-          <div className="hidden sm:block">
-            <Button type="submit" className="min-h-11" disabled={pending}>
-              {pending ? "Guardando…" : player ? "Guardar ficha" : "Dar de alta"}
+          <div className="clothing-toolbar hidden border-t border-[var(--club-border)] pt-6 md:flex">
+            <Button type="submit" disabled={pending}>
+              {saveLabel}
             </Button>
           </div>
         ) : null}
@@ -533,7 +606,7 @@ export function PlayerForm({
           actions={[
             {
               type: "button",
-              label: pending ? "Guardando…" : player ? "Guardar ficha" : "Dar de alta",
+              label: saveLabel,
               pending,
               onClick: () => handleSubmit(),
             },

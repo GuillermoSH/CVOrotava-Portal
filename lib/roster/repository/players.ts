@@ -126,7 +126,25 @@ async function replaceContacts(
   }
 
   const { error } = await db.from("player_contacts").insert(rows);
-  if (error) throw new Error(dbErrorMessage(error));
+  if (!error) return;
+
+  const message = dbErrorMessage(error);
+  // Remote DBs that ran the ficha migration before `jugador` existed still reject
+  // that parentesco. Store the adult as `otro` so the ficha can be saved; the
+  // form already treats mayores de edad by birth date, not by this value.
+  if (
+    /player_contacts_relationship_chk/i.test(message) &&
+    rows.some((row) => row.relationship === "jugador")
+  ) {
+    const fallbackRows = rows.map((row) =>
+      row.relationship === "jugador" ? { ...row, relationship: "otro" as const } : row,
+    );
+    const retry = await db.from("player_contacts").insert(fallbackRows);
+    if (retry.error) throw new Error(dbErrorMessage(retry.error));
+    return;
+  }
+
+  throw new Error(message);
 }
 
 function playerInsert(input: PlayerWriteInput) {
@@ -181,4 +199,26 @@ export async function setPlayerActive(
 ): Promise<void> {
   const { error } = await db.from("players").update({ is_active: isActive }).eq("id", id);
   if (error) throw new Error(dbErrorMessage(error));
+}
+
+export async function createPlayers(
+  db: RosterDb,
+  inputs: PlayerWriteInput[],
+): Promise<{ created: number; errors: { index: number; message: string }[] }> {
+  const errors: { index: number; message: string }[] = [];
+  let created = 0;
+
+  for (const [index, input] of inputs.entries()) {
+    try {
+      await createPlayer(db, input);
+      created += 1;
+    } catch (error) {
+      errors.push({
+        index,
+        message: error instanceof Error ? error.message : "No se pudo crear el jugador",
+      });
+    }
+  }
+
+  return { created, errors };
 }
