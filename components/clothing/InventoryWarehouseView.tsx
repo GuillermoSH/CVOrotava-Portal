@@ -18,10 +18,12 @@ export function InventoryWarehouseView({
   lots,
   products,
   storageTree,
+  initialQuery = "",
 }: {
   lots: ClothingInventoryLotWithDetails[];
   products: ClothingProduct[];
   storageTree: ClothingStorageLocationNode[];
+  initialQuery?: string;
 }) {
   const [manualOpen, setManualOpen] = useState(false);
 
@@ -66,6 +68,7 @@ export function InventoryWarehouseView({
         lots={lots}
         storageTree={storageTree}
         onManualOpenChange={setManualOpen}
+        initialQuery={initialQuery}
       />
 
       <ManualInventorySheet

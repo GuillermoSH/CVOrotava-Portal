@@ -7,8 +7,17 @@ import { Button } from "@/components/club/Button";
 import { setPlayerActiveAction } from "@/lib/actions/roster/players";
 import type { Player } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
-export function PlayerStatusActions({ player }: { player: Player }) {
+const stickyActionClass = "min-h-9 h-9 px-3 text-sm";
+
+export function PlayerStatusActions({
+  player,
+  className,
+}: {
+  player: Player;
+  className?: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -31,11 +40,11 @@ export function PlayerStatusActions({ player }: { player: Player }) {
     <Button
       type="button"
       variant={player.is_active ? "secondary" : "primary"}
-      className="min-h-11"
+      className={cn(stickyActionClass, className)}
       disabled={pending}
       onClick={toggle}
     >
-      {player.is_active ? "Dar de baja" : "Reactivar"}
+      {pending ? "…" : player.is_active ? "Dar de baja" : "Reactivar"}
     </Button>
   );
 }

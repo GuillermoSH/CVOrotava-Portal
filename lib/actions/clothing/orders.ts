@@ -42,6 +42,7 @@ export async function createSupplierOrderAction(
     }
 
     const db = await getClothingDb();
+    const { data: authData } = await db.auth.getUser();
     const { reference, supplier_name, season, notes, lines } = parsed.data;
     const { order } = await createSupplierOrderRepo(db, {
       reference,
@@ -49,6 +50,7 @@ export async function createSupplierOrderAction(
       season,
       notes,
       lines,
+      changed_by: authData.user?.id ?? null,
     });
 
     revalidateClothing();
@@ -71,8 +73,9 @@ export async function updateOrderStatus(input: unknown): Promise<ActionResult> {
     }
 
     const db = await getClothingDb();
+    const { data: authData } = await db.auth.getUser();
     const { order_id, status } = parsed.data;
-    await updateOrderStatusRepo(db, order_id, status);
+    await updateOrderStatusRepo(db, order_id, status, authData.user?.id ?? null);
 
     revalidateClothing();
     revalidatePath(`/admin/ropa/pedidos/${order_id}`);

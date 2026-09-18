@@ -81,6 +81,35 @@ export const writeOffInventorySchema = z.object({
   lines: z.array(stockOutLineSchema).min(1),
 });
 
+const returnInventoryBaseSchema = z.object({
+  player_id: z.string().uuid(),
+  product_id: z.string().uuid(),
+  size: z.enum(CLOTHING_SIZES),
+  quantity: z.coerce.number().int().min(1).max(9999),
+  jersey_number: z.number().int().min(0).max(99).nullable().optional(),
+  related_movement_id: z.string().uuid().nullable().optional(),
+  storage_location_id: z.string().uuid().nullable().optional(),
+  notes: z.string().max(500).optional(),
+});
+
+export const returnInventorySchema = returnInventoryBaseSchema.superRefine((value, ctx) => {
+  if (value.jersey_number != null && value.quantity !== 1) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Una prenda con dorsal es una sola unidad",
+      path: ["quantity"],
+    });
+  }
+});
+
+export const changePlayerClothingSizeSchema = z.object({
+  player_id: z.string().uuid(),
+  return_line: returnInventoryBaseSchema.omit({ player_id: true }),
+  deliver_line: stockOutLineSchema,
+  notes: z.string().max(500).optional(),
+  update_clothing_size_preference: z.boolean().optional().default(false),
+});
+
 export const assignJerseyNumbersSchema = z.object({
   lot_id: z.string().uuid(),
   jersey_numbers: z.array(z.coerce.number().int().min(0).max(99)).min(1),

@@ -19,8 +19,10 @@ import {
 import { TableActionsCell, TableIconAction } from "@/components/club/TableActions";
 import { TableRowInteractive } from "@/components/club/TableRowInteractive";
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
+import { ClothingFilterChips } from "@/components/clothing/ClothingFilterChips";
 import { ProductColorBadge } from "@/components/clothing/ProductColorBadge";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
+import { Input } from "@/components/club/Input";
 import {
   createClothingProduct,
   deleteClothingProduct,
@@ -127,7 +129,13 @@ function ProductShopBadge() {
   );
 }
 
-export function ProductsPageClient({ products }: { products: ClothingProduct[] }) {
+export function ProductsPageClient({
+  products,
+  initialQuery = "",
+}: {
+  products: ClothingProduct[];
+  initialQuery?: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [formOpen, setFormOpen] = useState(false);
@@ -136,11 +144,46 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
   const [formError, setFormError] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClothingProduct | null>(null);
+  const [query, setQuery] = useState(initialQuery);
+  const [seasonFilter, setSeasonFilter] = useState<string>("all");
+  const [shopFilter, setShopFilter] = useState<"all" | "shop">("all");
 
   const seasonOptions = useMemo(
     () => getSeasonSelectOptions(form.season ? [form.season] : []),
     [form.season],
   );
+
+  const listSeasonOptions = useMemo(() => {
+    const seasons = products.map((p) => p.season);
+    const options = getSeasonSelectOptions(seasons, { pastCount: 4, futureCount: 1 });
+    return [
+      { value: "all", label: "Todas" },
+      ...options.map((opt) => ({ value: opt.value, label: opt.label })),
+    ];
+  }, [products]);
+
+  const visibleProducts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return products.filter((product) => {
+      if (seasonFilter !== "all" && product.season !== seasonFilter) return false;
+      if (shopFilter === "shop" && !product.is_shop_item) return false;
+      if (!q) return true;
+      const haystack = [
+        formatProductShort(product),
+        product.model,
+        PRODUCT_CATEGORY_LABELS[product.category],
+        CLOTHING_BRAND_LABELS[product.brand],
+        CLOTHING_COLOR_LABELS[product.color],
+        product.season,
+        product.notes ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [products, query, seasonFilter, shopFilter]);
+
+  const shopCount = products.filter((p) => p.is_shop_item).length;
 
   function resetForm(next: FormState) {
     setForm(next);
@@ -260,20 +303,52 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
     });
   }
 
-  const activeCount = products.filter((p) => p.is_active).length;
+  const activeCount = visibleProducts.filter((p) => p.is_active).length;
 
   return (
     <>
       <div className="clothing-page-with-sticky flex flex-col gap-5">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            {activeCount} activa{activeCount === 1 ? "" : "s"} · {products.length} total
+            {activeCount} activa{activeCount === 1 ? "" : "s"} · {visibleProducts.length} visibles
+            · {products.length} total
           </p>
           <div className="clothing-toolbar hidden md:flex">
             <Button type="button" onClick={openCreate}>
               <Plus className="size-4" aria-hidden />
               Nueva prenda
             </Button>
+          </div>
+        </div>
+
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar marca, modelo, color…"
+          aria-label="Buscar prendas"
+          className="min-h-11"
+        />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormSelect
+            label="Temporada"
+            name="products-season"
+            id="products-season"
+            value={seasonFilter}
+            onChange={(e) => setSeasonFilter(e.target.value)}
+            options={listSeasonOptions}
+          />
+          <div className="flex flex-col justify-end">
+            <ClothingFilterChips
+              options={[
+                { value: "all", label: "Todas", count: products.length },
+                { value: "shop", label: "Tienda", count: shopCount },
+              ]}
+              value={shopFilter}
+              onChange={setShopFilter}
+              ariaLabel="Filtrar prendas de tienda"
+            />
           </div>
         </div>
 
@@ -291,10 +366,28 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
               </Button>
             </div>
           </div>
+        ) : visibleProducts.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
+            <p className="font-medium text-foreground">Ninguna prenda coincide</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Prueba otra búsqueda, temporada o filtro de tienda.
+            </p>
+            <button
+              type="button"
+              className="btn-secondary mt-5 min-h-11 md:min-h-8"
+              onClick={() => {
+                setQuery("");
+                setSeasonFilter("all");
+                setShopFilter("all");
+              }}
+            >
+              Limpiar filtros
+            </button>
+          </div>
         ) : (
           <>
             <div className="flex flex-col gap-2.5 md:hidden">
-              {products.map((product) => (
+              {visibleProducts.map((product) => (
                 <div
                   key={product.id}
                   className={cn(
@@ -390,7 +483,7 @@ export function ProductsPageClient({ products }: { products: ClothingProduct[] }
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => (
+                  {visibleProducts.map((product) => (
                     <TableRowInteractive
                       key={product.id}
                       className={cn(!product.is_active && "opacity-60")}

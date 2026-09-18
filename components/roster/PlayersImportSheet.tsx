@@ -87,7 +87,7 @@ export function PlayersImportSheet({
       open={open}
       onClose={handleClose}
       title="Importar jugadores"
-      description="Descarga la plantilla, rellena en Excel y súbela. Los equipos tienen que existir ya en esta temporada."
+      description="Descarga la plantilla, rellena en Excel y súbela. Las columnas cerradas tienen lista; si pones otro valor, Excel avisa. Los equipos tienen que existir ya en esta temporada."
       primaryAction={{
         label: file ? "Importar Excel" : "Elegir archivo",
         pending,

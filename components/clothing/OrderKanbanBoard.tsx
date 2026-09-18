@@ -27,8 +27,7 @@ import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TRANSITIONS,
 } from "@/lib/clothing/constants";
-import { formatClothingSize } from "@/lib/clothing/formatSize";
-import { formatProductShort } from "@/lib/clothing/formatProduct";
+import { formatOrderLineSummary } from "@/lib/clothing/formatOrderLines";
 import { appRoutes } from "@/lib/constants";
 import type { ClothingOrderStatus, ClothingOrderWithLines } from "@/lib/types/db";
 import { cn } from "@/lib/utils";
@@ -55,15 +54,17 @@ function OrderCard({
         {order.reference}
       </Link>
       <p className="mt-1 text-xs text-muted-foreground">{order.supplier_name}</p>
-      <p className="mt-2 text-[11px] text-muted-foreground">
-        {order.lines.length} línea{order.lines.length === 1 ? "" : "s"}
-      </p>
       <div className="mt-2 flex flex-wrap gap-1">
-        {order.lines.slice(0, 2).map((line) => (
+        {order.lines.slice(0, 3).map((line) => (
           <Badge key={line.id} variant="secondary" className="text-[10px]">
-            {formatProductShort(line.product)} {formatClothingSize(line.size)}
+            {formatOrderLineSummary(line)}
           </Badge>
         ))}
+        {order.lines.length > 3 ? (
+          <Badge variant="secondary" className="text-[10px]">
+            +{order.lines.length - 3}
+          </Badge>
+        ) : null}
       </div>
     </div>
   );
@@ -133,7 +134,11 @@ function resolveTargetStatus(
   return overOrder?.status ?? null;
 }
 
-export function OrderKanbanBoard({ orders }: { orders: ClothingOrderWithLines[] }) {
+export function OrderKanbanBoard({
+  orders,
+}: {
+  orders: ClothingOrderWithLines[];
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [activeId, setActiveId] = useState<string | null>(null);

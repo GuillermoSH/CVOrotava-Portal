@@ -6,21 +6,29 @@ import { requireClothingWriteAccess } from "@/lib/clothing/auth";
 import { getClothingDb } from "@/lib/clothing/repository/client";
 import {
   applyStockOutLines,
+  applyStockReturn,
   assignJerseyNumbers,
   assignLotToLocation,
   createManualInventoryLot,
   getLotById,
 } from "@/lib/clothing/repository/inventory";
+import { assertTeamJerseyAvailable } from "@/lib/clothing/repository/jerseyConflict";
 import { getLocationById } from "@/lib/clothing/repository/locations";
-import { getPlayerById } from "@/lib/clothing/repository/players";
+import {
+  getPlayerById,
+  updatePlayerClothingSizePreference,
+} from "@/lib/clothing/repository/players";
 import { getProductById } from "@/lib/clothing/repository/products";
 import {
   assignInventorySchema,
   assignJerseyNumbersSchema,
+  changePlayerClothingSizeSchema,
   createManualInventorySchema,
   deliverInventorySchema,
+  returnInventorySchema,
   writeOffInventorySchema,
 } from "@/lib/clothing/schemas";
+import { appRoutes } from "@/lib/constants";
 
 export type ActionResult =
   | { ok: true; id?: string }
@@ -33,9 +41,12 @@ const CLOTHING_PATHS = [
   "/admin/ropa/almacen/entregas",
 ];
 
-function revalidateClothing() {
+function revalidateClothing(playerId?: string) {
   for (const path of CLOTHING_PATHS) {
     revalidatePath(path, "layout");
+  }
+  if (playerId) {
+    revalidatePath(appRoutes.players.detail(playerId));
   }
 }
 
@@ -127,22 +138,33 @@ export async function deliverInventoryAction(input: unknown): Promise<ActionResu
     if (!player) return { ok: false, error: "Jugador no encontrado" };
     if (!player.is_active) return { ok: false, error: "El jugador no está activo" };
 
+    const lines = parsed.data.lines.map((line) => ({
+      productId: line.product_id,
+      size: line.size,
+      storageLocationId: line.storage_location_id,
+      quantity: line.quantity,
+      jerseyNumber: line.jersey_number ?? null,
+    }));
+
+    await assertTeamJerseyAvailable(db, {
+      player,
+      lines: lines.map((line) => ({
+        productId: line.productId,
+        size: line.size,
+        jerseyNumber: line.jerseyNumber,
+      })),
+    });
+
     await applyStockOutLines(db, {
       kind: "delivery",
       player_id: player.id,
       recipient_name: player.full_name,
       notes: parsed.data.notes,
       created_by: await currentUserId(db),
-      lines: parsed.data.lines.map((line) => ({
-        productId: line.product_id,
-        size: line.size,
-        storageLocationId: line.storage_location_id,
-        quantity: line.quantity,
-        jerseyNumber: line.jersey_number ?? null,
-      })),
+      lines,
     });
 
-    revalidateClothing();
+    revalidateClothing(player.id);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
@@ -187,6 +209,142 @@ export async function writeOffInventoryAction(input: unknown): Promise<ActionRes
     });
 
     revalidateClothing();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
+  }
+}
+
+export async function returnInventoryAction(input: unknown): Promise<ActionResult> {
+  try {
+    await requireClothingWriteAccess();
+    const parsed = returnInventorySchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    }
+
+    const db = await getClothingDb();
+    const player = await getPlayerById(db, parsed.data.player_id);
+    if (!player) return { ok: false, error: "Jugador no encontrado" };
+
+    const product = await getProductById(db, parsed.data.product_id);
+    if (!product) return { ok: false, error: "Prenda no encontrada" };
+
+    if (parsed.data.storage_location_id) {
+      const location = await getLocationById(db, parsed.data.storage_location_id);
+      if (!location) return { ok: false, error: "Ubicación no encontrada" };
+      if (location.location_type !== "box") {
+        return { ok: false, error: "Solo se puede devolver stock a una caja" };
+      }
+    }
+
+    const id = await applyStockReturn(db, {
+      player_id: player.id,
+      product_id: parsed.data.product_id,
+      size: parsed.data.size,
+      quantity: parsed.data.quantity,
+      jersey_number: parsed.data.jersey_number ?? null,
+      related_movement_id: parsed.data.related_movement_id ?? null,
+      storage_location_id: parsed.data.storage_location_id ?? null,
+      notes: parsed.data.notes,
+      created_by: await currentUserId(db),
+    });
+
+    revalidateClothing(player.id);
+    return { ok: true, id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
+  }
+}
+
+export async function changePlayerClothingSizeAction(input: unknown): Promise<ActionResult> {
+  try {
+    await requireClothingWriteAccess();
+    const parsed = changePlayerClothingSizeSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    }
+
+    const db = await getClothingDb();
+    const player = await getPlayerById(db, parsed.data.player_id);
+    if (!player) return { ok: false, error: "Jugador no encontrado" };
+    if (!player.is_active) return { ok: false, error: "El jugador no está activo" };
+
+    const returnLine = parsed.data.return_line;
+    const deliverLine = parsed.data.deliver_line;
+
+    if (returnLine.jersey_number != null && returnLine.quantity !== 1) {
+      return { ok: false, error: "Una prenda con dorsal es una sola unidad" };
+    }
+
+    const product = await getProductById(db, returnLine.product_id);
+    if (!product) return { ok: false, error: "Prenda no encontrada" };
+
+    if (returnLine.storage_location_id) {
+      const location = await getLocationById(db, returnLine.storage_location_id);
+      if (!location) return { ok: false, error: "Ubicación no encontrada" };
+      if (location.location_type !== "box") {
+        return { ok: false, error: "Solo se puede devolver stock a una caja" };
+      }
+    }
+
+    const notes = parsed.data.notes?.trim() || undefined;
+    const createdBy = await currentUserId(db);
+
+    await applyStockReturn(db, {
+      player_id: player.id,
+      product_id: returnLine.product_id,
+      size: returnLine.size,
+      quantity: returnLine.quantity,
+      jersey_number: returnLine.jersey_number ?? null,
+      related_movement_id: returnLine.related_movement_id ?? null,
+      storage_location_id: returnLine.storage_location_id ?? null,
+      notes: returnLine.notes ?? notes,
+      created_by: createdBy,
+    });
+
+    try {
+      await assertTeamJerseyAvailable(db, {
+        player,
+        lines: [
+          {
+            productId: deliverLine.product_id,
+            size: deliverLine.size,
+            jerseyNumber: deliverLine.jersey_number ?? null,
+          },
+        ],
+      });
+
+      await applyStockOutLines(db, {
+        kind: "delivery",
+        player_id: player.id,
+        recipient_name: player.full_name,
+        notes: notes ?? "Cambio de talla",
+        created_by: createdBy,
+        lines: [
+          {
+            productId: deliverLine.product_id,
+            size: deliverLine.size,
+            storageLocationId: deliverLine.storage_location_id,
+            quantity: deliverLine.quantity,
+            jerseyNumber: deliverLine.jersey_number ?? null,
+          },
+        ],
+      });
+    } catch (deliverError) {
+      const message =
+        deliverError instanceof Error ? deliverError.message : "No se pudo entregar la nueva talla";
+      return {
+        ok: false,
+        error: `Devolución hecha, pero falló la nueva entrega: ${message}`,
+      };
+    }
+
+    if (parsed.data.update_clothing_size_preference) {
+      await updatePlayerClothingSizePreference(db, player.id, deliverLine.size);
+    }
+
+    revalidateClothing(player.id);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };

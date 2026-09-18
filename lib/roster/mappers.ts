@@ -22,9 +22,23 @@ export type PlayerRow = {
   dni?: string | null;
   license_completed?: boolean | null;
   registration_papers_received?: boolean | null;
+  docs_delivered_to_family?: boolean | null;
+  docs_delivered_at?: string | null;
+  photo_taken?: boolean | null;
+  photo_consent?: boolean | null;
+  in_whatsapp_group?: boolean | null;
   medical_notes?: string | null;
   clothing_size?: string | null;
   address?: string | null;
+  address_street_type?: string | null;
+  address_street?: string | null;
+  address_number?: string | null;
+  address_door?: string | null;
+  address_postal_code?: string | null;
+  address_municipality?: string | null;
+  address_province?: string | null;
+  birth_country?: string | null;
+  nationality?: string | null;
   created_at?: string;
   updated_at?: string;
   teams?: TeamRow | TeamRow[] | null;
@@ -88,9 +102,23 @@ export function mapPlayer(row: PlayerRow): Player {
     dni: row.dni ?? null,
     license_completed: Boolean(row.license_completed),
     registration_papers_received: Boolean(row.registration_papers_received),
+    docs_delivered_to_family: Boolean(row.docs_delivered_to_family),
+    docs_delivered_at: row.docs_delivered_at ?? null,
+    photo_taken: Boolean(row.photo_taken),
+    photo_consent: Boolean(row.photo_consent),
+    in_whatsapp_group: Boolean(row.in_whatsapp_group),
     medical_notes: row.medical_notes ?? null,
     clothing_size: (row.clothing_size as ClothingSize | null) ?? null,
     address: row.address ?? null,
+    address_street_type: row.address_street_type ?? null,
+    address_street: row.address_street ?? null,
+    address_number: row.address_number ?? null,
+    address_door: row.address_door ?? null,
+    address_postal_code: row.address_postal_code ?? null,
+    address_municipality: row.address_municipality ?? null,
+    address_province: row.address_province ?? null,
+    birth_country: row.birth_country ?? null,
+    nationality: row.nationality ?? null,
   };
 }
 

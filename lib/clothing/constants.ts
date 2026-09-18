@@ -135,11 +135,12 @@ export const INVENTORY_SOURCE_LABELS = {
   order: "Pedido",
 } as const;
 
-export const STOCK_MOVEMENT_KINDS = ["delivery", "write_off"] as const;
+export const STOCK_MOVEMENT_KINDS = ["delivery", "write_off", "return"] as const;
 
 export const STOCK_MOVEMENT_KIND_LABELS = {
   delivery: "Entrega",
   write_off: "Baja",
+  return: "Devolución",
 } as const;
 
 /** Active club season at module load. Prefer `getCurrentSeason()` in forms. */

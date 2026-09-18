@@ -36,9 +36,23 @@ export type Player = {
   dni: string | null;
   license_completed: boolean;
   registration_papers_received: boolean;
+  docs_delivered_to_family: boolean;
+  docs_delivered_at: string | null;
+  photo_taken: boolean;
+  photo_consent: boolean;
+  in_whatsapp_group: boolean;
   medical_notes: string | null;
   clothing_size: ClothingSize | null;
   address: string | null;
+  address_street_type: string | null;
+  address_street: string | null;
+  address_number: string | null;
+  address_door: string | null;
+  address_postal_code: string | null;
+  address_municipality: string | null;
+  address_province: string | null;
+  birth_country: string | null;
+  nationality: string | null;
 };
 
 export type PlayerGuardian = {
@@ -63,6 +77,11 @@ export type PlayerContact = {
 
 export type PlayerWithTeam = Player & {
   team: Team | null;
+};
+
+/** Lista admin: jugador + equipo + teléfono del contacto primario. */
+export type PlayerListItem = PlayerWithTeam & {
+  primary_phone: string | null;
 };
 
 export type PlayerWithDetails = PlayerWithTeam & {
@@ -123,7 +142,7 @@ export type ClothingInventoryStatus = "pending_storage" | "stored";
 
 export type ClothingInventorySourceType = "order" | "manual";
 
-export type ClothingStockMovementKind = "delivery" | "write_off";
+export type ClothingStockMovementKind = "delivery" | "write_off" | "return";
 
 /** Matches `clothing_size` enum in Supabase. */
 export type ClothingSize =
@@ -175,6 +194,14 @@ export type ClothingSupplierOrder = {
   updated_at: string;
 };
 
+export type ClothingSupplierOrderStatusEvent = {
+  id: string;
+  order_id: string;
+  status: ClothingOrderStatus;
+  changed_at: string;
+  changed_by: string | null;
+};
+
 export type ClothingSupplierOrderLine = {
   id: string;
   order_id: string;
@@ -224,6 +251,10 @@ export type ClothingOrderWithLines = ClothingSupplierOrder & {
   lines: ClothingOrderLineWithProduct[];
 };
 
+export type ClothingOrderWithLinesAndEvents = ClothingOrderWithLines & {
+  status_events: ClothingSupplierOrderStatusEvent[];
+};
+
 export type ClothingInventoryLotWithDetails = ClothingInventoryLot & {
   product: ClothingProduct;
   location_path: string | null;
@@ -241,7 +272,26 @@ export type ClothingStockMovement = {
   created_by: string | null;
   jersey_number: number | null;
   player_id: string | null;
+  related_movement_id: string | null;
   created_at: string;
+};
+
+export type ClothingDeliveryHistoryItem = ClothingStockMovement & {
+  product: ClothingProduct;
+  player_name: string;
+};
+
+/** Open delivery line still held by a player (delivered − returned). */
+export type ClothingPossessionItem = {
+  delivery_id: string;
+  player_id: string;
+  player_name: string;
+  product_id: string;
+  product: ClothingProduct;
+  size: ClothingSize;
+  jersey_number: number | null;
+  quantity: number;
+  delivered_at: string;
 };
 
 export type ClothingStorageLocationNode = ClothingStorageLocation & {

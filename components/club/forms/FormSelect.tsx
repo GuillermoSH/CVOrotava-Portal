@@ -20,6 +20,7 @@ interface FormSelectProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  required?: boolean;
 }
 
 export function FormSelect({
@@ -34,12 +35,15 @@ export function FormSelect({
   disabled,
   placeholder = "Selecciona una opción",
   className,
+  required,
 }: FormSelectProps) {
   const fieldId = id ?? name;
 
   const field = (current: string, setValue: (next: string) => void, onBlur?: () => void) => (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label htmlFor={fieldId}>{label}</Label>
+      <Label htmlFor={fieldId} required={required}>
+        {label}
+      </Label>
       <Select
         id={fieldId}
         value={current}

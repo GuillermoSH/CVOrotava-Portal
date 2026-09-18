@@ -80,8 +80,8 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
 
   if (pathname === appRoutes.clothing.deliveries || pathname === "/admin/ropa/almacen/entregas") {
     return {
-      title: "Registrar entrega",
-      subtitle: "Elige al jugador y las prendas del almacén. Si hay dorsal, puedes buscar por número.",
+      title: "Entregas",
+      subtitle: "Registra una entrega al jugador y consulta el historial con filtros.",
       back: { href: appRoutes.clothing.hub, label: "Gestión de ropa" },
       sticky: "tall",
       skeleton: "deliveries",

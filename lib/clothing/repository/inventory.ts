@@ -1,7 +1,12 @@
 import type { ClothingDb } from "@/lib/clothing/repository/client";
 import { dbErrorMessage } from "@/lib/clothing/repository/helpers";
-import { mapLot, mapOrderLine } from "@/lib/clothing/repository/mappers";
-import type { ClothingInventoryLot, ClothingSize } from "@/lib/types/db";
+import { mapLot, mapOrderLine, mapStockMovement } from "@/lib/clothing/repository/mappers";
+import type {
+  ClothingInventoryLot,
+  ClothingSize,
+  ClothingStockMovement,
+  ClothingStockMovementKind,
+} from "@/lib/types/db";
 
 export async function listInventoryLots(db: ClothingDb): Promise<ClothingInventoryLot[]> {
   const { data, error } = await db
@@ -11,6 +16,40 @@ export async function listInventoryLots(db: ClothingDb): Promise<ClothingInvento
 
   if (error) throw new Error(dbErrorMessage(error));
   return (data ?? []).map(mapLot);
+}
+
+export async function listStockMovements(
+  db: ClothingDb,
+  kind?: ClothingStockMovementKind | ClothingStockMovementKind[],
+): Promise<ClothingStockMovement[]> {
+  let query = db
+    .from("clothing_stock_movements")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (kind) {
+    query = Array.isArray(kind) ? query.in("kind", kind) : query.eq("kind", kind);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(dbErrorMessage(error));
+  return (data ?? []).map(mapStockMovement);
+}
+
+export async function listPlayerStockMovements(
+  db: ClothingDb,
+  playerId: string,
+  kinds: ClothingStockMovementKind[] = ["delivery", "return"],
+): Promise<ClothingStockMovement[]> {
+  const { data, error } = await db
+    .from("clothing_stock_movements")
+    .select("*")
+    .eq("player_id", playerId)
+    .in("kind", kinds)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return (data ?? []).map(mapStockMovement);
 }
 
 export async function getLotById(db: ClothingDb, id: string): Promise<ClothingInventoryLot | null> {
@@ -158,6 +197,44 @@ export async function applyStockOut(
     if (/could not find the function|schema cache|does not exist/i.test(message)) {
       throw new Error(
         "Falta aplicar la migración de entregas (20260907130000_clothing_delivery_player_dorsal.sql) en Supabase.",
+      );
+    }
+    throw new Error(message);
+  }
+  return String(data);
+}
+
+export async function applyStockReturn(
+  db: ClothingDb,
+  input: {
+    player_id: string;
+    product_id: string;
+    size: ClothingSize;
+    quantity: number;
+    jersey_number?: number | null;
+    related_movement_id?: string | null;
+    storage_location_id?: string | null;
+    notes?: string | null;
+    created_by?: string | null;
+  },
+): Promise<string> {
+  const { data, error } = await db.rpc("apply_clothing_stock_return", {
+    p_player_id: input.player_id,
+    p_product_id: input.product_id,
+    p_size: input.size,
+    p_quantity: input.quantity,
+    p_jersey_number: input.jersey_number ?? null,
+    p_related_movement_id: input.related_movement_id ?? null,
+    p_storage_location_id: input.storage_location_id ?? null,
+    p_notes: input.notes ?? null,
+    p_created_by: input.created_by ?? null,
+  });
+
+  if (error) {
+    const message = dbErrorMessage(error);
+    if (/could not find the function|schema cache|does not exist/i.test(message)) {
+      throw new Error(
+        "Falta aplicar la migración de devoluciones (20260918120000_clothing_stock_return.sql) en Supabase.",
       );
     }
     throw new Error(message);

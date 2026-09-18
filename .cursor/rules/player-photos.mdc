@@ -1,0 +1,83 @@
+---
+description: Idea futura (no implementar hasta que se pida): foto por jugador en ficha, Supabase Storage, compresión WebP en el navegador. Activar si el usuario habla de foto de jugador, avatar, Storage, subir imagen o cámara en ficha.
+globs: "{app/**/admin/jugadores/**,components/roster/**,lib/roster/**,lib/actions/roster/**}"
+alwaysApply: false
+---
+
+# Idea futura — Foto por jugador
+
+**Estado:** apuntada; **no implementar** hasta que dirección lo pida.
+
+## Qué quiere el club
+
+En la ficha, poder subir / hacer una foto del jugador para **reconocerlo** (“quién es”) al consultar la app. No es un álbum ni uso en redes: eso sigue siendo el flag `photo_consent` (autoriza fotos para redes, cartel, material).
+
+Hoy solo hay flags:
+
+- `photo_taken` — “Foto hecha” (alta federativa).
+- `photo_consent` — “Autoriza fotos” (uso público).
+
+Falta el **archivo** (`photo_path` o similar).
+
+## Stack (Vercel + Supabase Free)
+
+- **Supabase Storage**, bucket **privado** (hay menores). No Vercel Blob ni Cloudinary en v1.
+- Subida **directa** al bucket con URL firmada (el servidor autoriza; el navegador sube). Evita el límite de body de Vercel (~4,5 MB).
+- **No** pasar el original por Server Action / Route Handler salvo que no quede otra.
+- Compresión **en el navegador** antes de subir (resize + WebP). No hace falta servicio externo ni Image Transformations de Supabase (no están en Free).
+
+## Compresión / tamaño objetivo
+
+1. Usuario elige archivo o cámara (`capture="environment"` en móvil / pabellón).
+2. Cliente: redimensionar lado largo **~700–800 px**, exportar **WebP** calidad ~0.75, quitar EXIF/GPS.
+3. Objetivo: **~45–65 KB** (media ~55 KB). Suficiente para distinguir rasgos en pantalla.
+4. Techo razonable al comprimir: ~100 KB. Originales de móvil (2–5 MB) **no** se guardan.
+
+iPhone / HEIC: convertir en cliente (canvas o lib) antes del WebP. Si hace falta máxima compatibilidad de lectura, JPEG de calidad media también vale (~70–100 KB).
+
+## Modelo de datos (cuando toque)
+
+- Columna en `players`: p.ej. `photo_path text` (path en el bucket, **no** URL firmada).
+- Ruta objeto: `{season}/{player_id}/avatar.webp` (o sin season si preferís una sola foto “actual”).
+- Al subir con éxito, opcional marcar `photo_taken = true`.
+- Borrar el objeto al desactivar / borrar jugador (RGPD).
+- `photo_consent` **no** se mezcla: tener foto en ficha ≠ usarla en Instagram.
+
+## UI
+
+- Ficha: preview + subir / cámara + quitar.
+- **Listado de jugadores: sin fotos** (iniciales). Solo cargar la imagen al abrir la ficha / “consultar quién es”.
+- Lectura: signed URL corta (5–15 min) desde servidor, o route handler tipo `/admin/jugadores/[id]/foto`.
+
+## Permisos
+
+- Bucket privado + RLS alineada con roster: admin/manager escriben y leen.
+- Padres: como mucho la de su hijo, y vía servidor, no con el path a pelo.
+- Nunca bucket público con IDs predecibles.
+
+## Free de Supabase — números (orientativos)
+
+Límites Free actuales a tener en cuenta: **1 GB** Storage, **5 GB/mes** egress.
+
+| Escenario | Cálculo |
+|---|---|
+| 200 jugadores × 60 KB | ~12 MB (~1 % del Storage) |
+| 3 temporadas × 200 | ~36 MB |
+| Capacidad teórica a 60 KB | ~17 000 fotos en 1 GB |
+| Egress: 80 fichas/día × 30 × 60 KB | ~144 MB/mes de fotos |
+| **Evitar:** listado 200 avatares × 20 cargas/día × 30 | ~7 GB/mes → se come el Free |
+
+Con lista sin fotos y ficha con foto, Free **llega holgado**. El cuello no es Storage; sería pintar avatares en el listado completo.
+
+## Excel / import
+
+No meter binarios en la plantilla. Foto solo en ficha (una a una). Si algún día hace falta masivo: ZIP aparte (`DNI.webp`), no en el Excel.
+
+## No hacer
+
+- Bucket público.
+- Subir el JPEG/HEIC original sin comprimir.
+- Servir todas las fotos en el listado de jugadores.
+- Usar `photo_consent` como “tiene foto en el portal”.
+- Image Transformations de Supabase como dependencia de v1 (Free no las incluye; y no reducen lo guardado).
+- Meter fotos en la importación Excel.

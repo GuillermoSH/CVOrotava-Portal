@@ -2,14 +2,56 @@ import { ORDER_TRANSITIONS } from "@/lib/clothing/constants";
 import type { ClothingDb } from "@/lib/clothing/repository/client";
 import { dbErrorMessage } from "@/lib/clothing/repository/helpers";
 import { createInventoryLotsFromOrder } from "@/lib/clothing/repository/inventory";
-import { mapOrder, mapOrderLine } from "@/lib/clothing/repository/mappers";
+import {
+  mapOrder,
+  mapOrderLine,
+  mapOrderStatusEvent,
+} from "@/lib/clothing/repository/mappers";
 import type {
   ClothingOrderStatus,
-  ClothingOrderWithLines,
   ClothingSize,
   ClothingSupplierOrder,
   ClothingSupplierOrderLine,
+  ClothingSupplierOrderStatusEvent,
 } from "@/lib/types/db";
+
+async function insertOrderStatusEvent(
+  db: ClothingDb,
+  input: {
+    order_id: string;
+    status: ClothingOrderStatus;
+    changed_at?: string;
+    changed_by?: string | null;
+  },
+): Promise<ClothingSupplierOrderStatusEvent> {
+  const { data, error } = await db
+    .from("clothing_supplier_order_status_events")
+    .insert({
+      order_id: input.order_id,
+      status: input.status,
+      changed_at: input.changed_at ?? new Date().toISOString(),
+      changed_by: input.changed_by ?? null,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return mapOrderStatusEvent(data);
+}
+
+export async function listOrderStatusEvents(
+  db: ClothingDb,
+  orderId: string,
+): Promise<ClothingSupplierOrderStatusEvent[]> {
+  const { data, error } = await db
+    .from("clothing_supplier_order_status_events")
+    .select("*")
+    .eq("order_id", orderId)
+    .order("changed_at", { ascending: true });
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return (data ?? []).map(mapOrderStatusEvent);
+}
 
 export async function listOrdersWithLines(db: ClothingDb): Promise<{
   orders: ClothingSupplierOrder[];
@@ -83,6 +125,7 @@ export async function createSupplierOrder(
     season: string;
     notes?: string | null;
     lines: { product_id: string; size: ClothingSize; quantity_ordered: number }[];
+    changed_by?: string | null;
   },
 ): Promise<{ order: ClothingSupplierOrder; lines: ClothingSupplierOrderLine[] }> {
   const reference = input.reference ?? (await nextOrderReference(db, input.season));
@@ -116,6 +159,13 @@ export async function createSupplierOrder(
 
   if (lineError) throw new Error(dbErrorMessage(lineError));
 
+  await insertOrderStatusEvent(db, {
+    order_id: orderRow.id,
+    status: "draft",
+    changed_at: orderRow.created_at,
+    changed_by: input.changed_by ?? null,
+  });
+
   return {
     order: mapOrder(orderRow),
     lines: (lineRows ?? []).map(mapOrderLine),
@@ -126,6 +176,7 @@ export async function updateOrderStatus(
   db: ClothingDb,
   orderId: string,
   status: ClothingOrderStatus,
+  changedBy?: string | null,
 ): Promise<ClothingSupplierOrder> {
   const existing = await getOrderWithLines(db, orderId);
   if (!existing) throw new Error("Pedido no encontrado");
@@ -135,14 +186,23 @@ export async function updateOrderStatus(
     throw new Error("Transición de estado no permitida");
   }
 
+  const changedAt = new Date().toISOString();
+
   const { data, error } = await db
     .from("clothing_supplier_orders")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status, updated_at: changedAt })
     .eq("id", orderId)
     .select("*")
     .single();
 
   if (error) throw new Error(dbErrorMessage(error));
+
+  await insertOrderStatusEvent(db, {
+    order_id: orderId,
+    status,
+    changed_at: changedAt,
+    changed_by: changedBy ?? null,
+  });
 
   if (status === "returned_from_serigraphy") {
     await createInventoryLotsFromOrder(db, orderId);

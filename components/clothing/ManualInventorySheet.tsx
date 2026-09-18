@@ -7,9 +7,10 @@ import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { ProductPicker } from "@/components/clothing/ProductPicker";
 import { SizePicker } from "@/components/clothing/SizePicker";
 import { WarehouseCrate } from "@/components/clothing/WarehouseCrate";
-import { FormInput, FormTextarea } from "@/components/club/forms";
+import { FormInput, FormSelect, FormTextarea } from "@/components/club/forms";
 import { createManualInventoryLotAction } from "@/lib/actions/clothing/inventory";
 import { boxHomeLabel, collectBoxHomes, flattenBoxNodes } from "@/lib/clothing/storageBoxes";
+import { formatSeasonShort, getCurrentSeason, getSeasonSelectOptions } from "@/lib/season";
 import type {
   ClothingProduct,
   ClothingSize,
@@ -30,9 +31,18 @@ export function ManualInventorySheet({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const boxes = useMemo(() => flattenBoxNodes(storageTree), [storageTree]);
+  const allBoxes = useMemo(() => flattenBoxNodes(storageTree), [storageTree]);
   const homes = useMemo(() => collectBoxHomes(storageTree), [storageTree]);
 
+  const seasonOptions = useMemo(() => {
+    const seasonsFromData = [
+      ...products.map((p) => p.season),
+      ...allBoxes.map((b) => b.season),
+    ];
+    return getSeasonSelectOptions(seasonsFromData, { pastCount: 4, futureCount: 0 });
+  }, [products, allBoxes]);
+
+  const [season, setSeason] = useState(getCurrentSeason());
   const [productId, setProductId] = useState("");
   const [size, setSize] = useState<ClothingSize | "">("");
   const [quantity, setQuantity] = useState("1");
@@ -41,7 +51,21 @@ export function ManualInventorySheet({
   const [notes, setNotes] = useState("");
   const [jerseyNumber, setJerseyNumber] = useState("");
 
+  const seasonProducts = useMemo(
+    () =>
+      products.filter(
+        (product) => product.season === season && (product.is_active || product.id === productId),
+      ),
+    [products, season, productId],
+  );
+
+  const boxes = useMemo(
+    () => allBoxes.filter((box) => box.season === season),
+    [allBoxes, season],
+  );
+
   function resetForm() {
+    setSeason(getCurrentSeason());
     setProductId("");
     setSize("");
     setQuantity("1");
@@ -54,6 +78,12 @@ export function ManualInventorySheet({
   function handleClose() {
     resetForm();
     onClose();
+  }
+
+  function handleSeasonChange(next: string) {
+    setSeason(next);
+    setProductId("");
+    setBoxId("");
   }
 
   function handleSubmit() {
@@ -114,7 +144,7 @@ export function ManualInventorySheet({
       open={open}
       onClose={handleClose}
       title="Añadir stock"
-      description="Saldos iniciales o sobrante sin pedido a proveedor."
+      description="Selecciona temporada, prenda, talla y caja. Sirve también para años previos."
       primaryAction={{
         label: "Guardar stock",
         pending,
@@ -127,7 +157,32 @@ export function ManualInventorySheet({
       }}
     >
       <div className="flex flex-col gap-4">
-        <ProductPicker products={products} value={productId} onChange={setProductId} id="manual-product" />
+        <FormSelect
+          label="Temporada"
+          name="manual-season"
+          id="manual-season"
+          value={season}
+          onChange={(e) => handleSeasonChange(e.target.value)}
+          options={seasonOptions.map((opt) => ({
+            value: opt.value,
+            label: opt.label,
+          }))}
+        />
+
+        {seasonProducts.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-[var(--club-border)] px-3 py-3 text-sm text-muted-foreground">
+            No hay prendas en {formatSeasonShort(season)}. Crea la prenda en Prendas o elige otra
+            temporada.
+          </p>
+        ) : (
+          <ProductPicker
+            products={seasonProducts}
+            value={productId}
+            onChange={setProductId}
+            id="manual-product"
+          />
+        )}
+
         <SizePicker value={size} onChange={setSize} id="manual-size" />
 
         <FormInput
@@ -190,7 +245,7 @@ export function ManualInventorySheet({
           {assignBox ? (
             boxes.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                No hay cajas creadas. El stock quedará pendiente de ubicar.
+                No hay cajas en {formatSeasonShort(season)}. El stock quedará pendiente de ubicar.
               </p>
             ) : (
               <div className="mt-3 flex max-h-[min(32dvh,240px)] flex-col gap-2 overflow-y-auto overscroll-contain">

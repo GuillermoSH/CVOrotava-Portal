@@ -10,11 +10,13 @@ import {
 } from "@/components/clothing/ClothingBottomSheet";
 import { ProductColorBadge } from "@/components/clothing/ProductColorBadge";
 import { Input } from "@/components/club/Input";
+import { FormSelect } from "@/components/club/forms";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { formatJerseyNumber, lotMatchesQuery } from "@/lib/clothing/formatJersey";
 import { formatProductName } from "@/lib/clothing/formatProduct";
 import { groupByProductCategory } from "@/lib/clothing/groupByCategory";
 import { formatPoolSource, stockPoolKey, type StockPool } from "@/lib/clothing/stockSources";
+import { formatSeasonShort, getCurrentSeason, getSeasonSelectOptions } from "@/lib/season";
 
 export function DeliveryAddItemSheet({
   open,
@@ -30,15 +32,30 @@ export function DeliveryAddItemSheet({
   onPick: (pool: StockPool) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [seasonFilter, setSeasonFilter] = useState<string>("all");
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
+
+  const seasonOptions = useMemo(() => {
+    const seasons = pools.flatMap((pool) =>
+      pool.lots.map((lot) => lot.product.season),
+    );
+    return [
+      { value: "all", label: "Todas las temporadas" },
+      ...getSeasonSelectOptions(seasons, { pastCount: 4, futureCount: 0 }),
+    ];
+  }, [pools]);
 
   const matches = useMemo(() => {
     return pools.filter((pool) => {
       if (remainingOnPool(pool) <= 0) return false;
+      if (seasonFilter !== "all") {
+        const season = pool.lots[0]?.product.season;
+        if (season !== seasonFilter) return false;
+      }
       if (!query.trim()) return true;
       return pool.lots.some((lot) => lotMatchesQuery(lot, query));
     });
-  }, [pools, query, remainingOnPool]);
+  }, [pools, query, remainingOnPool, seasonFilter]);
 
   const groups = useMemo(
     () => groupByProductCategory(matches, (pool) => pool.lots[0]?.product.category),
@@ -46,6 +63,7 @@ export function DeliveryAddItemSheet({
   );
 
   const searching = Boolean(query.trim());
+  const currentSeason = getCurrentSeason();
 
   function isGroupOpen(category: string) {
     if (searching || groups.length === 1) return true;
@@ -59,6 +77,7 @@ export function DeliveryAddItemSheet({
 
   function handleClose() {
     setQuery("");
+    setSeasonFilter("all");
     setOpenCategories(new Set());
     onClose();
   }
@@ -68,13 +87,21 @@ export function DeliveryAddItemSheet({
       open={open}
       onClose={handleClose}
       title="Añadir prenda"
-      description="Abre un tipo o busca por nombre o dorsal."
+      description="Incluye stock de otras temporadas. Filtra si quieres acotar."
       secondaryAction={{
         label: "Listo",
         onClick: handleClose,
       }}
     >
       <div className="flex flex-col gap-3">
+        <FormSelect
+          label="Temporada del stock"
+          name="delivery-add-season"
+          id="delivery-add-season"
+          value={seasonFilter}
+          onChange={(e) => setSeasonFilter(e.target.value)}
+          options={seasonOptions}
+        />
         <div className="clothing-sheet-search">
           <Search className="clothing-sheet-search__icon" aria-hidden />
           <Input
@@ -88,7 +115,9 @@ export function DeliveryAddItemSheet({
         </div>
         {groups.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {query.trim() ? "Ninguna prenda coincide." : "No queda stock disponible."}
+            {query.trim() || seasonFilter !== "all"
+              ? "Ninguna prenda coincide."
+              : "No queda stock disponible."}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -111,6 +140,7 @@ export function DeliveryAddItemSheet({
                     pool.storageLocationId,
                     pool.jerseyNumber,
                   );
+                  const season = product?.season;
                   return (
                     <ClothingSheetOption
                       key={key}
@@ -121,7 +151,9 @@ export function DeliveryAddItemSheet({
                       <span className="clothing-sheet-option__body">
                         <span className="clothing-sheet-option__title">
                           <span>{product ? formatProductName(product) : "Prenda"}</span>
-                          {product ? <ProductColorBadge color={product.color} className="shrink-0" /> : null}
+                          {product ? (
+                            <ProductColorBadge color={product.color} className="shrink-0" />
+                          ) : null}
                         </span>
                         <span className="clothing-sheet-option__meta">
                           <span className="clothing-sheet-option__size">
@@ -130,6 +162,11 @@ export function DeliveryAddItemSheet({
                           {pool.jerseyNumber != null ? (
                             <span className="clothing-sheet-option__jersey">
                               {formatJerseyNumber(pool.jerseyNumber)}
+                            </span>
+                          ) : null}
+                          {season && season !== currentSeason ? (
+                            <span className="clothing-sheet-option__src">
+                              {formatSeasonShort(season)}
                             </span>
                           ) : null}
                           <span className="clothing-sheet-option__src">{formatPoolSource(pool)}</span>

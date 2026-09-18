@@ -11,11 +11,13 @@ import { InventoryBoxBoard } from "@/components/clothing/InventoryBoxBoard";
 import { InventoryBoxWriteOffSheet } from "@/components/clothing/InventoryBoxWriteOffSheet";
 import { Button } from "@/components/club/Button";
 import { Input } from "@/components/club/Input";
+import { FormSelect } from "@/components/club/forms";
 import { INVENTORY_STATUS_LABELS } from "@/lib/clothing/constants";
-import { lotMatchesQuery } from "@/lib/clothing/formatJersey";
+import { competitionNeedsJersey, lotMatchesQuery } from "@/lib/clothing/formatJersey";
 import { flattenBoxNodes } from "@/lib/clothing/storageBoxes";
 import { buildStockPools, poolsInLocation } from "@/lib/clothing/stockSources";
 import { appRoutes } from "@/lib/constants";
+import { formatSeasonShort, getCurrentSeason, getSeasonSelectOptions } from "@/lib/season";
 import type {
   ClothingInventoryLotWithDetails,
   ClothingInventoryStatus,
@@ -69,13 +71,17 @@ export function InventoryPageClient({
   lots,
   storageTree,
   onManualOpenChange,
+  initialQuery = "",
 }: {
   lots: ClothingInventoryLotWithDetails[];
   storageTree: ClothingStorageLocationNode[];
   onManualOpenChange: (open: boolean) => void;
+  initialQuery?: string;
 }) {
   const [statusFilter, setStatusFilter] = useState<ClothingInventoryStatus | "all">("all");
-  const [query, setQuery] = useState("");
+  const [seasonFilter, setSeasonFilter] = useState<string>("all");
+  const [missingJerseyOnly, setMissingJerseyOnly] = useState(false);
+  const [query, setQuery] = useState(initialQuery);
   const [assignLot, setAssignLot] = useState<ClothingInventoryLotWithDetails | null>(null);
   const [jerseyLot, setJerseyLot] = useState<ClothingInventoryLotWithDetails | null>(null);
   const [writeOff, setWriteOff] = useState<{
@@ -83,10 +89,30 @@ export function InventoryPageClient({
     locationLabel: string;
   } | null>(null);
 
-  const searching = query.trim().length > 0;
+  const seasonOptions = useMemo(() => {
+    const seasons = lots.map((lot) => lot.product.season);
+    const options = getSeasonSelectOptions(seasons, { pastCount: 4, futureCount: 0 });
+    return [
+      { value: "all", label: "Todas las temporadas" },
+      { value: getCurrentSeason(), label: `Actual (${formatSeasonShort(getCurrentSeason())})` },
+      ...options
+        .filter((opt) => opt.value !== getCurrentSeason())
+        .map((opt) => ({ value: opt.value, label: opt.label })),
+    ];
+  }, [lots]);
+
+  const searching = query.trim().length > 0 || missingJerseyOnly || seasonFilter !== "all";
+
   const visibleLots = useMemo(
-    () => lots.filter((lot) => lotMatchesQuery(lot, query)),
-    [lots, query],
+    () =>
+      lots.filter((lot) => {
+        if (seasonFilter !== "all" && lot.product.season !== seasonFilter) return false;
+        if (missingJerseyOnly && !competitionNeedsJersey(lot.product, lot.jersey_number)) {
+          return false;
+        }
+        return lotMatchesQuery(lot, query);
+      }),
+    [lots, query, seasonFilter, missingJerseyOnly],
   );
 
   const pendingCount = visibleLots.filter((lot) => lot.status === "pending_storage").length;
@@ -130,6 +156,28 @@ export function InventoryPageClient({
           className="min-h-11"
         />
 
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormSelect
+            label="Temporada"
+            name="inventory-season"
+            id="inventory-season"
+            value={seasonFilter}
+            onChange={(e) => setSeasonFilter(e.target.value)}
+            options={seasonOptions}
+          />
+          <label className="flex min-h-11 cursor-pointer items-end gap-2.5 pb-2 sm:items-center sm:pb-0 sm:pt-6">
+            <input
+              type="checkbox"
+              className="size-4 rounded border-[var(--club-border)] accent-brand"
+              checked={missingJerseyOnly}
+              onChange={(e) => setMissingJerseyOnly(e.target.checked)}
+            />
+            <span className="text-sm font-medium text-foreground">
+              Solo competición sin dorsal
+            </span>
+          </label>
+        </div>
+
         <ClothingFilterChips
           options={filterOptions}
           value={statusFilter}
@@ -143,6 +191,8 @@ export function InventoryPageClient({
             searching={searching}
             onResetFilter={() => {
               setStatusFilter("all");
+              setSeasonFilter("all");
+              setMissingJerseyOnly(false);
               setQuery("");
             }}
             onAddStock={() => onManualOpenChange(true)}

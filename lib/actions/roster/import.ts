@@ -3,12 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireRosterWriteAccess } from "@/lib/roster/auth";
-import {
-  buildPlayerImportWorkbook,
-  parsePlayerImportFile,
-  playerImportFilename,
-  type PlayerImportIssue,
-} from "@/lib/roster/player-import";
+import { parsePlayerImportFile, playerImportFilename, type PlayerImportIssue } from "@/lib/roster/player-import";
+import { buildPlayerImportWorkbook } from "@/lib/roster/player-import-template";
 import { getRosterDb } from "@/lib/roster/repository/client";
 import { createPlayers } from "@/lib/roster/repository/players";
 import { listTeams } from "@/lib/roster/repository/teams";
@@ -43,7 +39,7 @@ export async function downloadPlayerTemplateAction(): Promise<PlayerTemplateResu
     const season = getCurrentSeason();
     const db = await getRosterDb();
     const teams = await listTeams(db, season);
-    const workbook = buildPlayerImportWorkbook(teams);
+    const workbook = await buildPlayerImportWorkbook(teams);
     return {
       ok: true,
       filename: playerImportFilename(season),

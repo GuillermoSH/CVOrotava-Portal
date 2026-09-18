@@ -12,6 +12,7 @@ import type {
   ClothingStorageLocation,
   ClothingSupplierOrder,
   ClothingSupplierOrderLine,
+  ClothingSupplierOrderStatusEvent,
 } from "@/lib/types/db";
 
 type ProductRow = {
@@ -119,6 +120,24 @@ export function mapOrderLine(row: OrderLineRow): ClothingSupplierOrderLine {
   };
 }
 
+type OrderStatusEventRow = {
+  id: string;
+  order_id: string;
+  status: string;
+  changed_at: string;
+  changed_by: string | null;
+};
+
+export function mapOrderStatusEvent(row: OrderStatusEventRow): ClothingSupplierOrderStatusEvent {
+  return {
+    id: row.id,
+    order_id: row.order_id,
+    status: row.status as ClothingOrderStatus,
+    changed_at: row.changed_at,
+    changed_by: row.changed_by,
+  };
+}
+
 export function mapLocation(row: LocationRow): ClothingStorageLocation {
   return {
     id: row.id,
@@ -164,6 +183,7 @@ type MovementRow = {
   created_by: string | null;
   jersey_number: number | null;
   player_id: string | null;
+  related_movement_id?: string | null;
   created_at: string;
 };
 
@@ -180,8 +200,17 @@ export function mapStockMovement(row: MovementRow): ClothingStockMovement {
     created_by: row.created_by,
     jersey_number: row.jersey_number ?? null,
     player_id: row.player_id ?? null,
+    related_movement_id: row.related_movement_id ?? null,
     created_at: row.created_at,
   };
 }
 
-export type { ProductRow, OrderRow, OrderLineRow, LocationRow, LotRow, MovementRow };
+export type {
+  ProductRow,
+  OrderRow,
+  OrderLineRow,
+  OrderStatusEventRow,
+  LocationRow,
+  LotRow,
+  MovementRow,
+};

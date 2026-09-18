@@ -1,43 +1,84 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import {
+  ChevronDown,
+  ClipboardCheck,
+  HeartPulse,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Plus,
+  Shirt,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import type { FieldError } from "react-hook-form";
 
 import { Badge } from "@/components/club/Badge";
 import { Button } from "@/components/club/Button";
 import { FormDate, FormInput, FormSelect, FormTextarea } from "@/components/club/forms";
+import { Input } from "@/components/club/Input";
 import { Label } from "@/components/club/Label";
 import { SegmentedControl } from "@/components/club/SegmentedControl";
 import { SizePicker } from "@/components/clothing/SizePicker";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { TeamCreateSheet } from "@/components/roster/TeamCreateSheet";
-import { createPlayerAction, updatePlayerAction } from "@/lib/actions/roster/players";
+import { PlayerStatusActions } from "@/components/roster/PlayerStatusActions";
+import { createPlayerAction, updatePlayerAction, setPlayerActiveAction } from "@/lib/actions/roster/players";
 import { contactsForPlayerAge, isLegalAdult } from "@/lib/roster/age";
 import {
+  formatPlayerAddress,
+  hasStructuredAddress,
+  provinceSelectOptions,
+  streetTypeSelectOptions,
+} from "@/lib/roster/address";
+import {
+  DEFAULT_PLAYER_PROVINCE,
   formatTeamCategory,
   GUARDIAN_RELATIONSHIP_LABELS,
   GUARDIAN_RELATIONSHIPS,
   type ContactRelationship,
   type GuardianRelationship,
 } from "@/lib/roster/constants";
+import { isNieDocument, isSpanishNationality } from "@/lib/roster/document";
+import {
+  docsDeliveredAtToInput,
+  formatDocsDeliveredShort,
+  getPlayerOnboardingStatus,
+  isDocsDeliveryDateRelevant,
+} from "@/lib/roster/onboarding";
+import { createPlayerSchema, updatePlayerSchema } from "@/lib/roster/schemas";
+import {
+  firstPlayerErrorField,
+  focusPlayerField,
+  mapPlayerSchemaIssues,
+} from "@/lib/roster/validators";
 import { appRoutes } from "@/lib/constants";
 import { getCurrentSeason } from "@/lib/season";
 import type { ClothingSize, PlayerContact, PlayerWithDetails, Team } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
+const stickyActionClass = "min-h-9 h-9 px-3 text-sm";
+
+function todayIsoDate() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+}
+
+function toFieldError(errors: Record<string, string>, name: string): FieldError | undefined {
+  const message = errors[name];
+  return message ? { type: "manual", message } : undefined;
+}
+
 type ContactDraft = {
   full_name: string;
   relationship: GuardianRelationship;
   phone: string;
   email: string;
-};
-
-type FieldErrors = {
-  firstName?: string;
-  lastName?: string;
-  teamId?: string;
 };
 
 const emptyContact = (): ContactDraft => ({
@@ -66,6 +107,31 @@ function selfContactFrom(contacts: PlayerContact[], birthDate: string | null) {
   return { phone: source?.phone ?? "", email: source?.email ?? "" };
 }
 
+function SectionHeading({
+  icon: Icon,
+  title,
+  action,
+}: {
+  icon: typeof UserRound;
+  title: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span
+          aria-hidden
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--club-surface-2)] text-muted-foreground"
+        >
+          <Icon className="size-4" strokeWidth={1.75} />
+        </span>
+        <h2 className="section-title">{title}</h2>
+      </div>
+      {action}
+    </div>
+  );
+}
+
 function ToggleRow({
   id,
   label,
@@ -73,6 +139,9 @@ function ToggleRow({
   checked,
   onChange,
   disabled,
+  step,
+  compact,
+  trailing,
 }: {
   id: string;
   label: string;
@@ -80,20 +149,45 @@ function ToggleRow({
   checked: boolean;
   onChange: (value: boolean) => void;
   disabled?: boolean;
+  step?: number;
+  compact?: boolean;
+  /** Contenido a la derecha del título/subtítulo (antes del switch). */
+  trailing?: ReactNode;
 }) {
   const hintId = hint ? `${id}-hint` : undefined;
   return (
-    <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--club-border)] px-4 py-3">
-      <span>
-        <span id={`${id}-label`} className="block text-sm font-medium text-foreground">
-          {label}
-        </span>
-        {hint ? (
-          <span id={hintId} className="mt-0.5 block text-xs text-muted-foreground">
-            {hint}
+    <div
+      className={cn(
+        "flex items-center justify-between gap-2.5 rounded-xl border border-[var(--club-border)]",
+        compact ? "min-h-10 px-3 py-2" : "min-h-11 px-3 py-2.5 md:px-4",
+      )}
+    >
+      <span className="flex min-w-0 flex-1 items-center gap-2.5">
+        {step != null ? (
+          <span
+            aria-hidden
+            className={cn(
+              "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums",
+              checked
+                ? "bg-success/15 text-success"
+                : "bg-[var(--club-surface-2)] text-muted-foreground",
+            )}
+          >
+            {step}
           </span>
         ) : null}
+        <span className="min-w-0">
+          <span id={`${id}-label`} className="block text-sm font-medium text-foreground">
+            {label}
+          </span>
+          {hint ? (
+            <span id={hintId} className="mt-0.5 block text-xs text-muted-foreground">
+              {hint}
+            </span>
+          ) : null}
+        </span>
       </span>
+      {trailing ? <div className="shrink-0">{trailing}</div> : null}
       <button
         id={id}
         type="button"
@@ -132,18 +226,33 @@ export function PlayerForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [teamSheetOpen, setTeamSheetOpen] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const season = player?.season ?? getCurrentSeason();
 
   const [firstName, setFirstName] = useState(player?.first_name ?? "");
   const [lastName, setLastName] = useState(player?.last_name ?? "");
   const [birthDate, setBirthDate] = useState(player?.birth_date ?? "");
   const [dni, setDni] = useState(player?.dni ?? "");
+  const [birthCountry, setBirthCountry] = useState(player?.birth_country ?? "");
+  const [nationality, setNationality] = useState(player?.nationality ?? "");
   const [teamId, setTeamId] = useState(player?.team_id ?? teams[0]?.id ?? "");
   const [size, setSize] = useState<ClothingSize | "">(player?.clothing_size ?? "");
-  const [address, setAddress] = useState(player?.address ?? "");
+  const [streetType, setStreetType] = useState(player?.address_street_type ?? "");
+  const [street, setStreet] = useState(player?.address_street ?? "");
+  const [streetNumber, setStreetNumber] = useState(player?.address_number ?? "");
+  const [door, setDoor] = useState(player?.address_door ?? "");
+  const [postalCode, setPostalCode] = useState(player?.address_postal_code ?? "");
+  const [municipality, setMunicipality] = useState(player?.address_municipality ?? "");
+  const [province, setProvince] = useState(player?.address_province ?? DEFAULT_PLAYER_PROVINCE);
   const [licenseCompleted, setLicenseCompleted] = useState(player?.license_completed ?? false);
   const [papersReceived, setPapersReceived] = useState(player?.registration_papers_received ?? false);
+  const [docsDelivered, setDocsDelivered] = useState(player?.docs_delivered_to_family ?? false);
+  const [docsDeliveredAt, setDocsDeliveredAt] = useState(
+    () => docsDeliveredAtToInput(player?.docs_delivered_at),
+  );
+  const [photoTaken, setPhotoTaken] = useState(player?.photo_taken ?? false);
+  const [photoConsent, setPhotoConsent] = useState(player?.photo_consent ?? false);
+  const [inWhatsappGroup, setInWhatsappGroup] = useState(player?.in_whatsapp_group ?? false);
   const [medicalNotes, setMedicalNotes] = useState(player?.medical_notes ?? "");
   const [contacts, setContacts] = useState<ContactDraft[]>(() => toFamilyDrafts(player?.contacts ?? []));
   const [selfPhone, setSelfPhone] = useState(
@@ -152,23 +261,93 @@ export function PlayerForm({
   const [selfEmail, setSelfEmail] = useState(
     () => selfContactFrom(player?.contacts ?? [], player?.birth_date ?? null).email,
   );
+  const [altaExpanded, setAltaExpanded] = useState(() => {
+    if (!player) return true;
+    return !getPlayerOnboardingStatus(player).isComplete;
+  });
 
   const isAdult = useMemo(() => isLegalAdult(birthDate || null), [birthDate]);
+  const isNie = useMemo(() => isNieDocument(dni), [dni]);
+  const showNieExtras =
+    isNie || Boolean(birthCountry.trim()) || Boolean(nationality.trim() && !isSpanishNationality(nationality));
+  const addressDraft = {
+    street_type: streetType,
+    street,
+    number: streetNumber,
+    door,
+    postal_code: postalCode,
+    municipality,
+    province,
+    fallback: player?.address ?? "",
+  };
+  const structuredAddress = hasStructuredAddress(addressDraft);
+  const legacyAddress =
+    !structuredAddress && player?.address?.trim() ? player.address.trim() : "";
+  const onboarding = useMemo(
+    () =>
+      getPlayerOnboardingStatus({
+        registration_papers_received: papersReceived,
+        docs_delivered_to_family: docsDelivered,
+        photo_taken: photoTaken,
+        license_completed: licenseCompleted,
+        docs_delivered_at: docsDeliveredAt || null,
+      }),
+    [papersReceived, docsDelivered, photoTaken, licenseCompleted, docsDeliveredAt],
+  );
+  const showDocsDate = isDocsDeliveryDateRelevant({
+    docs_delivered_to_family: docsDelivered,
+    registration_papers_received: papersReceived,
+  });
+  const docsDateLabel = formatDocsDeliveredShort(
+    showDocsDate && docsDeliveredAt ? `${docsDeliveredAt}T12:00:00` : null,
+  );
   const readOnly = !canWrite;
   const saveLabel = pending ? "Guardando…" : player ? "Guardar ficha" : "Dar de alta";
-  const teamOptions = teams.map((team) => ({
-    value: team.id,
-    label: `${team.name} · ${formatTeamCategory(team.category)}`,
-  }));
+  const teamOptions = [
+    { value: "", label: "Sin equipo" },
+    ...teams.map((team) => ({
+      value: team.id,
+      label: `${team.name} · ${formatTeamCategory(team.category)}`,
+    })),
+  ];
+  const altaCollapsible = onboarding.isComplete;
+  const showAltaSteps = !altaCollapsible || altaExpanded;
+
+  useEffect(() => {
+    if (!onboarding.isComplete) setAltaExpanded(true);
+  }, [onboarding.isComplete]);
+
+  function clearError(name: string) {
+    setFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  }
+
+  function handleDocsDeliveredChange(value: boolean) {
+    setDocsDelivered(value);
+    if (value) {
+      setDocsDeliveredAt((prev) => prev || docsDeliveredAtToInput(new Date().toISOString()));
+    } else {
+      setDocsDeliveredAt("");
+    }
+  }
 
   function updateContact(index: number, patch: Partial<ContactDraft>) {
     setContacts((prev) => prev.map((contact, i) => (i === index ? { ...contact, ...patch } : contact)));
+    if (patch.full_name != null) clearError(`contact-name-${index}`);
+    if (patch.relationship != null) clearError(`contact-relationship-${index}`);
+    if (patch.phone != null) clearError(`contact-phone-${index}`);
+    if (patch.email != null) clearError(`contact-email-${index}`);
   }
 
   function handleBirthDateChange(value: string) {
     const wasAdult = isLegalAdult(birthDate || null);
     const nextAdult = isLegalAdult(value || null);
     setBirthDate(value);
+    clearError("birth_date");
 
     if (nextAdult && !wasAdult) {
       setSelfPhone((prev) => prev.trim() || contacts[0]?.phone || "");
@@ -195,26 +374,6 @@ export function PlayerForm({
     e?.preventDefault();
     if (!canWrite) return;
 
-    const nextErrors: FieldErrors = {};
-    if (!firstName.trim()) nextErrors.firstName = "Indica el nombre";
-    if (!lastName.trim()) nextErrors.lastName = "Indica los apellidos";
-    if (!teamId) nextErrors.teamId = "Selecciona un equipo";
-    setFieldErrors(nextErrors);
-    if (nextErrors.firstName || nextErrors.lastName || nextErrors.teamId) {
-      appToast.error("Faltan datos para guardar la ficha");
-      return;
-    }
-
-    if (!isAdult) {
-      const incomplete = contacts.some(
-        (contact) => !contact.full_name.trim() && (contact.phone.trim() || contact.email.trim()),
-      );
-      if (incomplete) {
-        appToast.error("Pon el nombre del tutor si indicas teléfono o email");
-        return;
-      }
-    }
-
     const draftContacts: {
       full_name: string;
       relationship: ContactRelationship;
@@ -231,25 +390,37 @@ export function PlayerForm({
             is_primary: true,
           },
         ]
-      : contacts
-          .filter((contact) => contact.full_name.trim())
-          .map((contact, index) => ({
-            ...contact,
-            is_primary: index === 0,
-          }));
+      : contacts.map((contact, index) => ({
+          ...contact,
+          is_primary: index === 0,
+        }));
 
     const payload = {
       first_name: firstName,
       last_name: lastName,
-      birth_date: birthDate || null,
-      dni: dni || undefined,
-      team_id: teamId,
+      birth_date: birthDate,
+      dni,
+      team_id: teamId || null,
       season,
       license_completed: licenseCompleted,
       registration_papers_received: papersReceived,
+      docs_delivered_to_family: docsDelivered,
+      docs_delivered_at: docsDelivered ? docsDeliveredAt || null : null,
+      photo_taken: photoTaken,
+      photo_consent: photoConsent,
+      in_whatsapp_group: inWhatsappGroup,
       medical_notes: medicalNotes || undefined,
       clothing_size: size || null,
-      address: address || undefined,
+      address: formatPlayerAddress(addressDraft) || undefined,
+      address_street_type: streetType,
+      address_street: street,
+      address_number: streetNumber,
+      address_door: door || undefined,
+      address_postal_code: postalCode,
+      address_municipality: municipality,
+      address_province: province,
+      birth_country: birthCountry || undefined,
+      nationality: nationality || undefined,
       is_active: player?.is_active ?? true,
       contacts: contactsForPlayerAge({
         birthDate: birthDate || null,
@@ -259,6 +430,19 @@ export function PlayerForm({
       }),
       ...(player ? { id: player.id } : {}),
     };
+
+    const parsed = player ? updatePlayerSchema.safeParse(payload) : createPlayerSchema.safeParse(payload);
+    if (!parsed.success) {
+      const errors = mapPlayerSchemaIssues(parsed.error.issues, isAdult);
+      setFieldErrors(errors);
+      const count = Object.keys(errors).length;
+      appToast.error(count === 1 ? "Revisa el campo marcado" : `Revisa los ${count} campos marcados`);
+      const first = firstPlayerErrorField(errors);
+      if (first) requestAnimationFrame(() => focusPlayerField(first));
+      return;
+    }
+
+    setFieldErrors({});
 
     startTransition(async () => {
       const result = player ? await updatePlayerAction(payload) : await createPlayerAction(payload);
@@ -277,46 +461,68 @@ export function PlayerForm({
   }
 
   return (
-    <>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-        <section className="flex flex-col gap-4">
-          <h2 className="section-title">Identidad</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+    <div className="clothing-page-with-sticky clothing-page-with-sticky--tall flex min-h-full flex-col md:-mt-4">
+      {/* Desktop: sticky flush con el borde del main (compensa py-4 / lg:py-6) */}
+      <div className="sticky top-0 z-20 -mx-4 mb-4 hidden border-b border-[var(--club-border)] bg-[var(--club-bg)]/95 px-4 py-2 backdrop-blur-sm md:-mx-6 md:top-[-1rem] md:flex md:items-center md:justify-end md:gap-2 md:px-6 lg:top-[-1.5rem]">
+        <Link href={appRoutes.players.list} className={cn("btn-secondary", stickyActionClass)}>
+          Volver
+        </Link>
+        {canWrite && player ? <PlayerStatusActions player={player} /> : null}
+        {canWrite ? (
+          <Button type="button" className={stickyActionClass} disabled={pending} onClick={() => handleSubmit()}>
+            {saveLabel}
+          </Button>
+        ) : null}
+      </div>
+
+      <form
+        noValidate
+        autoComplete="off"
+        data-1p-ignore="true"
+        data-lpignore="true"
+        data-bwignore="true"
+        onSubmit={handleSubmit}
+        className="flex flex-1 flex-col gap-6 md:gap-5"
+      >
+        <section className="flex flex-col gap-3 md:gap-2.5">
+          <SectionHeading icon={UserRound} title="Identidad" />
+          <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
             <FormInput
               label="Nombre"
               name="first_name"
-              className="min-h-11"
-              autoComplete="given-name"
+              className="min-h-11 md:min-h-10"
               value={firstName}
               disabled={readOnly}
-              error={fieldErrors.firstName ? { type: "manual", message: fieldErrors.firstName } : undefined}
+              required
+              error={toFieldError(fieldErrors, "first_name")}
               onChange={(e) => {
                 setFirstName(e.target.value);
-                if (fieldErrors.firstName) setFieldErrors((prev) => ({ ...prev, firstName: undefined }));
+                clearError("first_name");
               }}
-              required
             />
             <FormInput
               label="Apellidos"
               name="last_name"
-              className="min-h-11"
-              autoComplete="family-name"
+              className="min-h-11 md:min-h-10"
               value={lastName}
               disabled={readOnly}
-              error={fieldErrors.lastName ? { type: "manual", message: fieldErrors.lastName } : undefined}
+              required
+              error={toFieldError(fieldErrors, "last_name")}
               onChange={(e) => {
                 setLastName(e.target.value);
-                if (fieldErrors.lastName) setFieldErrors((prev) => ({ ...prev, lastName: undefined }));
+                clearError("last_name");
               }}
-              required
             />
             <div className="flex flex-col gap-1.5">
               <FormDate
                 label="Fecha de nacimiento"
                 name="birth_date"
-                className="min-h-11"
+                className="min-h-11 md:min-h-10"
                 value={birthDate}
                 disabled={readOnly}
+                required
+                max={todayIsoDate()}
+                error={toFieldError(fieldErrors, "birth_date")}
                 onChange={(e) => handleBirthDateChange(e.target.value)}
               />
               <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -336,46 +542,183 @@ export function PlayerForm({
                 )}
               </p>
             </div>
-            <FormInput
-              label="DNI / NIE"
-              name="dni"
-              className="min-h-11 uppercase"
-              autoComplete="off"
-              value={dni}
-              disabled={readOnly}
-              onChange={(e) => setDni(e.target.value.toUpperCase())}
-            />
+            <div className="flex flex-col gap-1.5">
+              <FormInput
+                label="DNI / NIE"
+                name="dni"
+                className="min-h-11 uppercase md:min-h-10"
+                value={dni}
+                disabled={readOnly}
+                required
+                error={toFieldError(fieldErrors, "dni")}
+                onChange={(e) => {
+                  setDni(e.target.value.toUpperCase());
+                  clearError("dni");
+                }}
+              />
+              {isNie ? (
+                <p className="text-xs text-muted-foreground">
+                  NIE: indica país de nacimiento
+                  {nationality.trim() ? "" : " y la nacionalidad si no es española"}.
+                </p>
+              ) : null}
+            </div>
+            {showNieExtras ? (
+              <>
+                <FormInput
+                  label="País de nacimiento"
+                  name="birth_country"
+                  className="min-h-11 md:min-h-10"
+                  value={birthCountry}
+                  disabled={readOnly}
+                  required={isNie}
+                  error={toFieldError(fieldErrors, "birth_country")}
+                  onChange={(e) => {
+                    setBirthCountry(e.target.value);
+                    clearError("birth_country");
+                  }}
+                />
+                <div className="flex flex-col gap-1.5">
+                  <FormInput
+                    label="Nacionalidad"
+                    name="nationality"
+                    className="min-h-11 md:min-h-10"
+                    placeholder="Si no es española"
+                    value={nationality}
+                    disabled={readOnly}
+                    error={toFieldError(fieldErrors, "nationality")}
+                    onChange={(e) => {
+                      setNationality(e.target.value);
+                      clearError("nationality");
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">Déjalo vacío si es española.</p>
+                </div>
+              </>
+            ) : null}
           </div>
-          <FormTextarea
-            label="Dirección"
-            name="address"
-            rows={2}
-            maxLength={300}
-            className="min-h-[4.5rem] resize-none"
-            placeholder="Calle, número, código postal, municipio"
-            value={address}
-            disabled={readOnly}
-            onChange={(e) => setAddress(e.target.value)}
-          />
         </section>
 
-        <section className="flex flex-col gap-4 border-t border-[var(--club-border)] pt-8">
-          <h2 className="section-title">Equipo y talla</h2>
+        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
+          <SectionHeading icon={MapPin} title="Domicilio" />
+          <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
+            <FormSelect
+              label="Tipo de vía"
+              name="address_street_type"
+              value={streetType}
+              disabled={readOnly}
+              required
+              placeholder="Calle, avenida…"
+              options={streetTypeSelectOptions()}
+              error={toFieldError(fieldErrors, "address_street_type")}
+              onChange={(e) => {
+                setStreetType(e.target.value);
+                clearError("address_street_type");
+              }}
+            />
+            <FormInput
+              label="Vía"
+              name="address_street"
+              className="min-h-11 md:min-h-10"
+              placeholder="Nombre de la calle"
+              value={street}
+              disabled={readOnly}
+              required
+              error={toFieldError(fieldErrors, "address_street")}
+              onChange={(e) => {
+                setStreet(e.target.value);
+                clearError("address_street");
+              }}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-2.5">
+            <FormInput
+              label="Número"
+              name="address_number"
+              className="min-h-11 md:min-h-10"
+              placeholder="s/n"
+              value={streetNumber}
+              disabled={readOnly}
+              required
+              error={toFieldError(fieldErrors, "address_number")}
+              onChange={(e) => {
+                setStreetNumber(e.target.value);
+                clearError("address_number");
+              }}
+            />
+            <FormInput
+              label="Piso / puerta"
+              name="address_door"
+              className="min-h-11 md:min-h-10"
+              value={door}
+              disabled={readOnly}
+              onChange={(e) => setDoor(e.target.value)}
+            />
+            <FormInput
+              label="Código postal"
+              name="address_postal_code"
+              className="col-span-2 min-h-11 md:col-span-1 md:min-h-10"
+              inputMode="numeric"
+              maxLength={5}
+              value={postalCode}
+              disabled={readOnly}
+              required
+              error={toFieldError(fieldErrors, "address_postal_code")}
+              onChange={(e) => {
+                setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5));
+                clearError("address_postal_code");
+              }}
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
+            <FormInput
+              label="Municipio"
+              name="address_municipality"
+              className="min-h-11 md:min-h-10"
+              value={municipality}
+              disabled={readOnly}
+              required
+              error={toFieldError(fieldErrors, "address_municipality")}
+              onChange={(e) => {
+                setMunicipality(e.target.value);
+                clearError("address_municipality");
+              }}
+            />
+            <FormSelect
+              label="Provincia"
+              name="address_province"
+              value={province}
+              disabled={readOnly}
+              required
+              placeholder="Provincia"
+              options={provinceSelectOptions(province)}
+              error={toFieldError(fieldErrors, "address_province")}
+              onChange={(e) => {
+                setProvince(e.target.value);
+                clearError("address_province");
+              }}
+            />
+          </div>
+          {legacyAddress ? (
+            <p className="text-xs text-muted-foreground">
+              Dirección anterior: {legacyAddress}. Se actualiza al rellenar los campos.
+            </p>
+          ) : null}
+        </section>
+
+        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
+          <SectionHeading icon={Shirt} title="Equipo y talla" />
           {teams.length === 0 ? (
             <p className="text-sm text-muted-foreground">Crea un equipo para asignar el equipo principal.</p>
           ) : (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
               <div className="min-w-0 flex-1">
                 <FormSelect
                   label="Equipo principal"
                   name="team_id"
                   value={teamId}
                   disabled={readOnly}
-                  error={fieldErrors.teamId ? { type: "manual", message: fieldErrors.teamId } : undefined}
-                  onChange={(e) => {
-                    setTeamId(e.target.value);
-                    if (fieldErrors.teamId) setFieldErrors((prev) => ({ ...prev, teamId: undefined }));
-                  }}
+                  onChange={(e) => setTeamId(e.target.value)}
                   options={teamOptions}
                   placeholder="Selecciona equipo…"
                 />
@@ -384,7 +727,7 @@ export function PlayerForm({
                 <Button
                   type="button"
                   variant="secondary"
-                  className="min-h-11 w-fit shrink-0"
+                  className="h-11 min-h-11 w-fit shrink-0"
                   onClick={() => setTeamSheetOpen(true)}
                 >
                   <Plus className="size-4" aria-hidden />
@@ -397,7 +740,7 @@ export function PlayerForm({
             <Button
               type="button"
               variant="secondary"
-              className="min-h-11 w-fit"
+              className="h-11 min-h-11 w-fit"
               onClick={() => setTeamSheetOpen(true)}
             >
               <Plus className="size-4" aria-hidden />
@@ -413,105 +756,82 @@ export function PlayerForm({
           />
         </section>
 
-        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8">
-          <h2 className="section-title">Trámites</h2>
-          <ToggleRow
-            id="license"
-            label="Licencia realizada"
-            hint="Federativa de la temporada"
-            checked={licenseCompleted}
-            disabled={readOnly}
-            onChange={setLicenseCompleted}
-          />
-          <ToggleRow
-            id="papers"
-            label="Papeles de inscripción entregados"
-            checked={papersReceived}
-            disabled={readOnly}
-            onChange={setPapersReceived}
-          />
-        </section>
-
-        <section className="flex flex-col gap-4 border-t border-[var(--club-border)] pt-8">
-          <h2 className="section-title">Salud</h2>
-          <FormTextarea
-            label="Enfermedades o patologías detectadas"
-            name="medical_notes"
-            rows={3}
-            maxLength={2000}
-            className="min-h-[6rem] resize-none"
-            placeholder="Alergias, asma, lesiones… Lo ve dirección y cuerpo técnico."
-            value={medicalNotes}
-            disabled={readOnly}
-            onChange={(e) => setMedicalNotes(e.target.value)}
-          />
-        </section>
-
-        <section className="flex flex-col gap-4 border-t border-[var(--club-border)] pt-8">
+        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
           {isAdult ? (
             <>
-              <div>
-                <h2 className="section-title">Contacto del jugador</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Al ser mayor de edad, el teléfono y el email son los suyos, no los de un tutor.
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <SectionHeading icon={Phone} title="Contacto del jugador" />
+              <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
                 <FormInput
                   label="Teléfono"
                   name="player-phone"
-                  className="min-h-11"
+                  className="min-h-11 md:min-h-10"
                   type="tel"
                   inputMode="tel"
-                  autoComplete="tel"
                   value={selfPhone}
                   disabled={readOnly}
-                  onChange={(e) => setSelfPhone(e.target.value)}
+                  required
+                  error={toFieldError(fieldErrors, "player-phone")}
+                  onChange={(e) => {
+                    setSelfPhone(e.target.value);
+                    clearError("player-phone");
+                  }}
                 />
                 <FormInput
                   label="Email"
                   name="player-email"
-                  className="min-h-11"
+                  className="min-h-11 md:min-h-10"
                   type="email"
-                  autoComplete="email"
                   value={selfEmail}
                   disabled={readOnly}
-                  onChange={(e) => setSelfEmail(e.target.value)}
+                  required
+                  error={toFieldError(fieldErrors, "player-email")}
+                  onChange={(e) => {
+                    setSelfEmail(e.target.value);
+                    clearError("player-email");
+                  }}
                 />
               </div>
             </>
           ) : (
             <>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="section-title">Contacto familiar</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Madre, padre o tutor. No hace falta que tengan cuenta en el portal.
-                  </p>
-                </div>
-                {canWrite && contacts.length < 2 ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="min-h-11 shrink-0"
-                    onClick={() =>
-                      setContacts((prev) => [
-                        ...prev,
-                        { ...emptyContact(), relationship: prev[0]?.relationship === "madre" ? "padre" : "madre" },
-                      ])
-                    }
-                  >
-                    <Plus className="size-4" aria-hidden />
-                    Añadir
-                  </Button>
-                ) : null}
-              </div>
+              <SectionHeading
+                icon={Phone}
+                title="Contacto familiar"
+                action={
+                  canWrite && contacts.length < 2 ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="min-h-10 shrink-0"
+                      onClick={() =>
+                        setContacts((prev) => [
+                          ...prev,
+                          {
+                            ...emptyContact(),
+                            relationship: prev[0]?.relationship === "madre" ? "padre" : "madre",
+                          },
+                        ])
+                      }
+                    >
+                      <Plus className="size-4" aria-hidden />
+                      Añadir
+                    </Button>
+                  ) : null
+                }
+              />
 
               {contacts.map((contact, index) => (
                 <div
                   key={index}
-                  className="flex flex-col gap-4 rounded-xl border border-[var(--club-border)] px-4 py-4"
+                  className={cn(
+                    "flex flex-col gap-3 rounded-xl border px-3 py-3 md:gap-2.5 md:px-3.5 md:py-3",
+                    toFieldError(fieldErrors, `contact-name-${index}`) ||
+                      toFieldError(fieldErrors, `contact-phone-${index}`) ||
+                      toFieldError(fieldErrors, `contact-email-${index}`)
+                      ? "border-destructive/40"
+                      : "border-[var(--club-border)]",
+                  )}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-medium text-foreground">
@@ -522,7 +842,7 @@ export function PlayerForm({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="min-h-11 text-muted-foreground hover:text-destructive"
+                        className="min-h-9 text-muted-foreground hover:text-destructive"
                         onClick={() => setContacts((prev) => prev.filter((_, i) => i !== index))}
                         aria-label="Quitar contacto"
                       >
@@ -530,52 +850,58 @@ export function PlayerForm({
                       </Button>
                     ) : null}
                   </div>
-                  <FormInput
-                    label="Nombre"
-                    name={`contact-name-${index}`}
-                    className="min-h-11"
-                    value={contact.full_name}
-                    disabled={readOnly}
-                    onChange={(e) => updateContact(index, { full_name: e.target.value })}
-                  />
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Parentesco</Label>
-                    {readOnly ? (
-                      <p className="flex min-h-11 items-center text-sm text-foreground">
-                        {GUARDIAN_RELATIONSHIP_LABELS[contact.relationship]}
-                      </p>
-                    ) : (
-                      <SegmentedControl
-                        aria-label={`Parentesco del contacto ${index + 1}`}
-                        value={contact.relationship}
-                        onChange={(value) => updateContact(index, { relationship: value })}
-                        options={GUARDIAN_RELATIONSHIPS.map((item) => ({
-                          value: item,
-                          label: GUARDIAN_RELATIONSHIP_LABELS[item],
-                        }))}
-                      />
-                    )}
+                  <div className="grid gap-3 md:grid-cols-2 md:gap-2.5">
+                    <FormInput
+                      label="Nombre"
+                      name={`contact-name-${index}`}
+                      className="min-h-11 md:min-h-10"
+                      value={contact.full_name}
+                      disabled={readOnly}
+                      required
+                      error={toFieldError(fieldErrors, `contact-name-${index}`)}
+                      onChange={(e) => updateContact(index, { full_name: e.target.value })}
+                    />
+                    <div className="flex flex-col gap-1.5">
+                      <Label required>Parentesco</Label>
+                      {readOnly ? (
+                        <p className="flex min-h-10 items-center text-sm text-foreground">
+                          {GUARDIAN_RELATIONSHIP_LABELS[contact.relationship]}
+                        </p>
+                      ) : (
+                        <SegmentedControl
+                          aria-label={`Parentesco del contacto ${index + 1}`}
+                          value={contact.relationship}
+                          onChange={(value) => updateContact(index, { relationship: value })}
+                          options={GUARDIAN_RELATIONSHIPS.map((item) => ({
+                            value: item,
+                            label: GUARDIAN_RELATIONSHIP_LABELS[item],
+                          }))}
+                        />
+                      )}
+                    </div>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
                     <FormInput
                       label="Teléfono"
                       name={`contact-phone-${index}`}
-                      className="min-h-11"
+                      className="min-h-11 md:min-h-10"
                       type="tel"
                       inputMode="tel"
-                      autoComplete="tel"
                       value={contact.phone}
                       disabled={readOnly}
+                      required
+                      error={toFieldError(fieldErrors, `contact-phone-${index}`)}
                       onChange={(e) => updateContact(index, { phone: e.target.value })}
                     />
                     <FormInput
                       label="Email"
                       name={`contact-email-${index}`}
-                      className="min-h-11"
+                      className="min-h-11 md:min-h-10"
                       type="email"
-                      autoComplete="email"
                       value={contact.email}
                       disabled={readOnly}
+                      required
+                      error={toFieldError(fieldErrors, `contact-email-${index}`)}
                       onChange={(e) => updateContact(index, { email: e.target.value })}
                     />
                   </div>
@@ -585,13 +911,137 @@ export function PlayerForm({
           )}
         </section>
 
-        {canWrite ? (
-          <div className="clothing-toolbar hidden border-t border-[var(--club-border)] pt-6 md:flex">
-            <Button type="submit" disabled={pending}>
-              {saveLabel}
-            </Button>
+        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <SectionHeading icon={ClipboardCheck} title="Alta federativa" />
+            <div className="flex items-center gap-2">
+              <Badge variant={onboarding.isComplete ? "success" : "warning"} className="text-[11px]">
+                {onboarding.summary}
+                {showDocsDate && docsDateLabel ? ` · Docs ${docsDateLabel}` : null}
+              </Badge>
+              {altaCollapsible ? (
+                <button
+                  type="button"
+                  className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-[var(--club-surface-2)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-expanded={showAltaSteps}
+                  onClick={() => setAltaExpanded((open) => !open)}
+                >
+                  {showAltaSteps ? "Ocultar" : "Ver pasos"}
+                  <ChevronDown
+                    className={cn("size-3.5 transition-transform", showAltaSteps && "rotate-180")}
+                    aria-hidden
+                  />
+                </button>
+              ) : null}
+            </div>
           </div>
-        ) : null}
+
+          {showAltaSteps ? (
+            <ol className="flex flex-col gap-2 md:gap-1.5">
+              <li>
+                <ToggleRow
+                  id="docs"
+                  step={1}
+                  compact
+                  label="Docs entregados"
+                  hint="Se los damos al jugador / familia"
+                  checked={docsDelivered}
+                  disabled={readOnly}
+                  onChange={handleDocsDeliveredChange}
+                  trailing={
+                    showDocsDate ? (
+                      <Input
+                        id="docs_delivered_at"
+                        name="docs_delivered_at"
+                        type="date"
+                        aria-label="Fecha de entrega de docs"
+                        className="min-h-9 w-[9.75rem] px-2 text-xs md:min-h-8 md:w-[10.5rem]"
+                        value={docsDeliveredAt}
+                        disabled={readOnly}
+                        onChange={(e) => setDocsDeliveredAt(e.target.value)}
+                      />
+                    ) : null
+                  }
+                />
+              </li>
+              <li>
+                <ToggleRow
+                  id="papers"
+                  step={2}
+                  compact
+                  label="Papeles recibidos"
+                  hint="Vuelven rellenos al club"
+                  checked={papersReceived}
+                  disabled={readOnly}
+                  onChange={setPapersReceived}
+                />
+              </li>
+              <li>
+                <ToggleRow
+                  id="photo"
+                  step={3}
+                  compact
+                  label="Foto hecha"
+                  hint="Para la ficha / licencia"
+                  checked={photoTaken}
+                  disabled={readOnly}
+                  onChange={setPhotoTaken}
+                />
+              </li>
+              <li>
+                <ToggleRow
+                  id="license"
+                  step={4}
+                  compact
+                  label="Licencia realizada"
+                  hint="Federativa de la temporada"
+                  checked={licenseCompleted}
+                  disabled={readOnly}
+                  onChange={setLicenseCompleted}
+                />
+              </li>
+            </ol>
+          ) : null}
+        </section>
+
+        <section className="flex flex-col gap-2 border-t border-[var(--club-border)] pt-5 md:pt-4">
+          <SectionHeading icon={MessageCircle} title="Grupo y fotos" />
+          <div className="grid gap-2 md:grid-cols-2 md:gap-2.5">
+            <ToggleRow
+              id="whatsapp"
+              compact
+              label="En grupo WhatsApp"
+              checked={inWhatsappGroup}
+              disabled={readOnly}
+              onChange={setInWhatsappGroup}
+            />
+            <ToggleRow
+              id="photo-consent"
+              compact
+              label="Autoriza fotos"
+              hint="Redes, cartel, material del club"
+              checked={photoConsent}
+              disabled={readOnly}
+              onChange={setPhotoConsent}
+            />
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
+          <SectionHeading icon={HeartPulse} title="Salud" />
+          <FormTextarea
+            label="Enfermedades o patologías detectadas"
+            name="medical_notes"
+            rows={3}
+            maxLength={2000}
+            className="min-h-[5.5rem] resize-none md:min-h-[5rem]"
+            placeholder="Alergias, asma, lesiones… Lo ve dirección y cuerpo técnico."
+            value={medicalNotes}
+            disabled={readOnly}
+            onChange={(e) => setMedicalNotes(e.target.value)}
+          />
+        </section>
+
       </form>
 
       <TeamCreateSheet
@@ -601,18 +1051,52 @@ export function PlayerForm({
         onCreated={setTeamId}
       />
 
-      {canWrite ? (
-        <ClothingStickyActionBar
-          actions={[
-            {
-              type: "button",
-              label: saveLabel,
-              pending,
-              onClick: () => handleSubmit(),
-            },
-          ]}
-        />
-      ) : null}
-    </>
+      <ClothingStickyActionBar
+        layout="row"
+        actions={[
+          {
+            type: "link",
+            label: "Volver",
+            href: appRoutes.players.list,
+            variant: "secondary",
+          },
+          ...(canWrite && player
+            ? [
+                {
+                  type: "button" as const,
+                  label: player.is_active ? "Dar de baja" : "Reactivar",
+                  variant: (player.is_active ? "secondary" : "primary") as "secondary" | "primary",
+                  onClick: () => {
+                    void (async () => {
+                      const result = await setPlayerActiveAction({
+                        id: player.id,
+                        is_active: !player.is_active,
+                      });
+                      if (!result.ok) {
+                        appToast.error(result.error);
+                        return;
+                      }
+                      appToast.success(
+                        player.is_active ? "Jugador dado de baja" : "Jugador reactivado",
+                      );
+                      router.refresh();
+                    })();
+                  },
+                },
+              ]
+            : []),
+          ...(canWrite
+            ? [
+                {
+                  type: "button" as const,
+                  label: saveLabel,
+                  pending,
+                  onClick: () => handleSubmit(),
+                },
+              ]
+            : []),
+        ]}
+      />
+    </div>
   );
 }

@@ -51,6 +51,7 @@ export const appRoutes = {
     list: "/admin/jugadores",
     new: "/admin/jugadores/nuevo",
     detail: (id: string) => `/admin/jugadores/${id}`,
+    whatsapp: "/admin/jugadores/whatsapp",
   },
 } as const;
 

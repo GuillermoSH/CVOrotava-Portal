@@ -1,18 +1,21 @@
 import "server-only";
 
 import { getRosterDb } from "@/lib/roster/repository/client";
-import { getPlayerById, listPlayers } from "@/lib/roster/repository/players";
+import { getPlayerById, listPlayersWithPrimaryPhone } from "@/lib/roster/repository/players";
 import { listTeams } from "@/lib/roster/repository/teams";
 import { getCurrentSeason } from "@/lib/season";
-import type { PlayerWithDetails, PlayerWithTeam, Team } from "@/lib/types/db";
+import type { PlayerListItem, PlayerWithDetails, Team } from "@/lib/types/db";
 
 export async function getRosterSnapshot(season: string = getCurrentSeason()): Promise<{
-  players: PlayerWithTeam[];
+  players: PlayerListItem[];
   teams: Team[];
   season: string;
 }> {
   const db = await getRosterDb();
-  const [players, teams] = await Promise.all([listPlayers(db, season), listTeams(db, season)]);
+  const [players, teams] = await Promise.all([
+    listPlayersWithPrimaryPhone(db, season),
+    listTeams(db, season),
+  ]);
   return { players, teams, season };
 }
 

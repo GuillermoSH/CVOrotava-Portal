@@ -36,16 +36,13 @@ export function contactsForPlayerAge<
     const source =
       input.contacts.find((contact) => contact.relationship === "jugador") ?? input.contacts[0];
     if (!source) return [];
-    const phone = source.phone?.trim() || undefined;
-    const email = source.email?.trim() || undefined;
-    if (!phone && !email) return [];
     return [
       {
         ...source,
         full_name: fullName,
         relationship: "jugador" as T["relationship"],
-        phone,
-        email,
+        phone: source.phone?.trim() || undefined,
+        email: source.email?.trim() || undefined,
         is_primary: true,
       },
     ];

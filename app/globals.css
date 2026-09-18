@@ -1619,6 +1619,16 @@ html.dark .club-confirm-panel {
   padding-block: 0.625rem;
 }
 
+.clothing-sticky-bar__inner--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clothing-sticky-bar__inner--row > * {
+  width: auto;
+}
+
 .clothing-filter-chips {
   display: flex;
   gap: 0.5rem;
@@ -1707,7 +1717,7 @@ a.clothing-list-card:hover {
 }
 
 .clothing-page-with-sticky--tall {
-  --clothing-sticky-bar-height: calc(5.5rem + 0.5rem);
+  --clothing-sticky-bar-height: calc(3.75rem + 0.5rem);
 }
 
 @media (min-width: 768px) {

@@ -3,9 +3,13 @@ import "server-only";
 import * as XLSX from "xlsx";
 
 import { CLOTHING_SIZE_LABELS, CLOTHING_SIZES } from "@/lib/clothing/constants";
+import { formatPlayerAddress, normalizeProvince, normalizeStreetType } from "@/lib/roster/address";
 import { contactsForPlayerAge, isLegalAdult } from "@/lib/roster/age";
 import {
+  formatTeamCategory,
   GUARDIAN_RELATIONSHIP_LABELS,
+  SPAIN_PROVINCES,
+  STREET_TYPE_LABELS,
   type ContactRelationship,
   type GuardianRelationship,
 } from "@/lib/roster/constants";
@@ -15,17 +19,25 @@ import type { ClothingSize, Team } from "@/lib/types/db";
 
 export const PLAYER_IMPORT_MAX_ROWS = 200;
 
+export const PLAYER_IMPORT_NO_TEAM = "Sin equipo";
+
 export const PLAYER_IMPORT_HEADERS = [
   "Nombre",
   "Apellidos",
   "Fecha de nacimiento",
-  "DNI",
-  "Equipo",
-  "Talla",
+  "DNI / NIE",
+  "País de nacimiento",
+  "Nacionalidad",
+  "Tipo de vía",
+  "Vía",
+  "Número",
+  "Piso / puerta",
+  "Código postal",
+  "Municipio",
+  "Provincia",
   "Dirección",
-  "Licencia",
-  "Papeles",
-  "Notas médicas",
+  "Equipo principal",
+  "Talla",
   "Teléfono",
   "Email",
   "Contacto nombre",
@@ -36,7 +48,28 @@ export const PLAYER_IMPORT_HEADERS = [
   "Contacto 2 parentesco",
   "Contacto 2 teléfono",
   "Contacto 2 email",
+  "Docs entregados",
+  "Fecha de entrega de docs",
+  "Papeles recibidos",
+  "Foto hecha",
+  "Licencia realizada",
+  "En grupo WhatsApp",
+  "Autoriza fotos",
+  "Enfermedades o patologías detectadas",
 ] as const;
+
+export const PLAYER_IMPORT_YES_NO_HEADERS = [
+  "Docs entregados",
+  "Papeles recibidos",
+  "Foto hecha",
+  "Licencia realizada",
+  "En grupo WhatsApp",
+  "Autoriza fotos",
+] as const;
+
+export function playerImportTeamLabel(team: Team): string {
+  return `${team.name} · ${formatTeamCategory(team.category)}`;
+}
 
 const HEADER_ALIASES: Record<string, (typeof PLAYER_IMPORT_HEADERS)[number]> = {
   nombre: "Nombre",
@@ -49,20 +82,62 @@ const HEADER_ALIASES: Record<string, (typeof PLAYER_IMPORT_HEADERS)[number]> = {
   fecha_nacimiento: "Fecha de nacimiento",
   nacimiento: "Fecha de nacimiento",
   birth_date: "Fecha de nacimiento",
-  dni: "DNI",
-  nie: "DNI",
-  "dni / nie": "DNI",
-  equipo: "Equipo",
-  team: "Equipo",
+  dni: "DNI / NIE",
+  nie: "DNI / NIE",
+  "dni / nie": "DNI / NIE",
+  "pais de nacimiento": "País de nacimiento",
+  "país de nacimiento": "País de nacimiento",
+  birth_country: "País de nacimiento",
+  nacionalidad: "Nacionalidad",
+  nationality: "Nacionalidad",
+  equipo: "Equipo principal",
+  team: "Equipo principal",
+  "equipo principal": "Equipo principal",
   talla: "Talla",
   size: "Talla",
+  "tipo de via": "Tipo de vía",
+  "tipo de vía": "Tipo de vía",
+  via: "Vía",
+  vía: "Vía",
+  numero: "Número",
+  número: "Número",
+  puerta: "Piso / puerta",
+  "piso / puerta": "Piso / puerta",
+  piso: "Piso / puerta",
+  "codigo postal": "Código postal",
+  "código postal": "Código postal",
+  cp: "Código postal",
+  municipio: "Municipio",
+  localidad: "Municipio",
+  provincia: "Provincia",
   direccion: "Dirección",
   dirección: "Dirección",
   address: "Dirección",
-  licencia: "Licencia",
-  papeles: "Papeles",
-  "notas medicas": "Notas médicas",
-  "notas médicas": "Notas médicas",
+  licencia: "Licencia realizada",
+  "licencia realizada": "Licencia realizada",
+  papeles: "Papeles recibidos",
+  "papeles recibidos": "Papeles recibidos",
+  "docs entregados": "Docs entregados",
+  docs: "Docs entregados",
+  "documentacion entregada": "Docs entregados",
+  "documentación entregada": "Docs entregados",
+  "fecha docs": "Fecha de entrega de docs",
+  "fecha docs entregados": "Fecha de entrega de docs",
+  "fecha de entrega de docs": "Fecha de entrega de docs",
+  docs_delivered_at: "Fecha de entrega de docs",
+  foto: "Foto hecha",
+  "foto hecha": "Foto hecha",
+  photo: "Foto hecha",
+  photo_taken: "Foto hecha",
+  whatsapp: "En grupo WhatsApp",
+  "en grupo whatsapp": "En grupo WhatsApp",
+  "grupo whatsapp": "En grupo WhatsApp",
+  in_whatsapp_group: "En grupo WhatsApp",
+  "autoriza fotos": "Autoriza fotos",
+  photo_consent: "Autoriza fotos",
+  "notas medicas": "Enfermedades o patologías detectadas",
+  "notas médicas": "Enfermedades o patologías detectadas",
+  "enfermedades o patologias detectadas": "Enfermedades o patologías detectadas",
   telefono: "Teléfono",
   teléfono: "Teléfono",
   phone: "Teléfono",
@@ -132,9 +207,14 @@ function parseDate(raw: string): string | null | "invalid" {
   return "invalid";
 }
 
-function parseYesNo(raw: string): boolean {
+function parseYesNo(raw: string): boolean | "invalid" {
   const value = fold(raw);
-  return value === "si" || value === "sí" || value === "s" || value === "yes" || value === "1" || value === "true" || value === "x";
+  if (!value) return false;
+  if (value === "si" || value === "s" || value === "yes" || value === "1" || value === "true" || value === "x") {
+    return true;
+  }
+  if (value === "no" || value === "n" || value === "false" || value === "0") return false;
+  return "invalid";
 }
 
 function parseSize(raw: string): ClothingSize | null | "invalid" {
@@ -168,89 +248,71 @@ function mapHeader(raw: string): (typeof PLAYER_IMPORT_HEADERS)[number] | null {
   return exact ?? null;
 }
 
-function exampleRows(teams: Team[]): string[][] {
+function exampleRow(
+  cells: Partial<Record<(typeof PLAYER_IMPORT_HEADERS)[number], string>>,
+): string[] {
+  return PLAYER_IMPORT_HEADERS.map((header) => cells[header] ?? "");
+}
+
+export function playerImportExampleRows(teams: Team[]): string[][] {
   const youth = teams.find((team) => team.category !== "senior") ?? teams[0];
   const senior = teams.find((team) => team.category === "senior") ?? teams[1] ?? teams[0];
   return [
-    [
-      "Lucía",
-      "Acosta",
-      "12/03/2014",
-      "",
-      youth?.name ?? "",
-      "140",
-      "",
-      "no",
-      "no",
-      "",
-      "",
-      "",
-      "Ana Acosta",
-      "madre",
-      "922000111",
-      "ana.acosta@correo.test",
-      "",
-      "",
-      "",
-      "",
-    ],
-    [
-      "Marcos",
-      "Díaz",
-      "02/08/1999",
-      "",
-      senior?.name ?? youth?.name ?? "",
-      "L",
-      "",
-      "sí",
-      "sí",
-      "",
-      "922000222",
-      "marcos.diaz@correo.test",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ],
+    exampleRow({
+      Nombre: "Lucía",
+      Apellidos: "Acosta",
+      "Fecha de nacimiento": "12/03/2014",
+      "DNI / NIE": "12345678Z",
+      "Equipo principal": youth ? playerImportTeamLabel(youth) : PLAYER_IMPORT_NO_TEAM,
+      Talla: "140",
+      "Tipo de vía": "Calle",
+      Vía: "San Francisco",
+      Número: "12",
+      "Piso / puerta": "2ºA",
+      "Código postal": "38300",
+      Municipio: "La Orotava",
+      Provincia: "Santa Cruz de Tenerife",
+      "Licencia realizada": "no",
+      "Papeles recibidos": "no",
+      "Docs entregados": "no",
+      "Foto hecha": "no",
+      "En grupo WhatsApp": "no",
+      "Autoriza fotos": "no",
+      "Contacto nombre": "Ana Acosta",
+      "Contacto parentesco": "Madre",
+      "Contacto teléfono": "922000111",
+      "Contacto email": "ana.acosta@correo.test",
+    }),
+    exampleRow({
+      Nombre: "Marcos",
+      Apellidos: "Díaz",
+      "Fecha de nacimiento": "02/08/1999",
+      "DNI / NIE": "X1234567L",
+      "País de nacimiento": "Venezuela",
+      Nacionalidad: "venezolana",
+      "Equipo principal": senior
+        ? playerImportTeamLabel(senior)
+        : youth
+          ? playerImportTeamLabel(youth)
+          : PLAYER_IMPORT_NO_TEAM,
+      Talla: "L",
+      "Tipo de vía": "Avenida",
+      Vía: "Marítima",
+      Número: "8",
+      "Código postal": "38400",
+      Municipio: "Puerto de la Cruz",
+      Provincia: "Santa Cruz de Tenerife",
+      "Licencia realizada": "sí",
+      "Papeles recibidos": "sí",
+      "Docs entregados": "sí",
+      "Fecha de entrega de docs": "01/09/2025",
+      "Foto hecha": "sí",
+      "En grupo WhatsApp": "sí",
+      "Autoriza fotos": "sí",
+      Teléfono: "922000222",
+      Email: "marcos.diaz@correo.test",
+    }),
   ];
-}
-
-export function buildPlayerImportWorkbook(teams: Team[]): Buffer {
-  const sheet = XLSX.utils.aoa_to_sheet([
-    [...PLAYER_IMPORT_HEADERS],
-    ...exampleRows(teams),
-  ]);
-  sheet["!cols"] = PLAYER_IMPORT_HEADERS.map((header) => ({
-    wch: Math.max(14, header.length + 2),
-  }));
-
-  const teamsSheet = XLSX.utils.aoa_to_sheet([
-    ["Equipo", "Categoría", "Género"],
-    ...teams.map((team) => [team.name, team.category, team.gender === "female" ? "Femenino" : "Masculino"]),
-  ]);
-
-  const helpSheet = XLSX.utils.aoa_to_sheet([
-    ["Cómo rellenar"],
-    ["No borres la primera fila. Puedes borrar las dos filas de ejemplo."],
-    ["Fecha de nacimiento: DD/MM/AAAA o AAAA-MM-DD."],
-    ["Equipo: copia el nombre exacto de la hoja Equipos."],
-    ["Talla: XS, S, M, L, XL, 140, 152, Única…"],
-    ["Licencia y papeles: sí o no."],
-    ["Parentesco: madre, padre, tutor u otro."],
-    ["Mayor de 18: teléfono y email del propio jugador. Deja los contactos vacíos."],
-    ["Menor: rellena al menos un contacto familiar (nombre + teléfono o email)."],
-    [`Máximo ${PLAYER_IMPORT_MAX_ROWS} jugadores por archivo.`],
-  ]);
-
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, "Jugadores");
-  XLSX.utils.book_append_sheet(workbook, teamsSheet, "Equipos");
-  XLSX.utils.book_append_sheet(workbook, helpSheet, "Instrucciones");
-  return Buffer.from(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
 }
 
 function rowsFromSheet(sheet: XLSX.WorkSheet): string[][] {
@@ -280,14 +342,27 @@ export function parsePlayerImportFile(
   const table = rowsFromSheet(sheet);
   const headerRow = table[0] ?? [];
   const columns = headerRow.map((header) => mapHeader(header));
-  if (!columns.includes("Nombre") || !columns.includes("Apellidos") || !columns.includes("Equipo")) {
+  if (
+    !columns.includes("Nombre") ||
+    !columns.includes("Apellidos") ||
+    !columns.includes("Equipo principal")
+  ) {
     return {
       ready: [],
-      issues: [{ row: 1, message: "Faltan columnas Nombre, Apellidos o Equipo. Usa la plantilla del portal." }],
+      issues: [
+        {
+          row: 1,
+          message: "Faltan columnas Nombre, Apellidos o Equipo principal. Usa la plantilla del portal.",
+        },
+      ],
     };
   }
 
-  const teamByName = new Map(teams.map((team) => [fold(team.name), team]));
+  const teamByImport = new Map<string, Team>();
+  for (const team of teams) {
+    teamByImport.set(fold(team.name), team);
+    teamByImport.set(fold(playerImportTeamLabel(team)), team);
+  }
   const issues: PlayerImportIssue[] = [];
   const ready: PlayerImportReady[] = [];
   const seenDni = new Set<string>();
@@ -319,27 +394,65 @@ export function parsePlayerImportFile(
       return;
     }
 
-    const teamName = get("Equipo");
-    const team = teamByName.get(fold(teamName));
-    if (!team) {
-      issues.push({ row, message: teamName ? `No hay un equipo llamado “${teamName}” esta temporada` : "Falta el equipo" });
+    const teamName = get("Equipo principal");
+    const teamKey = fold(teamName);
+    const team =
+      !teamKey || teamKey === fold(PLAYER_IMPORT_NO_TEAM) ? undefined : teamByImport.get(teamKey);
+    if (teamName && teamKey !== fold(PLAYER_IMPORT_NO_TEAM) && !team) {
+      issues.push({
+        row,
+        message: `Equipo no válido: ${teamName}. Elige uno de la lista o Sin equipo.`,
+      });
       return;
     }
 
     const size = parseSize(get("Talla"));
     if (size === "invalid") {
-      issues.push({ row, message: `Talla no válida: ${get("Talla")}` });
+      issues.push({
+        row,
+        message: `Talla no válida: ${get("Talla")}. Usa la lista de la plantilla.`,
+      });
       return;
     }
 
     const rel1 = parseRelationship(get("Contacto parentesco"));
     const rel2 = parseRelationship(get("Contacto 2 parentesco"));
     if (rel1 === "invalid" || rel2 === "invalid") {
-      issues.push({ row, message: "Parentesco no válido. Usa madre, padre, tutor u otro." });
+      issues.push({ row, message: "Parentesco no válido. Usa Madre, Padre, Tutor/a u Otro." });
       return;
     }
 
-    const dni = get("DNI").toUpperCase();
+    const streetTypeRaw = get("Tipo de vía");
+    const streetType = normalizeStreetType(streetTypeRaw);
+    if (streetTypeRaw && !streetType) {
+      issues.push({
+        row,
+        message: `Tipo de vía no válido. Usa ${Object.values(STREET_TYPE_LABELS).join(", ")}.`,
+      });
+      return;
+    }
+
+    const provinceRaw = get("Provincia");
+    const province = normalizeProvince(provinceRaw);
+    if (provinceRaw && !SPAIN_PROVINCES.some((item) => item === province)) {
+      issues.push({ row, message: `Provincia no válida: ${provinceRaw}. Usa la lista de la plantilla.` });
+      return;
+    }
+
+    const yesNo = {} as Record<(typeof PLAYER_IMPORT_YES_NO_HEADERS)[number], boolean>;
+    let yesNoInvalid = false;
+    for (const header of PLAYER_IMPORT_YES_NO_HEADERS) {
+      const parsedYesNo = parseYesNo(get(header));
+      if (parsedYesNo === "invalid") {
+        issues.push({ row, message: `${header}: usa sí o no.` });
+        yesNoInvalid = true;
+        break;
+      }
+      yesNo[header] = parsedYesNo;
+    }
+    if (yesNoInvalid) return;
+
+    const dni = get("DNI / NIE").toUpperCase();
     if (dni) {
       const key = dni.replace(/\s+/g, "");
       if (seenDni.has(key)) {
@@ -384,18 +497,55 @@ export function parsePlayerImportFile(
         : family,
     });
 
+    const docsDelivered = yesNo["Docs entregados"];
+    const docsDateRaw = parseDate(get("Fecha de entrega de docs"));
+    if (docsDateRaw === "invalid") {
+      issues.push({ row, message: "Fecha de entrega de docs no válida. Usa DD/MM/AAAA." });
+      return;
+    }
+
+    const addressStreet = get("Vía");
+    const addressNumber = get("Número");
+    const addressDoor = get("Piso / puerta");
+    const postalCode = get("Código postal").replace(/\D/g, "").slice(0, 5);
+    const municipality = get("Municipio");
+    const address = formatPlayerAddress({
+      street_type: streetType,
+      street: addressStreet,
+      number: addressNumber,
+      door: addressDoor,
+      postal_code: postalCode,
+      municipality,
+      province,
+      fallback: get("Dirección"),
+    });
+
     const parsed = createPlayerSchema.safeParse({
       first_name: firstName,
       last_name: lastName,
       birth_date: birthRaw,
       dni: dni || undefined,
-      team_id: team.id,
+      birth_country: get("País de nacimiento") || undefined,
+      nationality: get("Nacionalidad") || undefined,
+      team_id: team?.id ?? null,
       season,
-      license_completed: parseYesNo(get("Licencia")),
-      registration_papers_received: parseYesNo(get("Papeles")),
-      medical_notes: get("Notas médicas") || undefined,
+      license_completed: yesNo["Licencia realizada"],
+      registration_papers_received: yesNo["Papeles recibidos"],
+      docs_delivered_to_family: docsDelivered,
+      docs_delivered_at: docsDelivered ? docsDateRaw : null,
+      photo_taken: yesNo["Foto hecha"],
+      photo_consent: yesNo["Autoriza fotos"],
+      in_whatsapp_group: yesNo["En grupo WhatsApp"],
+      medical_notes: get("Enfermedades o patologías detectadas") || undefined,
       clothing_size: size,
-      address: get("Dirección") || undefined,
+      address: address || undefined,
+      address_street_type: streetType,
+      address_street: addressStreet || undefined,
+      address_number: addressNumber || undefined,
+      address_door: addressDoor || undefined,
+      address_postal_code: postalCode || undefined,
+      address_municipality: municipality || undefined,
+      address_province: province,
       contacts,
     });
 

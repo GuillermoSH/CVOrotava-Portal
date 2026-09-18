@@ -18,6 +18,7 @@ export function FormTextarea({
   register,
   error,
   className,
+  autoComplete = "off",
   ...props
 }: FormTextareaProps) {
   const fieldId = id ?? name;
@@ -28,6 +29,10 @@ export function FormTextarea({
       <textarea
         id={fieldId}
         name={name}
+        autoComplete={autoComplete}
+        data-1p-ignore={autoComplete === "off" ? "true" : undefined}
+        data-lpignore={autoComplete === "off" ? "true" : undefined}
+        data-bwignore={autoComplete === "off" ? "true" : undefined}
         aria-invalid={Boolean(error)}
         className={cn(
           "form-input min-h-[6rem] resize-y",

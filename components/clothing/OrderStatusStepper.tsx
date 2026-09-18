@@ -1,11 +1,41 @@
 "use client";
 
 import { ORDER_STATUS_LABELS, ORDER_STATUSES } from "@/lib/clothing/constants";
-import type { ClothingOrderStatus } from "@/lib/types/db";
+import type {
+  ClothingOrderStatus,
+  ClothingSupplierOrderStatusEvent,
+} from "@/lib/types/db";
 import { cn } from "@/lib/utils";
 
-export function OrderStatusStepper({ currentStatus }: { currentStatus: ClothingOrderStatus }) {
+function formatStatusDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function latestDateByStatus(
+  events: ClothingSupplierOrderStatusEvent[],
+): Partial<Record<ClothingOrderStatus, string>> {
+  const map: Partial<Record<ClothingOrderStatus, string>> = {};
+  for (const event of events) {
+    const prev = map[event.status];
+    if (!prev || event.changed_at > prev) {
+      map[event.status] = event.changed_at;
+    }
+  }
+  return map;
+}
+
+export function OrderStatusStepper({
+  currentStatus,
+  statusEvents = [],
+}: {
+  currentStatus: ClothingOrderStatus;
+  statusEvents?: ClothingSupplierOrderStatusEvent[];
+}) {
   const currentIndex = ORDER_STATUSES.indexOf(currentStatus);
+  const dates = latestDateByStatus(statusEvents);
 
   return (
     <>
@@ -57,6 +87,7 @@ export function OrderStatusStepper({ currentStatus }: { currentStatus: ClothingO
           {ORDER_STATUSES.map((status, index) => {
             const isPast = index < currentIndex;
             const isCurrent = index === currentIndex;
+            const date = dates[status];
 
             return (
               <li
@@ -69,9 +100,18 @@ export function OrderStatusStepper({ currentStatus }: { currentStatus: ClothingO
                       ? "text-foreground"
                       : "text-muted-foreground",
                 )}
-                title={ORDER_STATUS_LABELS[status]}
+                title={
+                  date
+                    ? `${ORDER_STATUS_LABELS[status]} · ${formatStatusDate(date)}`
+                    : ORDER_STATUS_LABELS[status]
+                }
               >
                 <span className="line-clamp-2">{ORDER_STATUS_LABELS[status]}</span>
+                {date && (isPast || isCurrent) ? (
+                  <span className="mt-0.5 block tabular-nums text-muted-foreground">
+                    {formatStatusDate(date)}
+                  </span>
+                ) : null}
               </li>
             );
           })}
@@ -85,6 +125,7 @@ export function OrderStatusStepper({ currentStatus }: { currentStatus: ClothingO
             const isPast = index < currentIndex;
             const isCurrent = index === currentIndex;
             const isLast = index === ORDER_STATUSES.length - 1;
+            const date = dates[status];
 
             return (
               <li key={status} className="flex gap-3">
@@ -111,18 +152,28 @@ export function OrderStatusStepper({ currentStatus }: { currentStatus: ClothingO
                   ) : null}
                 </div>
                 <div className={cn("min-w-0 flex-1", !isLast && "pb-3")}>
-                  <span
-                    className={cn(
-                      "text-sm leading-snug",
-                      isCurrent
-                        ? "font-semibold text-foreground"
-                        : isPast
-                          ? "text-foreground"
-                          : "text-muted-foreground",
-                    )}
-                  >
-                    {ORDER_STATUS_LABELS[status]}
-                  </span>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span
+                      className={cn(
+                        "text-sm leading-snug",
+                        isCurrent
+                          ? "font-semibold text-foreground"
+                          : isPast
+                            ? "text-foreground"
+                            : "text-muted-foreground",
+                      )}
+                    >
+                      {ORDER_STATUS_LABELS[status]}
+                    </span>
+                    {date && (isPast || isCurrent) ? (
+                      <time
+                        dateTime={date}
+                        className="shrink-0 text-xs tabular-nums text-muted-foreground"
+                      >
+                        {formatStatusDate(date)}
+                      </time>
+                    ) : null}
+                  </div>
                 </div>
               </li>
             );

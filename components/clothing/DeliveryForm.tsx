@@ -14,16 +14,18 @@ import { ProductColorBadge } from "@/components/clothing/ProductColorBadge";
 import { deliverInventoryAction } from "@/lib/actions/clothing/inventory";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { formatJerseyNumber } from "@/lib/clothing/formatJersey";
-import { formatProductName } from "@/lib/clothing/formatProduct";
+import { formatProductName, formatProductShort } from "@/lib/clothing/formatProduct";
 import {
   buildStockPools,
   formatPoolSource,
   stockPoolKey,
   type StockPool,
 } from "@/lib/clothing/stockSources";
+import { formatSeasonShort } from "@/lib/season";
 import { appRoutes } from "@/lib/constants";
 import type {
   ClothingInventoryLotWithDetails,
+  ClothingPossessionItem,
   ClothingProduct,
   ClothingSize,
   ClothingStorageLocationNode,
@@ -45,11 +47,13 @@ export function DeliveryForm({
   products,
   storageTree,
   players,
+  possession,
 }: {
   lots: ClothingInventoryLotWithDetails[];
   products: ClothingProduct[];
   storageTree: ClothingStorageLocationNode[];
   players: PlayerWithTeam[];
+  possession: ClothingPossessionItem[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -63,6 +67,30 @@ export function DeliveryForm({
     () => new Map(products.map((product) => [product.id, product])),
     [products],
   );
+  const player = useMemo(
+    () => players.find((item) => item.id === playerId) ?? null,
+    [players, playerId],
+  );
+  const playerPossession = useMemo(
+    () => possession.filter((item) => item.player_id === playerId).slice(0, 6),
+    [possession, playerId],
+  );
+
+  const sizeWarnings = useMemo(() => {
+    if (!player?.clothing_size) return [];
+    return lines
+      .filter((line) => line.size !== player.clothing_size)
+      .map((line) => {
+        const product =
+          productById.get(line.productId) ??
+          lots.find((lot) => lot.product_id === line.productId)?.product;
+        return {
+          key: line.sourceKey,
+          label: product ? formatProductShort(product) : "Prenda",
+          size: line.size,
+        };
+      });
+  }, [lines, player, productById, lots]);
 
   const remainingOnPool = useCallback(
     (pool: StockPool) => {
@@ -169,7 +197,9 @@ export function DeliveryForm({
         return;
       }
       appToast.success("Entrega registrada");
-      router.push(appRoutes.clothing.hub);
+      setLines([]);
+      setNotes("");
+      setPlayerId("");
       router.refresh();
     });
   }
@@ -205,6 +235,47 @@ export function DeliveryForm({
         <section className="flex flex-col gap-5">
           <h2 className="section-title">Jugador</h2>
           <PlayerPicker players={players} value={playerId} onChange={setPlayerId} />
+          {player?.clothing_size ? (
+            <p className="text-sm text-muted-foreground">
+              Talla preferida en ficha:{" "}
+              <span className="font-medium text-foreground">
+                {formatClothingSize(player.clothing_size)}
+              </span>
+            </p>
+          ) : null}
+          {playerId && playerPossession.length > 0 ? (
+            <div className="rounded-xl border border-[var(--club-border)] px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Ya en posesión
+              </p>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {playerPossession.map((item) => (
+                  <li key={item.delivery_id} className="text-sm text-foreground">
+                    {formatProductShort(item.product)} · {formatClothingSize(item.size)}
+                    {item.jersey_number != null
+                      ? ` · ${formatJerseyNumber(item.jersey_number)}`
+                      : ""}{" "}
+                    <span className="text-muted-foreground">
+                      ({item.quantity} · {formatSeasonShort(item.product.season)})
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {sizeWarnings.length > 0 ? (
+            <div className="rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)] px-4 py-3 text-sm text-foreground">
+              <p className="font-medium">Talla distinta a la preferida</p>
+              <ul className="mt-1 list-disc pl-5 text-muted-foreground">
+                {sizeWarnings.map((warning) => (
+                  <li key={warning.key}>
+                    {warning.label}: entregas {formatClothingSize(warning.size)}, preferida{" "}
+                    {formatClothingSize(player!.clothing_size!)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <FormTextarea
             label="Notas (opcional)"
             name="delivery-notes"
@@ -269,7 +340,9 @@ export function DeliveryForm({
                           <span className="truncate font-medium tracking-tight text-foreground">
                             {product ? formatProductName(product) : "Prenda"}
                           </span>
-                          {product ? <ProductColorBadge color={product.color} className="shrink-0" /> : null}
+                          {product ? (
+                            <ProductColorBadge color={product.color} className="shrink-0" />
+                          ) : null}
                         </p>
                         <p className="clothing-sheet-option__meta mt-1">
                           <span className="clothing-sheet-option__size">
@@ -278,6 +351,11 @@ export function DeliveryForm({
                           {line.jerseyNumber != null ? (
                             <span className="clothing-sheet-option__jersey">
                               {formatJerseyNumber(line.jerseyNumber)}
+                            </span>
+                          ) : null}
+                          {product ? (
+                            <span className="clothing-sheet-option__src">
+                              {formatSeasonShort(product.season)}
                             </span>
                           ) : null}
                           {pool ? (
@@ -291,7 +369,9 @@ export function DeliveryForm({
                         size="sm"
                         className="min-h-11 shrink-0 text-muted-foreground hover:text-destructive"
                         onClick={() =>
-                          setLines((prev) => prev.filter((item) => item.sourceKey !== line.sourceKey))
+                          setLines((prev) =>
+                            prev.filter((item) => item.sourceKey !== line.sourceKey),
+                          )
                         }
                         aria-label="Quitar prenda"
                       >
@@ -339,7 +419,7 @@ export function DeliveryForm({
             <span className="clothing-add-card__label">
               {lines.length === 0 ? "Añadir prenda del stock" : "Añadir otra prenda"}
             </span>
-            <span className="clothing-add-card__hint">Por tipo, nombre o dorsal</span>
+            <span className="clothing-add-card__hint">Por tipo, nombre, dorsal o temporada</span>
           </button>
         </section>
 

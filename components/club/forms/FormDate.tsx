@@ -10,19 +10,38 @@ interface FormDateProps extends React.InputHTMLAttributes<HTMLInputElement> {
   name: string;
   register?: UseFormRegisterReturn;
   error?: FieldError;
+  required?: boolean;
 }
 
-export function FormDate({ label, name, id, register, error, className, ...props }: FormDateProps) {
+export function FormDate({
+  label,
+  name,
+  id,
+  register,
+  error,
+  className,
+  required,
+  autoComplete = "off",
+  ...props
+}: FormDateProps) {
   const fieldId = id ?? name;
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={fieldId}>{label}</Label>
+      <Label htmlFor={fieldId} required={required}>
+        {label}
+      </Label>
       <Input
         id={fieldId}
         name={name}
         type="date"
+        autoComplete={autoComplete}
+        data-1p-ignore={autoComplete === "off" ? "true" : undefined}
+        data-lpignore={autoComplete === "off" ? "true" : undefined}
+        data-bwignore={autoComplete === "off" ? "true" : undefined}
         aria-invalid={Boolean(error)}
+        aria-required={required || undefined}
+        required={required}
         className={cn(error && "border-destructive focus:ring-destructive/30", className)}
         {...register}
         {...props}

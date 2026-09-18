@@ -26,9 +26,12 @@ type Action =
 export function ClothingStickyActionBar({
   actions,
   className,
+  layout = "stack",
 }: {
   actions: Action[];
   className?: string;
+  /** `row` = botones en fila (p. ej. Volver + Guardar). */
+  layout?: "stack" | "row";
 }) {
   const [mounted, setMounted] = useState(false);
 
@@ -53,6 +56,7 @@ export function ClothingStickyActionBar({
         className={cn(
           "clothing-sticky-bar__inner",
           singlePrimary && "clothing-sticky-bar__inner--solo",
+          layout === "row" && "clothing-sticky-bar__inner--row",
         )}
       >
         {actions.map((action, i) => {
@@ -63,7 +67,8 @@ export function ClothingStickyActionBar({
                 href={action.href}
                 className={cn(
                   action.variant === "secondary" ? "btn-secondary" : "btn-primary",
-                  "btn-primary--block min-h-11",
+                  "min-h-11 text-sm",
+                  layout === "row" ? "flex-1" : "btn-primary--block",
                 )}
               >
                 {action.label}
@@ -81,7 +86,11 @@ export function ClothingStickyActionBar({
                     ? "secondary"
                     : "primary"
               }
-              className={cn("btn-primary--block min-h-11", singlePrimary && "min-h-12 text-base")}
+              className={cn(
+                "min-h-11 text-sm",
+                layout === "row" ? "flex-1" : "btn-primary--block",
+                singlePrimary && layout === "stack" && "min-h-12 text-base",
+              )}
               disabled={action.disabled || action.pending}
               onClick={action.onClick}
             >

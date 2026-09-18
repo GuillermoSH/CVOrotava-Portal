@@ -1,20 +1,31 @@
 import "server-only";
 
+import { computePossessionFromMovements, filterPossessionBySeason } from "@/lib/clothing/possession";
 import { getClothingDb } from "@/lib/clothing/repository/client";
 import {
   buildLocationPath,
   buildStorageTreeFromFlat,
   productMapFromList,
 } from "@/lib/clothing/repository/helpers";
-import { listInventoryLots } from "@/lib/clothing/repository/inventory";
+import {
+  listInventoryLots,
+  listPlayerStockMovements,
+  listStockMovements,
+} from "@/lib/clothing/repository/inventory";
 import { listLocations } from "@/lib/clothing/repository/locations";
-import { listOrdersWithLines } from "@/lib/clothing/repository/orders";
+import {
+  listOrdersWithLines,
+  listOrderStatusEvents,
+} from "@/lib/clothing/repository/orders";
 import { listActivePlayers } from "@/lib/clothing/repository/players";
 import { listActiveProducts, listProducts } from "@/lib/clothing/repository/products";
 import type {
+  ClothingDeliveryHistoryItem,
   ClothingInventoryLotWithDetails,
   ClothingOrderLineWithProduct,
   ClothingOrderWithLines,
+  ClothingOrderWithLinesAndEvents,
+  ClothingPossessionItem,
   ClothingProduct,
   ClothingStorageLocationNode,
   PlayerWithTeam,
@@ -52,9 +63,16 @@ export async function enrichOrders(): Promise<ClothingOrderWithLines[]> {
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 
-export async function getOrderById(orderId: string): Promise<ClothingOrderWithLines | null> {
+export async function getOrderById(
+  orderId: string,
+): Promise<ClothingOrderWithLinesAndEvents | null> {
   const orders = await enrichOrders();
-  return orders.find((o) => o.id === orderId) ?? null;
+  const order = orders.find((o) => o.id === orderId);
+  if (!order) return null;
+
+  const db = await getClothingDb();
+  const status_events = await listOrderStatusEvents(db, orderId);
+  return { ...order, status_events };
 }
 
 export async function enrichInventory(): Promise<ClothingInventoryLotWithDetails[]> {
@@ -78,6 +96,93 @@ export async function enrichInventory(): Promise<ClothingInventoryLotWithDetails
     })
     .filter((lot): lot is ClothingInventoryLotWithDetails => lot !== null)
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+}
+
+export async function enrichDeliveryHistory(): Promise<ClothingDeliveryHistoryItem[]> {
+  const db = await getClothingDb();
+  const [movements, products, players] = await Promise.all([
+    listStockMovements(db, ["delivery", "return"]),
+    listProducts(db),
+    listActivePlayers(db),
+  ]);
+  const productMap = productMapFromList(products);
+  const playerNameById = new Map(players.map((player) => [player.id, player.full_name]));
+
+  return movements
+    .map((movement) => {
+      const product = productMap.get(movement.product_id);
+      if (!product) return null;
+      const playerName =
+        (movement.player_id ? playerNameById.get(movement.player_id) : null) ??
+        movement.recipient_name ??
+        "Sin nombre";
+      return {
+        ...movement,
+        product,
+        player_name: playerName,
+      };
+    })
+    .filter((item): item is ClothingDeliveryHistoryItem => item !== null);
+}
+
+export async function enrichPossession(
+  season: string | "all" = "all",
+): Promise<ClothingPossessionItem[]> {
+  const db = await getClothingDb();
+  const [movements, products, players] = await Promise.all([
+    listStockMovements(db, ["delivery", "return"]),
+    listProducts(db),
+    listActivePlayers(db),
+  ]);
+  const productMap = productMapFromList(products);
+  const playerNameById = new Map(players.map((player) => [player.id, player.full_name]));
+  const items = computePossessionFromMovements(movements, productMap, playerNameById);
+  return filterPossessionBySeason(items, season);
+}
+
+export async function enrichPlayerClothing(
+  playerId: string,
+  season: string | "all" = "all",
+): Promise<{
+  possession: ClothingPossessionItem[];
+  history: ClothingDeliveryHistoryItem[];
+}> {
+  const db = await getClothingDb();
+  const [movements, products, players] = await Promise.all([
+    listPlayerStockMovements(db, playerId, ["delivery", "return"]),
+    listProducts(db),
+    listActivePlayers(db),
+  ]);
+  const productMap = productMapFromList(products);
+  const playerNameById = new Map(players.map((player) => [player.id, player.full_name]));
+
+  const history = movements
+    .map((movement) => {
+      const product = productMap.get(movement.product_id);
+      if (!product) return null;
+      const playerName =
+        (movement.player_id ? playerNameById.get(movement.player_id) : null) ??
+        movement.recipient_name ??
+        "Sin nombre";
+      return {
+        ...movement,
+        product,
+        player_name: playerName,
+      };
+    })
+    .filter((item): item is ClothingDeliveryHistoryItem => item !== null);
+
+  const filteredHistory =
+    season === "all"
+      ? history
+      : history.filter((item) => item.product.season === season);
+
+  const possession = filterPossessionBySeason(
+    computePossessionFromMovements(movements, productMap, playerNameById),
+    season,
+  );
+
+  return { possession, history: filteredHistory };
 }
 
 export async function buildStorageTree(season?: string): Promise<ClothingStorageLocationNode[]> {

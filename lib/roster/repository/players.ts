@@ -1,19 +1,26 @@
 import { dbErrorMessage } from "@/lib/clothing/repository/helpers";
+import { formatPlayerAddress } from "@/lib/roster/address";
+import { isSpanishNationality } from "@/lib/roster/document";
 import {
   mapPlayerContact,
   mapPlayerWithTeam,
   type PlayerRow,
 } from "@/lib/roster/mappers";
+import {
+  docsDeliveredInputToIso,
+  type PlayerListToggleField,
+} from "@/lib/roster/onboarding";
 import type { RosterDb } from "@/lib/roster/repository/client";
 import { getCurrentSeason } from "@/lib/season";
 import type {
   PlayerContact,
+  PlayerListItem,
   PlayerWithDetails,
   PlayerWithTeam,
 } from "@/lib/types/db";
 
 const PLAYER_SELECT =
-  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, dni, license_completed, registration_papers_received, medical_notes, clothing_size, address, created_at, updated_at, team:teams(id, name, category, gender, season)";
+  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, created_at, updated_at, team:teams(id, name, category, gender, season)";
 
 export type PlayerContactInput = {
   full_name: string;
@@ -28,16 +35,40 @@ export type PlayerWriteInput = {
   last_name: string;
   birth_date?: string | null;
   dni?: string | null;
-  team_id: string;
+  team_id?: string | null;
   season: string;
   license_completed?: boolean;
   registration_papers_received?: boolean;
+  docs_delivered_to_family?: boolean;
+  docs_delivered_at?: string | null;
+  photo_taken?: boolean;
+  photo_consent?: boolean;
+  in_whatsapp_group?: boolean;
   medical_notes?: string | null;
   clothing_size?: string | null;
   address?: string | null;
+  address_street_type?: string | null;
+  address_street?: string | null;
+  address_number?: string | null;
+  address_door?: string | null;
+  address_postal_code?: string | null;
+  address_municipality?: string | null;
+  address_province?: string | null;
+  birth_country?: string | null;
+  nationality?: string | null;
   is_active?: boolean;
   contacts?: PlayerContactInput[];
 };
+
+function primaryPhoneFromContacts(
+  contacts: PlayerContact[],
+  playerId: string,
+): string | null {
+  const forPlayer = contacts.filter((contact) => contact.player_id === playerId);
+  const primary = forPlayer.find((contact) => contact.is_primary) ?? forPlayer[0];
+  const phone = primary?.phone?.trim();
+  return phone || null;
+}
 
 export async function listPlayers(
   db: RosterDb,
@@ -52,6 +83,21 @@ export async function listPlayers(
 
   if (error) throw new Error(dbErrorMessage(error));
   return (data ?? []).map((row) => mapPlayerWithTeam(row as PlayerRow));
+}
+
+export async function listPlayersWithPrimaryPhone(
+  db: RosterDb,
+  season: string = getCurrentSeason(),
+): Promise<PlayerListItem[]> {
+  const players = await listPlayers(db, season);
+  const contacts = await listContactsForPlayers(
+    db,
+    players.map((player) => player.id),
+  );
+  return players.map((player) => ({
+    ...player,
+    primary_phone: primaryPhoneFromContacts(contacts, player.id),
+  }));
 }
 
 export async function listActivePlayers(
@@ -147,6 +193,16 @@ async function replaceContacts(
   throw new Error(message);
 }
 
+function resolveDocsDeliveredAt(input: PlayerWriteInput): string | null {
+  if (!input.docs_delivered_to_family) return null;
+  if (input.docs_delivered_at) {
+    const value = input.docs_delivered_at.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return docsDeliveredInputToIso(value);
+    if (!Number.isNaN(Date.parse(value))) return new Date(value).toISOString();
+  }
+  return new Date().toISOString();
+}
+
 function playerInsert(input: PlayerWriteInput) {
   return {
     first_name: input.first_name,
@@ -154,13 +210,39 @@ function playerInsert(input: PlayerWriteInput) {
     full_name: `${input.first_name} ${input.last_name}`.trim(),
     birth_date: input.birth_date || null,
     dni: input.dni?.trim() || null,
-    team_id: input.team_id,
+    team_id: input.team_id || null,
     season: input.season,
     license_completed: input.license_completed ?? false,
     registration_papers_received: input.registration_papers_received ?? false,
+    docs_delivered_to_family: input.docs_delivered_to_family ?? false,
+    docs_delivered_at: resolveDocsDeliveredAt(input),
+    photo_taken: input.photo_taken ?? false,
+    photo_consent: input.photo_consent ?? false,
+    in_whatsapp_group: input.in_whatsapp_group ?? false,
     medical_notes: input.medical_notes?.trim() || null,
     clothing_size: input.clothing_size || null,
-    address: input.address?.trim() || null,
+    address: formatPlayerAddress({
+      street_type: input.address_street_type,
+      street: input.address_street,
+      number: input.address_number,
+      door: input.address_door,
+      postal_code: input.address_postal_code,
+      municipality: input.address_municipality,
+      province: input.address_province,
+      fallback: input.address,
+    }),
+    address_street_type: input.address_street_type?.trim() || null,
+    address_street: input.address_street?.trim() || null,
+    address_number: input.address_number?.trim() || null,
+    address_door: input.address_door?.trim() || null,
+    address_postal_code: input.address_postal_code?.trim() || null,
+    address_municipality: input.address_municipality?.trim() || null,
+    address_province: input.address_province?.trim() || null,
+    birth_country: input.birth_country?.trim() || null,
+    nationality:
+      input.nationality?.trim() && !isSpanishNationality(input.nationality)
+        ? input.nationality.trim()
+        : null,
     is_active: input.is_active ?? true,
   };
 }
@@ -199,6 +281,45 @@ export async function setPlayerActive(
 ): Promise<void> {
   const { error } = await db.from("players").update({ is_active: isActive }).eq("id", id);
   if (error) throw new Error(dbErrorMessage(error));
+}
+
+export async function updatePlayerChecklistField(
+  db: RosterDb,
+  id: string,
+  field: PlayerListToggleField,
+  value: boolean,
+): Promise<void> {
+  const patch: Record<string, boolean | string | null> = { [field]: value };
+  if (field === "docs_delivered_to_family") {
+    patch.docs_delivered_at = value ? new Date().toISOString() : null;
+  }
+  const { error } = await db.from("players").update(patch).eq("id", id);
+  if (error) throw new Error(dbErrorMessage(error));
+}
+
+const CHECKLIST_CHUNK = 200;
+
+export async function bulkUpdatePlayerChecklist(
+  db: RosterDb,
+  playerIds: string[],
+  field: PlayerListToggleField,
+  value: boolean,
+): Promise<number> {
+  const uniqueIds = [...new Set(playerIds)];
+  if (uniqueIds.length === 0) return 0;
+
+  const patch: Record<string, boolean | string | null> = { [field]: value };
+  if (field === "docs_delivered_to_family") {
+    patch.docs_delivered_at = value ? new Date().toISOString() : null;
+  }
+
+  for (let i = 0; i < uniqueIds.length; i += CHECKLIST_CHUNK) {
+    const chunk = uniqueIds.slice(i, i + CHECKLIST_CHUNK);
+    const { error } = await db.from("players").update(patch).in("id", chunk);
+    if (error) throw new Error(dbErrorMessage(error));
+  }
+
+  return uniqueIds.length;
 }
 
 export async function createPlayers(

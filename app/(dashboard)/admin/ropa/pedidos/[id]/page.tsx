@@ -51,7 +51,10 @@ export default async function ClothingOrderDetailPage({
           <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Progreso
           </p>
-          <OrderStatusStepper currentStatus={order.status} />
+          <OrderStatusStepper
+            currentStatus={order.status}
+            statusEvents={order.status_events}
+          />
         </div>
 
         <div className="border-t border-[var(--club-border)] px-4 py-4 sm:px-5 sm:py-5">

@@ -6,7 +6,7 @@ import type { PlayerWithTeam } from "@/lib/types/db";
 import type { ClothingDb } from "@/lib/clothing/repository/client";
 
 const PLAYER_SELECT =
-  "id, full_name, birth_date, team_id, user_id, season, is_active, team:teams(id, name, category, gender, season)";
+  "id, full_name, birth_date, team_id, user_id, season, is_active, clothing_size, team:teams(id, name, category, gender, season)";
 
 export async function listActivePlayers(
   db: ClothingDb,
@@ -32,4 +32,17 @@ export async function getPlayerById(db: ClothingDb, id: string): Promise<PlayerW
 
   if (error) throw new Error(dbErrorMessage(error));
   return data ? mapPlayerWithTeam(data as PlayerRow) : null;
+}
+
+export async function updatePlayerClothingSizePreference(
+  db: ClothingDb,
+  playerId: string,
+  clothingSize: string | null,
+): Promise<void> {
+  const { error } = await db
+    .from("players")
+    .update({ clothing_size: clothingSize, updated_at: new Date().toISOString() })
+    .eq("id", playerId);
+
+  if (error) throw new Error(dbErrorMessage(error));
 }

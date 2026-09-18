@@ -48,6 +48,90 @@ export const CONTACT_RELATIONSHIP_LABELS: Record<ContactRelationship, string> = 
   jugador: "El propio jugador",
 };
 
+export const STREET_TYPES = [
+  "calle",
+  "avenida",
+  "carretera",
+  "plaza",
+  "paseo",
+  "camino",
+  "urbanizacion",
+  "otro",
+] as const;
+
+export type StreetType = (typeof STREET_TYPES)[number];
+
+export const STREET_TYPE_LABELS: Record<StreetType, string> = {
+  calle: "Calle",
+  avenida: "Avenida",
+  carretera: "Carretera",
+  plaza: "Plaza",
+  paseo: "Paseo",
+  camino: "Camino",
+  urbanizacion: "Urbanización",
+  otro: "Otro",
+};
+
+export const CANARY_PROVINCES = ["Santa Cruz de Tenerife", "Las Palmas"] as const;
+
+export const DEFAULT_PLAYER_PROVINCE = CANARY_PROVINCES[0];
+
+export const SPAIN_PROVINCES = [
+  ...CANARY_PROVINCES,
+  "A Coruña",
+  "Álava",
+  "Albacete",
+  "Alicante",
+  "Almería",
+  "Asturias",
+  "Ávila",
+  "Badajoz",
+  "Barcelona",
+  "Burgos",
+  "Cáceres",
+  "Cádiz",
+  "Cantabria",
+  "Castellón",
+  "Ceuta",
+  "Ciudad Real",
+  "Córdoba",
+  "Cuenca",
+  "Girona",
+  "Granada",
+  "Guadalajara",
+  "Guipúzcoa",
+  "Huelva",
+  "Huesca",
+  "Illes Balears",
+  "Jaén",
+  "La Rioja",
+  "León",
+  "Lleida",
+  "Lugo",
+  "Madrid",
+  "Málaga",
+  "Melilla",
+  "Murcia",
+  "Navarra",
+  "Ourense",
+  "Palencia",
+  "Pontevedra",
+  "Salamanca",
+  "Segovia",
+  "Sevilla",
+  "Soria",
+  "Tarragona",
+  "Teruel",
+  "Toledo",
+  "Valencia",
+  "Valladolid",
+  "Vizcaya",
+  "Zamora",
+  "Zaragoza",
+] as const;
+
+export type SpainProvince = (typeof SPAIN_PROVINCES)[number];
+
 export function formatTeamCategory(category: string): string {
   if (category in TEAM_CATEGORY_LABELS) {
     return TEAM_CATEGORY_LABELS[category as TeamCategory];
