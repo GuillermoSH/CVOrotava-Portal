@@ -12,4 +12,4 @@ alwaysApply: true
 - **Componentes:** reutilizar en `components/`; páginas = composición. Si ≥2 usos → extraer.
 - **Secretos:** solo `.env.local` (gitignored). Nunca commitear claves. `SUPABASE_SERVICE_ROLE_KEY` solo servidor (`lib/supabase/service-role.ts`).
 - **Mocks:** ficticios; sin datos reales de personas.
-- **Ideas pendientes (no implementar hasta que se pida):** QR por caja (almacén) — `.cursor/rules/clothing-qr-cajas.mdc`. Foto por jugador (Storage + WebP en cliente) — `.cursor/rules/player-photos.mdc`.
+- **Ideas pendientes (no implementar hasta que se pida):** QR por caja (almacén) — `.cursor/rules/clothing-qr-cajas.mdc`. Foto por jugador (Storage + WebP en cliente) — `.cursor/rules/player-photos.mdc`. Import Federación Canaria + traspaso batch equipos — `.cursor/rules/federation-import.mdc`.

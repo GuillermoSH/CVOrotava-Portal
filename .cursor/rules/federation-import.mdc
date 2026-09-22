@@ -1,0 +1,137 @@
+---
+description: Plan pendiente — import CSV Federación Canaria (preview→confirm) + vista equipos con traspaso batch. Activar si el usuario pide implementar import federación, CSV licencias Canarias, o mover jugadores entre equipos en lote.
+globs: "{app/**/admin/jugadores/**,components/roster/**,lib/roster/**,lib/actions/roster/**}"
+alwaysApply: false
+---
+
+# Plan — Import Federación Canaria + traspaso batch equipos
+
+**Estado:** apuntado en repo; **implementar cuando se pida** (otro dispositivo / otra sesión).
+
+**Origen CSV:** export licencias Federación Canaria (UTF-8 BOM, comillas). Ejemplo de columnas: `Tipo licencia`, `Temporada`, `Nombre`, `Apellidos`, `Segundo Apellido`, `Fecha nacimiento`, `Documento identidad`, `Número de documento (si no es NIF)  *`, `País de Nacimiento`, `Nacionalidad`, `Domicilio`, `Código Postal`, `Localidad`, `Isla`, `Telf. móvil`, `Correo electrónico`, `Nombre y Apellidos Padre/Madre/Tutor Legal`, `Categoría`, `Sexo`, flags de imagen (ignorar).
+
+**Import Excel actual:** intacto (`PlayersImportSheet` / `player-import.ts`). Este flujo es **aparte**.
+
+---
+
+## 1. Import CSV (dos pasos)
+
+```text
+Subir CSV → preview (sin BBDD) → pantalla (a importar + descartados + incompletos) → confirmar → crear equipos base + jugadores
+```
+
+### Paso A — Preview (solo lectura)
+
+- Action: `previewFederationImportAction(formData)` con el CSV.
+- Parsea, filtra, mapea, comprueba DNI ya en temporada.
+- **No** crea equipos ni jugadores.
+- Payload UI:
+  - `toImport[]`: nombre, DNI, equipo previsto, incomplete flags
+  - `discarded[]`: motivo (staff, otra temporada, DNI duplicado, DNI inválido/vacío, CSV malo, …)
+  - `incomplete[]`: subset de `toImport` + `missingFields[]` (aviso, no bloqueo)
+  - `teamsToCreate[]`: equipos base que aún no existen
+  - conteos
+
+### Paso B — Confirmación
+
+- Pantalla intermedia: listas **se importarán** / **descartados** (cuántos + por qué) / **ficha incompleta** / **equipos nuevos**.
+- `confirmFederationImportAction` con el mismo `File` (v1: re-parsear en servidor; sin sesión de preview).
+- Entonces: ensure equipos + `createPlayers` (solo altas).
+
+### Reglas negocio
+
+- Solo `Tipo licencia = Jugador` + `Temporada` contiene `getCurrentSeason()` (ej. `2026-2027`).
+- Solo altas; DNI+temporada existente → **descartado** (no update).
+- Checklist federativa:
+  - `license_completed = true`
+  - `registration_papers_received = true`
+  - `docs_delivered_to_family = true`
+  - `photo_taken = true`
+  - `in_whatsapp_group = false`
+  - `photo_consent = false` (nunca copiar “Derechos de imagen” del CSV)
+  - `docs_delivered_at`: fecha revisión/validación licencia si parsea; si no `null`
+- Domicilio best-effort; fallo → estructurado vacío + `address` crudo opcional + incomplete.
+- Schema blando federación: identidad mínima (nombre, apellidos, fecha, DNI válido); domicilio opcional; contacto mínimo.
+- Sin DNI / inválido → descartado duro.
+
+### NIF / NIE / país / nacionalidad
+
+Usar `lib/roster/document.ts` (`normalizeDocumentId`, `isNieDocument`, `isValidDniOrNie`).
+
+| Caso | dni | birth_country | nationality |
+|---|---|---|---|
+| DNI válido | documento | vacío | vacío |
+| NIE válido | documento | `País de Nacimiento` (si falta → incomplete) | si código ≠ `es` → etiqueta; `es` → vacío |
+| Columna “no NIF” | fallback si principal vacío y valida | igual | igual |
+| Nacionalidad `es`/`ve`/… | — | — | mapa ISO → texto (`ve`→Venezuela, …) |
+
+### Equipos base (en confirmación)
+
+- Nombre `{CategoríaCorta} {Género}`: `Infantil Femenino`, `Cadete Masculino`, …
+- Mapear `Categoría` CSV → `teams.category`; `Sexo` → `female`/`male`; `season = getCurrentSeason()`.
+- Find-or-create; asignar `team_id` al jugador.
+- No auto-crear A/B/C.
+
+### Mapeo campos
+
+| CSV | Portal |
+|---|---|
+| Nombre | first_name |
+| Apellidos + Segundo Apellido | last_name |
+| Fecha nacimiento | birth_date |
+| Documento (+ fallback no NIF) | dni |
+| País / Nacionalidad | ver tabla NIE |
+| CP / Localidad / Isla→provincia | domicilio |
+| Domicilio | parseo o address libre |
+| Móvil + email + tutor | contacto según edad (menor: tutor, parentesco default madre) |
+| Categoría + Sexo | equipo base |
+| — | checklist arriba |
+
+### Código previsto
+
+- `lib/roster/federation-import.ts` — parse CSV UTF-8 BOM, filtros, domicilio, documento, incomplete/discard reasons
+- `lib/roster/parse-federation-address.ts` (o dentro del import) — prefijos C/, Calle, Avda., nº…
+- Schema blando en `lib/roster/schemas.ts` o junto al import
+- `ensureFederationBaseTeam` en repo/actions teams
+- Actions en `lib/actions/roster/import.ts`: preview + confirm
+- UI: `PlayersFederationImportSheet` (estados idle → preview → importing → done)
+
+### Parseo domicilio
+
+Prefijos vía; número `nº`/`n.`; CP/localidad/provincia de columnas. Baja confianza → no estructurado.
+
+### Criterio incompleto
+
+Lo que ficha web exigiría y falta: domicilio estructurado, contacto completo, país si NIE, etc. Lista en español en UI; no bloquea alta.
+
+---
+
+## 2. Vista equipos + traspaso batch
+
+Tras import (o en general): ver plantilla por equipo y mover varios de golpe (bases → A/B/C).
+
+### UI
+
+- Ruta p.ej. `/admin/jugadores/equipos` (o toggle en listado).
+- Temporada actual: cards/columnas por equipo (nombre, categoría, género, contador) + “Sin equipo”.
+- Lista jugadores con checkbox.
+- “Mover a…” → select destino → confirma → update `team_id` batch.
+
+### Backend
+
+- `transferPlayersToTeamAction({ playerIds, teamId | null })`: require roster write; misma temporada; update batch.
+- Solo `team_id`; no toca ropa/historial.
+
+### Relación con import
+
+Import deja equipos base. Dirección crea `Infantil Femenino A/B` (TeamCreateSheet) y reparte con traspaso batch.
+
+---
+
+## Fuera de alcance
+
+- Update por DNI en import federación
+- Importar staff
+- Auto-crear variantes A/B/C
+- Copiar consentimiento imagen federativo
+- Software ETL externo
