@@ -195,12 +195,14 @@ async function replaceContacts(
 
 function resolveDocsDeliveredAt(input: PlayerWriteInput): string | null {
   if (!input.docs_delivered_to_family) return null;
-  if (input.docs_delivered_at) {
-    const value = input.docs_delivered_at.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return docsDeliveredInputToIso(value);
-    if (!Number.isNaN(Date.parse(value))) return new Date(value).toISOString();
+  if (input.docs_delivered_at == null || !String(input.docs_delivered_at).trim()) {
+    // null/vacío explícito: no inventar fecha (p. ej. import federación)
+    return null;
   }
-  return new Date().toISOString();
+  const value = input.docs_delivered_at.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return docsDeliveredInputToIso(value);
+  if (!Number.isNaN(Date.parse(value))) return new Date(value).toISOString();
+  return null;
 }
 
 function playerInsert(input: PlayerWriteInput) {
@@ -342,4 +344,20 @@ export async function createPlayers(
   }
 
   return { created, errors };
+}
+
+/** DNIs normalizados (mayúsculas, sin separadores) de la temporada. */
+export async function listPlayerDnisForSeason(
+  db: RosterDb,
+  season: string = getCurrentSeason(),
+): Promise<Set<string>> {
+  const { data, error } = await db.from("players").select("dni").eq("season", season).not("dni", "is", null);
+
+  if (error) throw new Error(dbErrorMessage(error));
+  const set = new Set<string>();
+  for (const row of data ?? []) {
+    const dni = typeof row.dni === "string" ? row.dni.trim().toUpperCase().replace(/[\s.-]/g, "") : "";
+    if (dni) set.add(dni);
+  }
+  return set;
 }

@@ -117,3 +117,10 @@ export function docsDeliveredInputToIso(dateInput: string): string {
   }
   return new Date().toISOString();
 }
+
+export {
+  getPlayerProfileCompleteness,
+  type PlayerProfileCompleteness,
+  type PlayerProfileCompletenessInput,
+} from "@/lib/roster/profile-completeness";
+

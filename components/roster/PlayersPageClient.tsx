@@ -12,6 +12,7 @@ import { SegmentedControl } from "@/components/club/SegmentedControl";
 import { ClothingFilterChips } from "@/components/clothing/ClothingFilterChips";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { DashboardPage } from "@/components/layout/DashboardPage";
+import { PlayersFederationImportSheet } from "@/components/roster/PlayersFederationImportSheet";
 import { PlayersImportSheet } from "@/components/roster/PlayersImportSheet";
 import { PlayersWhatsAppSheet } from "@/components/roster/PlayersWhatsAppSheet";
 import {
@@ -30,6 +31,7 @@ import {
   PLAYER_LIST_TOGGLE_FIELDS,
   type PlayerListToggleField,
 } from "@/lib/roster/onboarding";
+import { isPlayerProfileIncomplete } from "@/lib/roster/profile-completeness";
 import type { PlayerListItem, Team } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,7 @@ import { cn } from "@/lib/utils";
 type ChecklistFilter =
   | "all"
   | "complete"
+  | "incomplete_profile"
   | "missing_papers"
   | "missing_docs"
   | "missing_photo"
@@ -59,6 +62,8 @@ function matchesChecklistFilter(player: PlayerListItem, filter: ChecklistFilter)
       return true;
     case "complete":
       return status.isComplete;
+    case "incomplete_profile":
+      return isPlayerProfileIncomplete(player);
     case "missing_papers":
       return !player.registration_papers_received;
     case "missing_docs":
@@ -72,6 +77,20 @@ function matchesChecklistFilter(player: PlayerListItem, filter: ChecklistFilter)
     default:
       return true;
   }
+}
+
+function FichaIncompletaMark({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex min-h-7 items-center rounded-full bg-[var(--club-warning-muted)] px-2 text-[11px] font-semibold leading-none text-[var(--club-warning-strong)] ring-1 ring-inset ring-[color-mix(in_srgb,var(--club-warning)_40%,transparent)]",
+        className,
+      )}
+      title="Falta domicilio, contacto u otros datos de la ficha web"
+    >
+      Ficha incompleta
+    </span>
+  );
 }
 
 function docsDateForList(player: PlayerListItem): string | null {
@@ -183,8 +202,11 @@ function PlayerChecklistTags({
     ? ["in_whatsapp_group"]
     : [...PLAYER_LIST_TOGGLE_FIELDS];
 
+  const profileIncomplete = isPlayerProfileIncomplete(player);
+
   return (
     <div className={cn("flex flex-wrap gap-1", className)}>
+      {profileIncomplete ? <FichaIncompletaMark /> : null}
       {status.isComplete ? <AltaCompletaMark /> : null}
       {fields.map((field) =>
         canWrite ? (
@@ -222,6 +244,7 @@ export function PlayersPageClient({
   const [checklistFilter, setChecklistFilter] = useState<ChecklistFilter>("all");
   const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
   const [importOpen, setImportOpen] = useState(false);
+  const [federationImportOpen, setFederationImportOpen] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkIntent, setBulkIntent] = useState<BulkIntent | null>(null);
@@ -279,6 +302,7 @@ export function PlayersPageClient({
     return {
       all: basePool.length,
       complete: count("complete"),
+      incomplete_profile: count("incomplete_profile"),
       missing_papers: count("missing_papers"),
       missing_docs: count("missing_docs"),
       missing_photo: count("missing_photo"),
@@ -305,6 +329,11 @@ export function PlayersPageClient({
   const checklistOptions: { value: ChecklistFilter; label: string; count: number }[] = [
     { value: "all", label: "Todos", count: checklistCounts.all },
     { value: "complete", label: "Alta completa", count: checklistCounts.complete },
+    {
+      value: "incomplete_profile",
+      label: "Ficha incompleta",
+      count: checklistCounts.incomplete_profile,
+    },
     { value: "missing_docs", label: "Falta docs", count: checklistCounts.missing_docs },
     { value: "missing_papers", label: "Falta papeles", count: checklistCounts.missing_papers },
     { value: "missing_photo", label: "Falta foto", count: checklistCounts.missing_photo },
@@ -443,6 +472,13 @@ export function PlayersPageClient({
             <button type="button" className="btn-secondary" onClick={() => setImportOpen(true)}>
               Importar Excel
             </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setFederationImportOpen(true)}
+            >
+              Importar federación
+            </button>
             <Link href={appRoutes.players.new} className="btn-primary">
               Nuevo jugador
             </Link>
@@ -510,6 +546,8 @@ export function PlayersPageClient({
                 ? "Da de alta jugadores uno a uno o importa el Excel de la temporada."
                 : searching
                   ? "Prueba otro nombre, DNI o equipo."
+                  : checklistFilter === "incomplete_profile"
+                    ? "Ninguna ficha incompleta con estos filtros."
                   : checklistFilter !== "all"
                     ? "Prueba otro filtro de alta o equipo."
                     : showBajasToggle
@@ -523,6 +561,13 @@ export function PlayersPageClient({
                 </Link>
                 <button type="button" className="btn-secondary min-h-11" onClick={() => setImportOpen(true)}>
                   Importar Excel
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary min-h-11"
+                  onClick={() => setFederationImportOpen(true)}
+                >
+                  Importar federación
                 </button>
               </div>
             ) : null}
@@ -738,6 +783,12 @@ export function PlayersPageClient({
                     onClick: () => setImportOpen(true),
                     variant: "secondary",
                   },
+                  {
+                    type: "button",
+                    label: "Federación",
+                    onClick: () => setFederationImportOpen(true),
+                    variant: "secondary",
+                  },
                   { type: "link", label: "Nuevo jugador", href: appRoutes.players.new },
                 ]
               : [
@@ -770,7 +821,15 @@ export function PlayersPageClient({
         onConfirm={confirmBulk}
       />
 
-      {canWrite ? <PlayersImportSheet open={importOpen} onClose={() => setImportOpen(false)} /> : null}
+      {canWrite ? (
+        <>
+          <PlayersImportSheet open={importOpen} onClose={() => setImportOpen(false)} />
+          <PlayersFederationImportSheet
+            open={federationImportOpen}
+            onClose={() => setFederationImportOpen(false)}
+          />
+        </>
+      ) : null}
       <PlayersWhatsAppSheet
         open={whatsappOpen}
         onClose={() => setWhatsappOpen(false)}

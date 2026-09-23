@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  AlertTriangle,
   ChevronDown,
   ClipboardCheck,
   HeartPulse,
@@ -50,6 +51,7 @@ import {
   getPlayerOnboardingStatus,
   isDocsDeliveryDateRelevant,
 } from "@/lib/roster/onboarding";
+import { getPlayerProfileCompleteness } from "@/lib/roster/profile-completeness";
 import { createPlayerSchema, updatePlayerSchema } from "@/lib/roster/schemas";
 import {
   firstPlayerErrorField,
@@ -294,6 +296,54 @@ export function PlayerForm({
       }),
     [papersReceived, docsDelivered, photoTaken, licenseCompleted, docsDeliveredAt],
   );
+  const profileCompleteness = useMemo(() => {
+    const draftContacts = isAdult
+      ? [
+          {
+            full_name: `${firstName} ${lastName}`.trim(),
+            relationship: "jugador",
+            phone: selfPhone,
+            email: selfEmail,
+          },
+        ]
+      : contacts.map((contact) => ({
+          full_name: contact.full_name,
+          relationship: contact.relationship,
+          phone: contact.phone,
+          email: contact.email,
+        }));
+
+    return getPlayerProfileCompleteness({
+      first_name: firstName,
+      last_name: lastName,
+      dni,
+      birth_date: birthDate || null,
+      birth_country: birthCountry,
+      address_street_type: streetType,
+      address_street: street,
+      address_number: streetNumber,
+      address_postal_code: postalCode,
+      address_municipality: municipality,
+      address_province: province,
+      contacts: draftContacts,
+    });
+  }, [
+    isAdult,
+    firstName,
+    lastName,
+    selfPhone,
+    selfEmail,
+    contacts,
+    dni,
+    birthDate,
+    birthCountry,
+    streetType,
+    street,
+    streetNumber,
+    postalCode,
+    municipality,
+    province,
+  ]);
   const showDocsDate = isDocsDeliveryDateRelevant({
     docs_delivered_to_family: docsDelivered,
     registration_papers_received: papersReceived,
@@ -463,16 +513,38 @@ export function PlayerForm({
   return (
     <div className="clothing-page-with-sticky clothing-page-with-sticky--tall flex min-h-full flex-col md:-mt-4">
       {/* Desktop: sticky flush con el borde del main (compensa py-4 / lg:py-6) */}
-      <div className="sticky top-0 z-20 -mx-4 mb-4 hidden border-b border-[var(--club-border)] bg-[var(--club-bg)]/95 px-4 py-2 backdrop-blur-sm md:-mx-6 md:top-[-1rem] md:flex md:items-center md:justify-end md:gap-2 md:px-6 lg:top-[-1.5rem]">
-        <Link href={appRoutes.players.list} className={cn("btn-secondary", stickyActionClass)}>
-          Volver
-        </Link>
-        {canWrite && player ? <PlayerStatusActions player={player} /> : null}
-        {canWrite ? (
-          <Button type="button" className={stickyActionClass} disabled={pending} onClick={() => handleSubmit()}>
-            {saveLabel}
-          </Button>
-        ) : null}
+      <div className="sticky top-0 z-20 -mx-4 mb-4 hidden border-b border-[var(--club-border)] bg-[var(--club-bg)]/95 px-4 py-2 backdrop-blur-sm md:-mx-6 md:top-[-1rem] md:flex md:items-center md:justify-between md:gap-3 md:px-6 lg:top-[-1.5rem]">
+        <div className="min-w-0 flex-1">
+          {!profileCompleteness.isComplete ? (
+            <div
+              role="status"
+              className="flex min-w-0 items-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--club-warning)_45%,var(--club-border))] bg-[var(--club-warning-muted)] px-2.5 py-1.5"
+            >
+              <AlertTriangle
+                className="size-3.5 shrink-0 text-[var(--club-warning-strong)]"
+                aria-hidden
+              />
+              <p className="min-w-0 truncate text-xs text-foreground">
+                <span className="font-semibold">Ficha incompleta</span>
+                <span className="text-muted-foreground">
+                  {" · "}
+                  {profileCompleteness.missingFields.join(", ")}
+                </span>
+              </p>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href={appRoutes.players.list} className={cn("btn-secondary", stickyActionClass)}>
+            Volver
+          </Link>
+          {canWrite && player ? <PlayerStatusActions player={player} /> : null}
+          {canWrite ? (
+            <Button type="button" className={stickyActionClass} disabled={pending} onClick={() => handleSubmit()}>
+              {saveLabel}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <form
@@ -484,6 +556,19 @@ export function PlayerForm({
         onSubmit={handleSubmit}
         className="flex flex-1 flex-col gap-6 md:gap-5"
       >
+        {!profileCompleteness.isComplete ? (
+          <div
+            role="status"
+            className="rounded-xl border border-[color-mix(in_srgb,var(--club-warning)_45%,var(--club-border))] bg-[var(--club-warning-muted)] px-3 py-2.5 md:hidden"
+          >
+            <p className="text-sm font-semibold text-foreground">Ficha incompleta</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Faltan datos de la ficha web (aparte del alta federativa):{" "}
+              {profileCompleteness.missingFields.join(", ")}.
+            </p>
+          </div>
+        ) : null}
+
         <section className="flex flex-col gap-3 md:gap-2.5">
           <SectionHeading icon={UserRound} title="Identidad" />
           <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
