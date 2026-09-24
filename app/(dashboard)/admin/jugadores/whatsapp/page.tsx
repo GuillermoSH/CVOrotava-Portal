@@ -5,14 +5,16 @@ import { getRosterSnapshot } from "@/lib/roster/snapshots";
 import { formatSeasonShort } from "@/lib/season";
 
 export default async function PlayersWhatsAppPage() {
-  await requireRosterReadAccess();
+  const role = await requireRosterReadAccess();
   const { players, teams, season } = await getRosterSnapshot();
+  const canWrite = role === "admin" || role === "manager";
 
   return (
     <PlayersWhatsAppPageClient
       players={players}
       teams={teams}
-      subtitle={`Plantilla ${formatSeasonShort(season)}. Teléfonos del contacto primario para crear grupos.`}
+      canWrite={canWrite}
+      subtitle={`Plantilla ${formatSeasonShort(season)}. Copia teléfonos y confirma al añadirlos al grupo.`}
       backHref={appRoutes.players.list}
     />
   );

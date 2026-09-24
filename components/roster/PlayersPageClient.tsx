@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 
 import { Badge } from "@/components/club/Badge";
 import { ConfirmDialog } from "@/components/club/ConfirmDialog";
-import { Input } from "@/components/club/Input";
+import { FacetSearchBar, type FacetField } from "@/components/club/FacetSearchBar";
+import { Pagination } from "@/components/club/Pagination";
 import { SegmentedControl } from "@/components/club/SegmentedControl";
-import { ClothingFilterChips } from "@/components/clothing/ClothingFilterChips";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { DashboardPage } from "@/components/layout/DashboardPage";
 import { PlayersFederationImportSheet } from "@/components/roster/PlayersFederationImportSheet";
@@ -31,52 +31,43 @@ import {
   PLAYER_LIST_TOGGLE_FIELDS,
   type PlayerListToggleField,
 } from "@/lib/roster/onboarding";
+import {
+  applyPlayerFacets,
+  applyPlayerFacetsExceptChecklist,
+  buildCategoryOptions,
+  buildChecklistOptions,
+  buildGenderOptions,
+  buildTeamOptions,
+  buildUnassignedOption,
+  formatFacetChipLabel,
+  reconcileTeamFacet,
+  removePlayerFacet,
+  teamsMatchingFacets,
+  upsertPlayerFacet,
+  type PlayerFacet,
+  type PlayerFacetKey,
+} from "@/lib/roster/player-filters";
 import { isPlayerProfileIncomplete } from "@/lib/roster/profile-completeness";
 import type { PlayerListItem, Team } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-
-type ChecklistFilter =
-  | "all"
-  | "complete"
-  | "incomplete_profile"
-  | "missing_papers"
-  | "missing_docs"
-  | "missing_photo"
-  | "missing_license"
-  | "missing_whatsapp";
 
 type BulkIntent = {
   field: PlayerListToggleField;
   value: boolean;
 };
 
+const PAGE_SIZE_OPTIONS = [
+  { value: 25, label: "25" },
+  { value: 50, label: "50" },
+  { value: 100, label: "100" },
+  { value: 0, label: "Todos" },
+] as const;
+
+type PageSize = (typeof PAGE_SIZE_OPTIONS)[number]["value"];
+
 function phoneHref(phone: string) {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
-}
-
-function matchesChecklistFilter(player: PlayerListItem, filter: ChecklistFilter): boolean {
-  const status = getPlayerOnboardingStatus(player);
-  switch (filter) {
-    case "all":
-      return true;
-    case "complete":
-      return status.isComplete;
-    case "incomplete_profile":
-      return isPlayerProfileIncomplete(player);
-    case "missing_papers":
-      return !player.registration_papers_received;
-    case "missing_docs":
-      return !player.docs_delivered_to_family;
-    case "missing_photo":
-      return !player.photo_taken;
-    case "missing_license":
-      return !player.license_completed;
-    case "missing_whatsapp":
-      return !player.in_whatsapp_group;
-    default:
-      return true;
-  }
 }
 
 function FichaIncompletaMark({ className }: { className?: string }) {
@@ -240,8 +231,7 @@ export function PlayersPageClient({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
-  const [teamFilter, setTeamFilter] = useState<string>("all");
-  const [checklistFilter, setChecklistFilter] = useState<ChecklistFilter>("all");
+  const [facets, setFacets] = useState<PlayerFacet[]>([]);
   const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
   const [importOpen, setImportOpen] = useState(false);
   const [federationImportOpen, setFederationImportOpen] = useState(false);
@@ -250,39 +240,132 @@ export function PlayersPageClient({
   const [bulkIntent, setBulkIntent] = useState<BulkIntent | null>(null);
   const [bulkMarkMode, setBulkMarkMode] = useState(true);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(50);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
-  const searching = query.trim().length > 0;
+  const searching = query.trim().length > 0 || facets.length > 0;
   const inactiveCount = useMemo(
     () => players.filter((player) => !player.is_active).length,
     [players],
   );
-  const showTeamFilter = teams.length > 1;
   const showBajasToggle = inactiveCount > 0;
 
-  const basePool = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return players.filter((player) => {
-      if (statusFilter === "active" && !player.is_active && !q) return false;
-      if (teamFilter !== "all" && player.team_id !== teamFilter) return false;
-      if (!q) return true;
-      const haystack = [
-        formatPlayerName(player),
-        player.full_name,
-        player.dni ?? "",
-        player.team?.name ?? "",
-        player.team ? formatTeamCategory(player.team.category) : "",
-        player.primary_phone ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [players, query, teamFilter, statusFilter]);
+  const filterState = useMemo(
+    () => ({ query, facets, statusFilter }),
+    [query, facets, statusFilter],
+  );
 
   const visible = useMemo(
-    () => basePool.filter((player) => matchesChecklistFilter(player, checklistFilter)),
-    [basePool, checklistFilter],
+    () => applyPlayerFacets(players, filterState),
+    [players, filterState],
   );
+
+  const pageCount = useMemo(() => {
+    if (pageSize === 0 || visible.length === 0) return 1;
+    return Math.max(1, Math.ceil(visible.length / pageSize));
+  }, [visible.length, pageSize]);
+
+  const safePage = Math.min(page, pageCount);
+
+  const pageItems = useMemo(() => {
+    if (pageSize === 0) return visible;
+    const start = (safePage - 1) * pageSize;
+    return visible.slice(start, start + pageSize);
+  }, [visible, pageSize, safePage]);
+
+  const rangeLabel = useMemo(() => {
+    if (visible.length === 0) {
+      return searching ? "0 visibles" : "0 jugadores";
+    }
+    if (pageSize === 0 || visible.length <= pageSize) {
+      return searching
+        ? `${visible.length} ${visible.length === 1 ? "visible" : "visibles"}`
+        : `${visible.length} ${visible.length === 1 ? "jugador" : "jugadores"}`;
+    }
+    const start = (safePage - 1) * pageSize + 1;
+    const end = Math.min(safePage * pageSize, visible.length);
+    const unit = searching ? "visibles" : "jugadores";
+    return `${start}–${end} de ${visible.length} ${unit}`;
+  }, [visible.length, pageSize, safePage, searching]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, facets, statusFilter, pageSize]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
+  const categoryGenderFacets = useMemo(
+    () => facets.filter((f) => f.key === "category" || f.key === "gender"),
+    [facets],
+  );
+
+  const cascadePool = useMemo(
+    () =>
+      applyPlayerFacets(players, {
+        query: "",
+        facets: categoryGenderFacets,
+        statusFilter,
+      }),
+    [players, categoryGenderFacets, statusFilter],
+  );
+
+  const checklistPool = useMemo(
+    () => applyPlayerFacetsExceptChecklist(players, filterState),
+    [players, filterState],
+  );
+
+  const cascadedTeams = useMemo(
+    () => teamsMatchingFacets(teams, facets),
+    [teams, facets],
+  );
+
+  const facetFields: FacetField[] = useMemo(() => {
+    const category = facets.find((f) => f.key === "category");
+    const gender = facets.find((f) => f.key === "gender");
+    const categoryOptionsPool = applyPlayerFacets(players, {
+      query: "",
+      facets: gender ? [gender] : [],
+      statusFilter,
+    });
+    const genderOptionsPool = applyPlayerFacets(players, {
+      query: "",
+      facets: category ? [category] : [],
+      statusFilter,
+    });
+    const unassigned = buildUnassignedOption(cascadePool);
+
+    return [
+      {
+        key: "category",
+        label: "Categoría",
+        options: buildCategoryOptions(categoryOptionsPool),
+      },
+      {
+        key: "gender",
+        label: "Género",
+        options: buildGenderOptions(genderOptionsPool),
+      },
+      {
+        key: "team",
+        label: "Equipo",
+        options: buildTeamOptions(cascadedTeams, cascadePool),
+      },
+      {
+        key: "checklist",
+        label: "Alta",
+        options: buildChecklistOptions(checklistPool),
+      },
+      {
+        key: "unassigned",
+        label: "Sin equipo",
+        options: [unassigned],
+        instant: true,
+      },
+    ];
+  }, [players, facets, statusFilter, cascadePool, cascadedTeams, checklistPool]);
 
   const visibleIds = useMemo(() => visible.map((player) => player.id), [visible]);
 
@@ -296,55 +379,38 @@ export function PlayersPageClient({
     });
   }, [visibleIds]);
 
-  const checklistCounts = useMemo(() => {
-    const count = (filter: ChecklistFilter) =>
-      basePool.filter((player) => matchesChecklistFilter(player, filter)).length;
-    return {
-      all: basePool.length,
-      complete: count("complete"),
-      incomplete_profile: count("incomplete_profile"),
-      missing_papers: count("missing_papers"),
-      missing_docs: count("missing_docs"),
-      missing_photo: count("missing_photo"),
-      missing_license: count("missing_license"),
-      missing_whatsapp: count("missing_whatsapp"),
-    };
-  }, [basePool]);
+  function handleAddFacet(chip: { key: string; value: string; label: string }) {
+    const key = chip.key as PlayerFacetKey;
+    setFacets((prev) => {
+      const next = upsertPlayerFacet(prev, {
+        key,
+        value: chip.value,
+        label: formatFacetChipLabel(key, chip.value, teams),
+      });
+      return reconcileTeamFacet(next, teams);
+    });
+  }
 
-  const teamOptions = [
-    {
-      value: "all",
-      label: "Todos",
-      count: players.filter((p) => statusFilter === "all" || p.is_active).length,
-    },
-    ...teams.map((team) => ({
-      value: team.id,
-      label: team.name,
-      count: players.filter(
-        (player) => player.team_id === team.id && (statusFilter === "all" || player.is_active),
-      ).length,
-    })),
-  ];
+  function handleRemoveFacet(key: string) {
+    setFacets((prev) => reconcileTeamFacet(removePlayerFacet(prev, key as PlayerFacetKey), teams));
+  }
 
-  const checklistOptions: { value: ChecklistFilter; label: string; count: number }[] = [
-    { value: "all", label: "Todos", count: checklistCounts.all },
-    { value: "complete", label: "Alta completa", count: checklistCounts.complete },
-    {
-      value: "incomplete_profile",
-      label: "Ficha incompleta",
-      count: checklistCounts.incomplete_profile,
-    },
-    { value: "missing_docs", label: "Falta docs", count: checklistCounts.missing_docs },
-    { value: "missing_papers", label: "Falta papeles", count: checklistCounts.missing_papers },
-    { value: "missing_photo", label: "Falta foto", count: checklistCounts.missing_photo },
-    { value: "missing_license", label: "Falta licencia", count: checklistCounts.missing_license },
-    { value: "missing_whatsapp", label: "Sin WhatsApp", count: checklistCounts.missing_whatsapp },
-  ];
+  function handleClearFilters() {
+    setQuery("");
+    setFacets([]);
+  }
 
   const allVisibleSelected =
     visible.length > 0 && visible.every((player) => selected.has(player.id));
   const selectedCount = selected.size;
   const hasSelection = selectedCount > 0;
+  const someVisibleSelected = hasSelection && !allVisibleSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someVisibleSelected;
+    }
+  }, [someVisibleSelected]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -422,43 +488,52 @@ export function PlayersPageClient({
     ? `${bulkIntent.value ? "Marcar" : "Desmarcar"} ${PLAYER_CHECKLIST_LABELS[bulkIntent.field].toLowerCase()} en ${selectedCount} jugador${selectedCount === 1 ? "" : "es"}`
     : "";
 
-  const selectionBar = hasSelection && canWrite ? (
-    <div className="sticky top-0 z-20 -mx-1 mb-1 rounded-xl border border-[var(--club-border)] bg-[var(--club-drawer-bg)]/95 px-3 py-2.5 shadow-[0_8px_24px_rgba(16,16,24,0.08)] backdrop-blur-sm max-md:hidden">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="mr-2 text-sm font-medium text-foreground tabular-nums">
-          {selectedCount} seleccionado{selectedCount === 1 ? "" : "s"}
-        </p>
-        {PLAYER_LIST_TOGGLE_FIELDS.map((field) => (
-          <div key={field} className="flex items-center gap-1">
-            <button
-              type="button"
-              className="btn-secondary min-h-9 px-2.5 text-xs"
-              disabled={pending}
-              onClick={() => requestBulk(field, true)}
-            >
-              + {PLAYER_CHECKLIST_LABELS[field]}
-            </button>
-            <button
-              type="button"
-              className="btn-secondary min-h-9 px-2 text-xs text-muted-foreground"
-              disabled={pending}
-              onClick={() => requestBulk(field, false)}
-              aria-label={`Desmarcar ${PLAYER_CHECKLIST_LONG_LABELS[field]}`}
-            >
-              −
-            </button>
-          </div>
-        ))}
+  const bulkFieldButtons = (
+    <div className="flex flex-wrap gap-1.5">
+      {PLAYER_LIST_TOGGLE_FIELDS.map((field) => (
         <button
+          key={field}
           type="button"
           className="btn-secondary min-h-9 px-2.5 text-xs"
-          onClick={() => setSelected(new Set())}
+          disabled={pending}
+          onClick={() => requestBulk(field, bulkMarkMode)}
         >
-          Limpiar
+          {PLAYER_CHECKLIST_LABELS[field]}
         </button>
-      </div>
+      ))}
     </div>
-  ) : null;
+  );
+
+  const listPager = (
+    <div className="flex flex-wrap items-center gap-2">
+      <div
+        className="inline-flex items-center rounded-lg border border-[var(--club-border)] bg-[var(--club-surface-2)] p-0.5"
+        role="group"
+        aria-label="Jugadores por página"
+      >
+        {PAGE_SIZE_OPTIONS.map((opt) => {
+          const active = pageSize === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setPageSize(opt.value)}
+              className={cn(
+                "min-h-9 cursor-pointer touch-manipulation rounded-md px-2.5 text-xs font-semibold tabular-nums transition-colors",
+                active
+                  ? "bg-[var(--club-drawer-bg)] text-foreground shadow-sm"
+                  : "text-[var(--club-fg-muted)] hover:text-foreground",
+              )}
+              aria-pressed={active}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+      <Pagination page={safePage} pageCount={pageCount} onChange={setPage} label="Jugadores" />
+    </div>
+  );
 
   return (
     <DashboardPage
@@ -492,18 +567,21 @@ export function PlayersPageClient({
         )
       }
     >
-      <div className={cn("flex flex-col gap-3", hasSelection && canWrite && "max-md:pb-28")}>
-        <div className={showBajasToggle ? "flex flex-col gap-3 md:flex-row md:items-center" : undefined}>
-          <Input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por nombre, DNI, equipo o teléfono"
-            aria-label="Buscar jugadores"
-            className="min-h-11 md:min-w-0 md:flex-1"
+      <div className={cn("flex flex-col gap-3", hasSelection && canWrite && "max-md:pb-36")}>
+        <div className={showBajasToggle ? "flex flex-col gap-3 md:flex-row md:items-start" : undefined}>
+          <FacetSearchBar
+            query={query}
+            onQueryChange={setQuery}
+            facets={facets}
+            fields={facetFields}
+            onAddFacet={handleAddFacet}
+            onRemoveFacet={handleRemoveFacet}
+            onClear={handleClearFilters}
+            placeholder="Buscar nombre, DNI, teléfono… o filtrar"
+            className="md:min-w-0 md:flex-1"
           />
           {showBajasToggle ? (
-            <label className="flex min-h-11 cursor-pointer items-center gap-2.5 md:min-h-8 md:shrink-0 md:px-1">
+            <label className="flex min-h-11 cursor-pointer items-center gap-2.5 md:mt-1 md:min-h-8 md:shrink-0 md:px-1">
               <input
                 type="checkbox"
                 className="size-4 shrink-0 rounded border-[var(--club-border)] accent-brand"
@@ -518,24 +596,6 @@ export function PlayersPageClient({
           ) : null}
         </div>
 
-        {showTeamFilter ? (
-          <ClothingFilterChips
-            options={teamOptions}
-            value={teamFilter}
-            onChange={setTeamFilter}
-            ariaLabel="Filtrar por equipo"
-          />
-        ) : null}
-
-        <ClothingFilterChips
-          options={checklistOptions}
-          value={checklistFilter}
-          onChange={setChecklistFilter}
-          ariaLabel="Filtrar por checklist de alta"
-        />
-
-        {selectionBar}
-
         {visible.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
             <p className="font-medium text-foreground">
@@ -545,14 +605,10 @@ export function PlayersPageClient({
               {players.length === 0
                 ? "Da de alta jugadores uno a uno o importa el Excel de la temporada."
                 : searching
-                  ? "Prueba otro nombre, DNI o equipo."
-                  : checklistFilter === "incomplete_profile"
-                    ? "Ninguna ficha incompleta con estos filtros."
-                  : checklistFilter !== "all"
-                    ? "Prueba otro filtro de alta o equipo."
-                    : showBajasToggle
-                      ? "Prueba otro equipo o marca mostrar bajas."
-                      : "Prueba otro equipo."}
+                  ? "Prueba otra búsqueda, quita algún filtro o marca mostrar bajas."
+                  : showBajasToggle
+                    ? "Marca mostrar bajas o ajusta los filtros."
+                    : "Ajusta los filtros de búsqueda."}
             </p>
             {canWrite && players.length === 0 ? (
               <div className="mt-5 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
@@ -570,27 +626,75 @@ export function PlayersPageClient({
                   Importar federación
                 </button>
               </div>
+            ) : searching ? (
+              <button type="button" className="btn-secondary mt-5 min-h-11" onClick={handleClearFilters}>
+                Limpiar filtros
+              </button>
             ) : null}
           </div>
         ) : (
           <>
-            {canWrite ? (
-              <div className="flex items-center justify-between gap-3">
-                <label className="flex min-h-9 cursor-pointer items-center gap-2.5">
-                  <input
-                    type="checkbox"
-                    className="size-4 rounded border-[var(--club-border)] accent-brand"
-                    checked={allVisibleSelected}
-                    onChange={toggleSelectAllVisible}
-                    aria-label="Seleccionar visibles"
-                  />
-                  <span className="text-sm font-medium text-foreground">
-                    Seleccionar visibles
-                    <span className="ml-1.5 tabular-nums text-muted-foreground">({visible.length})</span>
-                  </span>
-                </label>
+            <div
+              className={cn(
+                "rounded-xl border px-3 py-2.5 transition-colors",
+                hasSelection && canWrite
+                  ? "sticky top-0 z-20 border-[color-mix(in_srgb,var(--club-brand)_28%,transparent)] bg-[color-mix(in_srgb,var(--club-brand-soft)_40%,var(--club-drawer-bg))] shadow-[var(--club-shadow-card)] max-md:static max-md:shadow-none"
+                  : "border-[var(--club-border)] bg-[var(--club-surface)]/60",
+              )}
+            >
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1">
+                  {canWrite && hasSelection ? (
+                    <label className="flex cursor-pointer items-center gap-2.5">
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        className="size-4 rounded border-[var(--club-border)] accent-brand"
+                        checked={allVisibleSelected}
+                        onChange={toggleSelectAllVisible}
+                        aria-label="Seleccionar todos los visibles"
+                      />
+                      <span className="text-sm font-medium text-foreground">
+                        <span className="tabular-nums">{selectedCount}</span>
+                        {" seleccionado"}
+                        {selectedCount === 1 ? "" : "s"}
+                      </span>
+                    </label>
+                  ) : (
+                    <p className="text-sm font-medium tabular-nums text-foreground">{rangeLabel}</p>
+                  )}
+                  {hasSelection && canWrite ? (
+                    <button
+                      type="button"
+                      className="min-h-9 cursor-pointer touch-manipulation rounded-lg px-2 text-xs font-medium text-[var(--club-fg-muted)] transition-colors hover:bg-[var(--club-surface-hover)] hover:text-foreground"
+                      onClick={() => setSelected(new Set())}
+                    >
+                      Quitar
+                    </button>
+                  ) : null}
+                </div>
+
+                {listPager}
               </div>
-            ) : null}
+
+              {hasSelection && canWrite ? (
+                <div className="mt-2.5 hidden flex-col gap-2 border-t border-[color-mix(in_srgb,var(--club-brand)_16%,transparent)] pt-2.5 md:flex">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SegmentedControl
+                      aria-label="Acción en lote"
+                      value={bulkMarkMode ? "mark" : "unmark"}
+                      onChange={(value) => setBulkMarkMode(value === "mark")}
+                      options={[
+                        { value: "mark", label: "Marcar" },
+                        { value: "unmark", label: "Desmarcar" },
+                      ]}
+                    />
+                    <span className="text-xs text-[var(--club-fg-muted)]">en la selección</span>
+                  </div>
+                  {bulkFieldButtons}
+                </div>
+              ) : null}
+            </div>
 
             {/* Desktop — identity + phone + etiquetas de alta */}
             <div className="club-table-wrap hidden md:block">
@@ -608,7 +712,7 @@ export function PlayersPageClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((player) => (
+                  {pageItems.map((player) => (
                     <tr key={player.id} className={cn(!player.is_active && "opacity-70")}>
                       {canWrite ? (
                         <td>
@@ -663,7 +767,7 @@ export function PlayersPageClient({
 
             {/* Mobile — card densa: identidad + meta/tel + etiquetas */}
             <ul className="flex flex-col gap-2 md:hidden">
-              {visible.map((player) => (
+              {pageItems.map((player) => (
                 <li
                   key={player.id}
                   className="clothing-list-card !px-3 !py-2.5"
@@ -727,22 +831,29 @@ export function PlayersPageClient({
       {canWrite && hasSelection && typeof document !== "undefined"
         ? createPortal(
             <div className="clothing-sticky-bar md:hidden">
-              <div className="clothing-sticky-bar__inner">
-                <p className="text-center text-sm font-medium text-foreground tabular-nums">
-                  {selectedCount} seleccionado{selectedCount === 1 ? "" : "s"}
-                </p>
-                <div className="flex justify-center">
-                  <SegmentedControl
-                    aria-label="Acción en lote"
-                    value={bulkMarkMode ? "mark" : "unmark"}
-                    onChange={(value) => setBulkMarkMode(value === "mark")}
-                    options={[
-                      { value: "mark", label: "Marcar" },
-                      { value: "unmark", label: "Desmarcar" },
-                    ]}
-                  />
+              <div className="clothing-sticky-bar__inner gap-2.5">
+                <div className="flex items-center justify-between gap-2 px-0.5">
+                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                    {selectedCount} seleccionado{selectedCount === 1 ? "" : "s"}
+                  </p>
+                  <button
+                    type="button"
+                    className="min-h-9 cursor-pointer touch-manipulation rounded-lg px-2 text-xs font-medium text-[var(--club-fg-muted)]"
+                    onClick={() => setSelected(new Set())}
+                  >
+                    Quitar
+                  </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <SegmentedControl
+                  aria-label="Acción en lote"
+                  value={bulkMarkMode ? "mark" : "unmark"}
+                  onChange={(value) => setBulkMarkMode(value === "mark")}
+                  options={[
+                    { value: "mark", label: "Marcar" },
+                    { value: "unmark", label: "Desmarcar" },
+                  ]}
+                />
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                   {PLAYER_LIST_TOGGLE_FIELDS.map((field) => (
                     <button
                       key={field}
@@ -755,13 +866,6 @@ export function PlayersPageClient({
                     </button>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  className="btn-secondary min-h-10 text-xs"
-                  onClick={() => setSelected(new Set())}
-                >
-                  Limpiar selección
-                </button>
               </div>
             </div>,
             document.body,
@@ -835,6 +939,7 @@ export function PlayersPageClient({
         onClose={() => setWhatsappOpen(false)}
         players={players}
         teams={teams}
+        canWrite={canWrite}
       />
     </DashboardPage>
   );

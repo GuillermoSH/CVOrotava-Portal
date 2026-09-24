@@ -237,7 +237,9 @@ function FederationImportReview({
               >
                 <div
                   className="federation-import-progress__fill"
-                  style={{ ["--federation-progress" as string]: progressPct / 100 }}
+                  style={{
+                    transform: `scaleX(${progressPct / 100})`,
+                  }}
                 />
               </div>
             </div>
@@ -565,10 +567,12 @@ export function PlayersFederationImportSheet({
   function handleConfirm() {
     if (!file || !preview || confirmDisabled) return;
     const total = preview.counts.toImport;
+    const ack = needsAck && ackIncomplete;
     setPhase("importing");
     setProgress({ processed: 0, total });
 
-    startTransition(async () => {
+    // Fuera de startTransition: si no, React aplaza setProgress hasta acabar el bucle.
+    void (async () => {
       let offset = 0;
       let created = 0;
       let teamsCreated = 0;
@@ -579,7 +583,7 @@ export function PlayersFederationImportSheet({
         guard += 1;
         const formData = new FormData();
         formData.append("file", file);
-        if (needsAck && ackIncomplete) {
+        if (ack) {
           formData.append("acknowledge_incomplete", "1");
         }
         formData.append("offset", String(offset));
@@ -598,6 +602,10 @@ export function PlayersFederationImportSheet({
         incomplete = result.incompleteCount;
         offset = result.nextOffset;
         setProgress({ processed: result.processed, total: result.total });
+        // Ceder un frame para que la barra pinte entre lotes.
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
 
         if (result.done) break;
       }
@@ -618,7 +626,7 @@ export function PlayersFederationImportSheet({
       setProgress(null);
       appToast.success(created === 1 ? "1 jugador importado" : `${created} jugadores importados`);
       router.refresh();
-    });
+    })();
   }
 
   function handleBackFromReview() {

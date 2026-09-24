@@ -1274,9 +1274,10 @@ html.dark .club-confirm-panel {
   width: 100%;
   border-radius: inherit;
   background: var(--club-brand);
-  transform: scaleX(var(--federation-progress, 0));
+  transform: scaleX(0);
   transform-origin: left center;
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -26,7 +26,7 @@ export function Pagination({ page, pageCount, onChange, label }: PaginationProps
           disabled={page <= 1}
           onClick={() => onChange(page - 1)}
           className={cn(
-            "inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors",
+            "inline-flex size-10 min-h-10 cursor-pointer touch-manipulation items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors md:size-8 md:min-h-8",
             "hover:bg-[var(--club-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40",
           )}
           aria-label={`${label}: página anterior`}
@@ -38,7 +38,7 @@ export function Pagination({ page, pageCount, onChange, label }: PaginationProps
           disabled={page >= pageCount}
           onClick={() => onChange(page + 1)}
           className={cn(
-            "inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors",
+            "inline-flex size-10 min-h-10 cursor-pointer touch-manipulation items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors md:size-8 md:min-h-8",
             "hover:bg-[var(--club-surface-hover)] disabled:cursor-not-allowed disabled:opacity-40",
           )}
           aria-label={`${label}: página siguiente`}
