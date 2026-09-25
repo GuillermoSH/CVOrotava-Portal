@@ -1,0 +1,46 @@
+---
+description: Foto por jugador en ficha admin — Storage privado, WebP en cliente, preview + descarga. Activar si el usuario habla de foto de jugador, avatar, Storage, subir imagen o cámara en ficha.
+globs: "{app/**/admin/jugadores/**,components/roster/**,lib/roster/**,lib/actions/roster/**}"
+alwaysApply: false
+---
+
+# Foto por jugador (implementado)
+
+**Estado:** implementado (admin/manager). Padres y coach **fuera** hasta que se pida.
+
+## Semántica
+
+| Campo | Significado |
+|---|---|
+| `players.photo_path` | Path en Storage (`{player_id}/avatar.webp`). Uso **interno / ficha federativa**. |
+| `photo_taken` | Checklist «Foto hecha». Al confirmar subida pasa a `true` **solo si estaba `false`**. Al quitar la foto **no** se fuerza a `false`. Toggle manual sigue existiendo. |
+| `photo_consent` | Autoriza uso **público** (redes, cartel). **No se toca** en el flujo de foto de ficha. |
+
+## Stack
+
+- Bucket privado `player-photos`. Acceso solo con **service role** en servidor tras `requireRosterWriteAccess` (admin\|manager).
+- Subida **directa** con URL firmada (`createPlayerPhotoUploadUrl` → PUT/`uploadToSignedUrl` → `confirmPlayerPhoto`).
+- Compresión en cliente: `lib/roster/compress-player-photo.ts` — **recorte 1:1** en `PlayerPhotoCropSheet` (zoom contain → bandas en 3:4/9:16) → WebP 800×800, techo ~100 KB.
+- UI: `PlayerPhotoSection` + `PlayerPhotoCropSheet` (sheet club). Loaders en preview (carga / guardar / quitar).
+- Lectura: `GET …/foto?inline=1` (WebP). Descarga: `GET …/foto` → **PNG** (sharp). Auth = `requireRosterWriteAccess`.
+
+## Código clave
+
+- Migración: `supabase/migrations/20260924120000_player_photo_path.sql`
+- Constantes: `lib/roster/player-photo.ts`
+- Actions: `lib/actions/roster/player-photo.ts`
+- UI: `components/roster/PlayerPhotoSection.tsx`, `components/roster/PlayerPhotoCropSheet.tsx` (solo ficha existente + `canWrite`; no en `/nuevo`)
+- Listado de jugadores: **sin avatares**
+
+## Path
+
+`{player_id}/avatar.webp` — **sin temporada**.
+
+## No hacer
+
+- Bucket público ni firmas largas en cliente para listados.
+- Mezclar `photo_consent` con «tiene foto en el portal».
+- Servir fotos en el listado (egress Free).
+- Acceso coach/padres a la route de foto (hasta que se pida).
+- Image Transformations de Supabase como dependencia.
+- Borrar Storage automáticamente al dar de baja (solo «Quitar» explícito).

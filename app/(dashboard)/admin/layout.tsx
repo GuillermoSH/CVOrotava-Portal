@@ -1,9 +1,23 @@
-import { AppShell } from "@/components/layout/AppShell";
+import { redirect } from "next/navigation";
 
-export default function AdminLayout({
+import { AppShell } from "@/components/layout/AppShell";
+import { requirePortalRole } from "@/lib/auth/portal-access";
+import { appRoutes } from "@/lib/constants";
+
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppShell navTitle="Área dirección">{children}</AppShell>;
+  const role = await requirePortalRole();
+
+  if (role === "parent") {
+    redirect(appRoutes.parents);
+  }
+
+  return (
+    <AppShell navTitle="Área dirección" homeHref={appRoutes.admin}>
+      {children}
+    </AppShell>
+  );
 }

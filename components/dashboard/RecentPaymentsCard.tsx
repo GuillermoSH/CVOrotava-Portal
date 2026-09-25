@@ -1,11 +1,11 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/club/Badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/components/club/Card";
 import {
   Table,
   TableBody,
@@ -13,7 +13,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/components/club/Table";
 import type { Payment } from "@/lib/mocks/admin";
 
 const eur = new Intl.NumberFormat("es-ES", {
@@ -48,7 +48,7 @@ export function RecentPaymentsCard({ payments }: { payments: Payment[] }) {
           <TableBody>
             {payments.map((p) => (
               <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.parent}</TableCell>
+                <TableCell className="club-table__primary">{p.parent}</TableCell>
                 <TableCell>{p.child}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {eur.format(p.amount)}

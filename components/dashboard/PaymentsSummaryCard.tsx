@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/components/club/Card";
 import { cn } from "@/lib/utils";
 
 const eur = new Intl.NumberFormat("es-ES", {
@@ -51,9 +51,7 @@ export function PaymentsSummaryCard({
       <CardContent>
         <div className="grid gap-8 md:grid-cols-3 md:gap-6">
           <div className="space-y-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Recaudación del año
-            </p>
+            <p className="text-sm font-medium text-muted-foreground">Recaudación del año</p>
             <p className="text-2xl font-semibold tabular-nums tracking-tight text-brand md:text-3xl">
               {eur.format(yearTotal)}
             </p>
@@ -61,9 +59,7 @@ export function PaymentsSummaryCard({
             <p className="text-xs text-muted-foreground">Referencia anual (100%)</p>
           </div>
           <div className="space-y-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Recaudado en el mes
-            </p>
+            <p className="text-sm font-medium text-muted-foreground">Recaudado en el mes</p>
             <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground md:text-3xl">
               {eur.format(monthTotal)}
             </p>
@@ -73,9 +69,7 @@ export function PaymentsSummaryCard({
             </p>
           </div>
           <div className="space-y-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Previsto por reservas de ropa
-            </p>
+            <p className="text-sm font-medium text-muted-foreground">Previsto por reservas de ropa</p>
             <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground md:text-3xl">
               {eur.format(clothingExpected)}
             </p>

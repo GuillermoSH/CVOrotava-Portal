@@ -7,12 +7,14 @@
 - **Dos audiencias:** familias (`/parents`) y dirección (`/admin`).  
 - **Pagos:** solo **anotación** en sistema (transferencia o efectivo); **no** pasarela de pago en web.  
 - **Accesos:** sin registro público ni alta desde la app; cuentas las gestiona el club.  
-- **Ropa:** reservas / catálogo (detalle en siguientes iteraciones).
+- **Ropa:** reservas / catálogo (detalle en siguientes iteraciones).  
+- **Ideas pendientes (no implementar hasta que se pida):** QR por caja en almacén — `.cursor/rules/clothing-qr-cajas.mdc`. Import Federación Canaria (preview→confirm) + traspaso batch equipos — `.cursor/rules/federation-import.mdc`.
+- **Foto por jugador:** implementada (admin) — `.cursor/rules/player-photos.mdc`.
 
 ## Stack fijo
 
 - Next.js **15** App Router, TypeScript, ESLint.  
-- Tailwind **v4** + **shadcn/ui** (estilo actual del repo).  
+- Tailwind **v4** + componentes club en `components/club/` (Base UI solo en menús).  
 - **Supabase** (`@supabase/ssr` + `@supabase/supabase-js`).  
 - **pnpm** para dependencias.
 
@@ -20,7 +22,7 @@
 
 - Paleta club en `app/globals.css` (`:root` claro, `html.dark` oscuro) + `clubPaletteLight` / `clubPaletteDark` en `lib/constants.ts` (`clubPalette` = oscuro, alias).  
 - No usar `#000000`, `#FFFFFF` o `#FF0000` puros; usar tokens existentes.  
-- Tema por defecto **sistema** (`next-themes` en `ThemeProvider`); toggle `ThemeToggle` en marketing y `AppShell`.
+- Tema por defecto **sistema** (`next-themes` en `ThemeProvider`); toggle `ThemeToggle` en login y `AppShell`.
 
 ## Arquitectura / componentes
 
@@ -36,8 +38,9 @@
 
 ## Rutas útiles
 
-- `/` marketing  
+- `/` redirige a `/login` (o home por rol si hay sesión); ya no hay landing de marketing  
 - `/login` (sin registro público en la app; cuentas las gestiona el club)  
+- `/api/auth/callback` — OAuth Google (PKCE; misma ruta que Team Manager)  
 - `/parents`, `/admin`  
 
 ## Convenciones

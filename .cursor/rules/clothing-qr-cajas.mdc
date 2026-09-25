@@ -1,0 +1,32 @@
+---
+description: Idea futura (no implementar hasta que se pida): QR por caja de almacén y lector para ver el contenido en el local. Activar si el usuario habla de QR, códigos de barras, escanear cajas o vista rápida en almacén.
+globs: "{app/**/admin/ropa/**,components/clothing/**,lib/clothing/**,lib/actions/clothing/**}"
+alwaysApply: false
+---
+
+# Idea futura — QR por caja (almacén)
+
+**Estado:** apuntada; **no implementar** hasta que dirección lo pida.
+
+## Qué quiere el club
+
+Cada caja física (`CAJ-01`, etc.) lleva un QR. En el almacén, alguien lo lee y ve **al momento** la lista de contenido (prenda / talla / uds.). Sirve para recoger o devolver ropa sin abrir el móvil a buscar la caja a mano.
+
+## Cómo montarlo (cuando toque)
+
+No hace falta meter el inventario **dentro** del QR (se queda viejo). El QR solo **identifica** la caja:
+
+- Payload: URL de la app, p.ej. `/admin/ropa/almacen/cajas/[id]` (sesión dirección).
+- La página consulta el stock actual de esa caja.
+
+**Fase 1 (barata):** generar PNG/PDF de etiquetas al crear o desde la ficha de la caja. El lector de la **cámara del teléfono** ya abre URLs. Casi no hay app extra.
+
+**Fase 2:** lector **dentro** del portal (cámara + `BarcodeDetector` o lib equivalente), modo almacén a pantalla completa, linterna, siguiente escaneo. Más sentido en móvil que en desktop.
+
+Imprimir: PDF de pegatinas (código + nombre). Impresora de etiquetas es operativa, no de producto.
+
+## No hacer
+
+- QR público sin auth con datos de stock.
+- Codificar cantidades en el propio QR.
+- Lector de escritorio como camino principal (el uso es en el local, con el teléfono).
