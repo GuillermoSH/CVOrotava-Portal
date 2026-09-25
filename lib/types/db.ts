@@ -40,6 +40,8 @@ export type Player = {
   docs_delivered_at: string | null;
   photo_taken: boolean;
   photo_consent: boolean;
+  /** Path en bucket player-photos; uso interno / federativa (≠ photo_consent). */
+  photo_path: string | null;
   in_whatsapp_group: boolean;
   medical_notes: string | null;
   clothing_size: ClothingSize | null;
@@ -53,6 +55,8 @@ export type Player = {
   address_province: string | null;
   birth_country: string | null;
   nationality: string | null;
+  /** Cuota mensual ampliada (30 €) en categorías base; default false = 25 €. */
+  pays_extended_monthly: boolean;
 };
 
 export type PlayerGuardian = {
@@ -79,9 +83,10 @@ export type PlayerWithTeam = Player & {
   team: Team | null;
 };
 
-/** Lista admin: jugador + equipo + teléfono del contacto primario. */
+/** Lista admin: jugador + equipo + teléfono/email del contacto primario. */
 export type PlayerListItem = PlayerWithTeam & {
   primary_phone: string | null;
+  primary_email: string | null;
 };
 
 export type PlayerWithDetails = PlayerWithTeam & {

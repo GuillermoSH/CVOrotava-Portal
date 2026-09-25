@@ -23,6 +23,7 @@ export default async function PlayerDetailPage({
   if (!snapshot) notFound();
 
   const canWrite = role === "admin" || role === "manager";
+  const canDelete = role === "admin";
   const [clothing, lots, storageTree] = await Promise.all([
     enrichPlayerClothing(id),
     enrichInventory(),
@@ -36,7 +37,12 @@ export default async function PlayerDetailPage({
       actions={null}
     >
       <div className="flex flex-col gap-8">
-        <PlayerForm teams={snapshot.teams} player={snapshot.player} canWrite={canWrite} />
+        <PlayerForm
+          teams={snapshot.teams}
+          player={snapshot.player}
+          canWrite={canWrite}
+          canDelete={canDelete}
+        />
         <PlayerClothingSection
           possession={clothing.possession}
           history={clothing.history}

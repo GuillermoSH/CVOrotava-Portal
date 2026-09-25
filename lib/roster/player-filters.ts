@@ -89,6 +89,7 @@ function matchesQuery(player: PlayerListItem, query: string): boolean {
     player.team?.name ?? "",
     player.team ? formatTeamCategory(player.team.category) : "",
     player.primary_phone ?? "",
+    player.primary_email ?? "",
   ]
     .join(" ")
     .toLowerCase();
@@ -114,6 +115,26 @@ export function applyPlayerFacets(
     if (teamId && player.team_id !== teamId) return false;
     if (checklist && !matchesChecklistFilter(player, checklist)) return false;
     return matchesQuery(player, query);
+  });
+}
+
+export type PlayerSortDir = "asc" | "desc";
+
+function compareText(a: string, b: string): number {
+  return a.localeCompare(b, "es", { sensitivity: "base", numeric: true });
+}
+
+/** Orden por nombre de pila (luego apellido como desempate). */
+export function sortPlayersByFirstName(
+  players: PlayerListItem[],
+  dir: PlayerSortDir,
+): PlayerListItem[] {
+  const factor = dir === "asc" ? 1 : -1;
+  return [...players].sort((a, b) => {
+    let cmp = compareText(a.first_name, b.first_name);
+    if (cmp === 0) cmp = compareText(a.last_name, b.last_name);
+    if (cmp === 0) return a.id.localeCompare(b.id);
+    return cmp * factor;
   });
 }
 

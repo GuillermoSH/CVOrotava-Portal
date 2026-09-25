@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowDown, ArrowUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -16,7 +17,9 @@ import { PlayersFederationImportSheet } from "@/components/roster/PlayersFederat
 import { PlayersImportSheet } from "@/components/roster/PlayersImportSheet";
 import { PlayersWhatsAppSheet } from "@/components/roster/PlayersWhatsAppSheet";
 import {
+  bulkSetPlayersActiveAction,
   bulkUpdatePlayerChecklistAction,
+  deletePlayersAction,
   updatePlayerChecklistFieldAction,
 } from "@/lib/actions/roster/players";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
@@ -42,10 +45,12 @@ import {
   formatFacetChipLabel,
   reconcileTeamFacet,
   removePlayerFacet,
+  sortPlayersByFirstName,
   teamsMatchingFacets,
   upsertPlayerFacet,
   type PlayerFacet,
   type PlayerFacetKey,
+  type PlayerSortDir,
 } from "@/lib/roster/player-filters";
 import { isPlayerProfileIncomplete } from "@/lib/roster/profile-completeness";
 import type { PlayerListItem, Team } from "@/lib/types/db";
@@ -55,6 +60,10 @@ import { cn } from "@/lib/utils";
 type BulkIntent = {
   field: PlayerListToggleField;
   value: boolean;
+};
+
+type BulkActiveIntent = {
+  is_active: boolean;
 };
 
 const PAGE_SIZE_OPTIONS = [
@@ -87,6 +96,31 @@ function FichaIncompletaMark({ className }: { className?: string }) {
 function docsDateForList(player: PlayerListItem): string | null {
   if (!isDocsDeliveryDateRelevant(player)) return null;
   return formatDocsDeliveredShort(player.docs_delivered_at);
+}
+
+function SortableNameHeader({
+  sortDir,
+  onToggle,
+}: {
+  sortDir: PlayerSortDir;
+  onToggle: () => void;
+}) {
+  const Icon = sortDir === "asc" ? ArrowUp : ArrowDown;
+  const nextHint = sortDir === "asc" ? "descendente" : "ascendente";
+
+  return (
+    <th aria-sort={sortDir === "asc" ? "ascending" : "descending"}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="inline-flex max-w-full items-center gap-1 rounded-md text-left font-semibold text-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Ordenar por nombre, ${nextHint}`}
+      >
+        <span className="truncate">Jugador</span>
+        <Icon className="size-3.5 shrink-0 opacity-80" aria-hidden strokeWidth={2} />
+      </button>
+    </th>
+  );
 }
 
 function AltaCompletaMark({ className }: { className?: string }) {
@@ -221,11 +255,14 @@ export function PlayersPageClient({
   players,
   teams,
   canWrite,
+  canDelete = false,
   subtitle,
 }: {
   players: PlayerListItem[];
   teams: Team[];
   canWrite: boolean;
+  /** Hard delete — solo admin. */
+  canDelete?: boolean;
   subtitle: string;
 }) {
   const router = useRouter();
@@ -238,10 +275,13 @@ export function PlayersPageClient({
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkIntent, setBulkIntent] = useState<BulkIntent | null>(null);
+  const [bulkActiveIntent, setBulkActiveIntent] = useState<BulkActiveIntent | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkMarkMode, setBulkMarkMode] = useState(true);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(50);
+  const [sortDir, setSortDir] = useState<PlayerSortDir>("asc");
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   const searching = query.trim().length > 0 || facets.length > 0;
@@ -257,8 +297,8 @@ export function PlayersPageClient({
   );
 
   const visible = useMemo(
-    () => applyPlayerFacets(players, filterState),
-    [players, filterState],
+    () => sortPlayersByFirstName(applyPlayerFacets(players, filterState), sortDir),
+    [players, filterState, sortDir],
   );
 
   const pageCount = useMemo(() => {
@@ -291,11 +331,15 @@ export function PlayersPageClient({
 
   useEffect(() => {
     setPage(1);
-  }, [query, facets, statusFilter, pageSize]);
+  }, [query, facets, statusFilter, pageSize, sortDir]);
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
+
+  function toggleSortDir() {
+    setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+  }
 
   const categoryGenderFacets = useMemo(
     () => facets.filter((f) => f.key === "category" || f.key === "gender"),
@@ -404,6 +448,14 @@ export function PlayersPageClient({
     visible.length > 0 && visible.every((player) => selected.has(player.id));
   const selectedCount = selected.size;
   const hasSelection = selectedCount > 0;
+  const selectedActiveCount = useMemo(
+    () => players.filter((player) => selected.has(player.id) && player.is_active).length,
+    [players, selected],
+  );
+  const selectedInactiveCount = useMemo(
+    () => players.filter((player) => selected.has(player.id) && !player.is_active).length,
+    [players, selected],
+  );
   const someVisibleSelected = hasSelection && !allVisibleSelected;
 
   useEffect(() => {
@@ -484,6 +536,62 @@ export function PlayersPageClient({
     });
   }
 
+  function confirmBulkActive() {
+    if (!bulkActiveIntent || selectedCount === 0) return;
+    const { is_active } = bulkActiveIntent;
+    const ids = players
+      .filter((player) => selected.has(player.id) && player.is_active !== is_active)
+      .map((player) => player.id);
+    if (ids.length === 0) {
+      setBulkActiveIntent(null);
+      return;
+    }
+    startTransition(async () => {
+      const result = await bulkSetPlayersActiveAction({
+        player_ids: ids,
+        is_active,
+      });
+      if (!result.ok) {
+        appToast.error(result.error);
+        return;
+      }
+      appToast.success(
+        is_active
+          ? `${result.updated ?? ids.length} jugador${(result.updated ?? ids.length) === 1 ? "" : "es"} reactivado${(result.updated ?? ids.length) === 1 ? "" : "s"}`
+          : `${result.updated ?? ids.length} jugador${(result.updated ?? ids.length) === 1 ? "" : "es"} dado${(result.updated ?? ids.length) === 1 ? "" : "s"} de baja`,
+      );
+      setBulkActiveIntent(null);
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
+  function confirmBulkDelete() {
+    if (!canDelete || selectedCount === 0) return;
+    const ids = [...selected];
+    startTransition(async () => {
+      const result = await deletePlayersAction({ player_ids: ids });
+      if (!result.ok) {
+        appToast.error(result.error);
+        return;
+      }
+      appToast.success(
+        `${result.updated ?? ids.length} jugador${(result.updated ?? ids.length) === 1 ? "" : "es"} eliminado${(result.updated ?? ids.length) === 1 ? "" : "s"}`,
+      );
+      setBulkDeleteOpen(false);
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
+  const bulkActiveTitle = bulkActiveIntent
+    ? bulkActiveIntent.is_active
+      ? `Reactivar ${selectedInactiveCount} jugador${selectedInactiveCount === 1 ? "" : "es"}`
+      : `Dar de baja a ${selectedActiveCount} jugador${selectedActiveCount === 1 ? "" : "es"}`
+    : "";
+
+  const bulkDeleteTitle = `Eliminar ${selectedCount} jugador${selectedCount === 1 ? "" : "es"}`;
+
   const bulkTitle = bulkIntent
     ? `${bulkIntent.value ? "Marcar" : "Desmarcar"} ${PLAYER_CHECKLIST_LABELS[bulkIntent.field].toLowerCase()} en ${selectedCount} jugador${selectedCount === 1 ? "" : "es"}`
     : "";
@@ -506,6 +614,19 @@ export function PlayersPageClient({
 
   const listPager = (
     <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={toggleSortDir}
+        className="inline-flex min-h-9 cursor-pointer touch-manipulation items-center gap-1.5 rounded-lg border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] md:hidden"
+        aria-label={`Orden por nombre ${sortDir === "asc" ? "ascendente" : "descendente"}; pulsa para invertir`}
+      >
+        Nombre
+        {sortDir === "asc" ? (
+          <ArrowUp className="size-3.5" aria-hidden strokeWidth={2.25} />
+        ) : (
+          <ArrowDown className="size-3.5" aria-hidden strokeWidth={2.25} />
+        )}
+      </button>
       <div
         className="inline-flex items-center rounded-lg border border-[var(--club-border)] bg-[var(--club-surface-2)] p-0.5"
         role="group"
@@ -669,7 +790,7 @@ export function PlayersPageClient({
                       className="min-h-9 cursor-pointer touch-manipulation rounded-lg px-2 text-xs font-medium text-[var(--club-fg-muted)] transition-colors hover:bg-[var(--club-surface-hover)] hover:text-foreground"
                       onClick={() => setSelected(new Set())}
                     >
-                      Quitar
+                      Quitar selección
                     </button>
                   ) : null}
                 </div>
@@ -680,6 +801,36 @@ export function PlayersPageClient({
               {hasSelection && canWrite ? (
                 <div className="mt-2.5 hidden flex-col gap-2 border-t border-[color-mix(in_srgb,var(--club-brand)_16%,transparent)] pt-2.5 md:flex">
                   <div className="flex flex-wrap items-center gap-2">
+                    {selectedActiveCount > 0 ? (
+                      <button
+                        type="button"
+                        className="btn-secondary min-h-9 text-xs"
+                        disabled={pending}
+                        onClick={() => setBulkActiveIntent({ is_active: false })}
+                      >
+                        Dar de baja ({selectedActiveCount})
+                      </button>
+                    ) : null}
+                    {selectedInactiveCount > 0 ? (
+                      <button
+                        type="button"
+                        className="btn-secondary min-h-9 text-xs"
+                        disabled={pending}
+                        onClick={() => setBulkActiveIntent({ is_active: true })}
+                      >
+                        Reactivar ({selectedInactiveCount})
+                      </button>
+                    ) : null}
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        className="btn-secondary min-h-9 text-xs text-[var(--club-danger)]"
+                        disabled={pending}
+                        onClick={() => setBulkDeleteOpen(true)}
+                      >
+                        Eliminar ({selectedCount})
+                      </button>
+                    ) : null}
                     <SegmentedControl
                       aria-label="Acción en lote"
                       value={bulkMarkMode ? "mark" : "unmark"}
@@ -689,7 +840,7 @@ export function PlayersPageClient({
                         { value: "unmark", label: "Desmarcar" },
                       ]}
                     />
-                    <span className="text-xs text-[var(--club-fg-muted)]">en la selección</span>
+                    <span className="text-xs text-[var(--club-fg-muted)]">checklist en la selección</span>
                   </div>
                   {bulkFieldButtons}
                 </div>
@@ -706,7 +857,7 @@ export function PlayersPageClient({
                         <span className="sr-only">Seleccionar</span>
                       </th>
                     ) : null}
-                    <th>Jugador</th>
+                    <SortableNameHeader sortDir={sortDir} onToggle={toggleSortDir} />
                     <th className="w-[9.5rem]">Teléfono</th>
                     <th>Alta</th>
                   </tr>
@@ -841,8 +992,40 @@ export function PlayersPageClient({
                     className="min-h-9 cursor-pointer touch-manipulation rounded-lg px-2 text-xs font-medium text-[var(--club-fg-muted)]"
                     onClick={() => setSelected(new Set())}
                   >
-                    Quitar
+                    Quitar selección
                   </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedActiveCount > 0 ? (
+                    <button
+                      type="button"
+                      className="btn-secondary min-h-11 flex-1 text-xs"
+                      disabled={pending}
+                      onClick={() => setBulkActiveIntent({ is_active: false })}
+                    >
+                      Dar de baja ({selectedActiveCount})
+                    </button>
+                  ) : null}
+                  {selectedInactiveCount > 0 ? (
+                    <button
+                      type="button"
+                      className="btn-secondary min-h-11 flex-1 text-xs"
+                      disabled={pending}
+                      onClick={() => setBulkActiveIntent({ is_active: true })}
+                    >
+                      Reactivar ({selectedInactiveCount})
+                    </button>
+                  ) : null}
+                  {canDelete ? (
+                    <button
+                      type="button"
+                      className="btn-secondary min-h-11 flex-1 text-xs text-[var(--club-danger)]"
+                      disabled={pending}
+                      onClick={() => setBulkDeleteOpen(true)}
+                    >
+                      Eliminar ({selectedCount})
+                    </button>
+                  ) : null}
                 </div>
                 <SegmentedControl
                   aria-label="Acción en lote"
@@ -923,6 +1106,37 @@ export function PlayersPageClient({
         confirmLabel={bulkIntent?.value ? "Marcar" : "Desmarcar"}
         pending={pending}
         onConfirm={confirmBulk}
+      />
+
+      <ConfirmDialog
+        open={bulkActiveIntent !== null}
+        onClose={() => {
+          if (!pending) setBulkActiveIntent(null);
+        }}
+        title={bulkActiveTitle}
+        description={
+          bulkActiveIntent
+            ? bulkActiveIntent.is_active
+              ? "Volverán a aparecer en el listado activo de la temporada."
+              : "Quedarán como baja (no se borran). Puedes reactivarlos más tarde con «Mostrar bajas»."
+            : undefined
+        }
+        confirmLabel={bulkActiveIntent?.is_active ? "Reactivar" : "Dar de baja"}
+        pending={pending}
+        onConfirm={confirmBulkActive}
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onClose={() => {
+          if (!pending) setBulkDeleteOpen(false);
+        }}
+        title={bulkDeleteTitle}
+        description="Borrado definitivo: se eliminan ficha, contactos y foto. Los pagos anotados se conservan sin jugador. No se puede deshacer."
+        confirmLabel="Eliminar definitivamente"
+        destructive
+        pending={pending}
+        onConfirm={confirmBulkDelete}
       />
 
       {canWrite ? (

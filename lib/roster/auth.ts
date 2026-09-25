@@ -13,6 +13,15 @@ export async function requireRosterWriteAccess(): Promise<UserRole> {
   return role;
 }
 
+/** Hard-delete players and similar destructive roster ops — admin only. */
+export async function requireRosterAdminAccess(): Promise<UserRole> {
+  const role = await requirePortalRole();
+  if (role !== "admin") {
+    redirect(appRoutes.admin);
+  }
+  return role;
+}
+
 export async function requireRosterReadAccess(): Promise<UserRole> {
   const role = await requirePortalRole();
   if (role === "parent") {

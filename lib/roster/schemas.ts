@@ -103,6 +103,7 @@ export const upsertPlayerSchema = z
       .optional()
       .transform(blankToUndefined)
       .transform((value) => (value && !isSpanishNationality(value) ? value : undefined)),
+    pays_extended_monthly: z.boolean().optional().default(false),
     is_active: z.boolean().optional().default(true),
     contacts: z.array(playerContactInputSchema).min(1, "Indica un contacto").max(2),
   })
@@ -154,4 +155,16 @@ export const bulkUpdatePlayerChecklistSchema = z.object({
   player_ids: z.array(z.string().uuid()).min(1, "Selecciona al menos un jugador").max(2000),
   field: z.enum(PLAYER_LIST_TOGGLE_FIELD_VALUES),
   value: z.boolean(),
+});
+
+export const bulkSetPlayersActiveSchema = z.object({
+  player_ids: z.array(z.string().uuid()).min(1, "Selecciona al menos un jugador").max(2000),
+  is_active: z.boolean(),
+});
+
+export const deletePlayersSchema = z.object({
+  player_ids: z
+    .array(z.string().uuid())
+    .min(1, "Selecciona al menos un jugador")
+    .max(200),
 });

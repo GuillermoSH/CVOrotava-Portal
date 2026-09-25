@@ -25,8 +25,10 @@ export type PlayerProfileCompletenessInput = {
   address_municipality?: string | null;
   address_province?: string | null;
   contacts?: PlayerProfileCompletenessContact[] | null;
-  /** Lista admin: solo teléfono primario (no implica email). */
+  /** Lista admin: teléfono del contacto primario. */
   primary_phone?: string | null;
+  /** Lista admin: email del contacto primario. */
+  primary_email?: string | null;
 };
 
 export type PlayerProfileCompleteness = {
@@ -38,7 +40,7 @@ export type PlayerProfileCompleteness = {
 /**
  * Completitud de ficha derivada de datos (sin columna nueva en BD).
  * Alineada a lo que exige el formulario web estricto.
- * En listado (sin `contacts`) solo se exige teléfono primario + domicilio + NIE.
+ * En listado (sin `contacts`) se exige teléfono y email primarios + domicilio + doc.
  */
 export function getPlayerProfileCompleteness(
   player: PlayerProfileCompletenessInput,
@@ -107,10 +109,13 @@ export function getPlayerProfileCompleteness(
         missingFields.push("Email del contacto");
       }
     }
-  } else if ("primary_phone" in player) {
-    // Listado: solo sabemos el teléfono primario.
+  } else if ("primary_phone" in player || "primary_email" in player) {
+    // Listado: teléfono + email del contacto primario.
     if (!player.primary_phone?.trim() || !isValidPhone(player.primary_phone)) {
       missingFields.push(adult ? "Teléfono" : "Teléfono del contacto");
+    }
+    if (!player.primary_email?.trim() || !isValidEmail(player.primary_email)) {
+      missingFields.push(adult ? "Email" : "Email del contacto");
     }
   } else {
     missingFields.push(adult ? "Teléfono" : "Contacto (tutor)");

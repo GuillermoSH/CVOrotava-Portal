@@ -26,6 +26,7 @@ export type PlayerRow = {
   docs_delivered_at?: string | null;
   photo_taken?: boolean | null;
   photo_consent?: boolean | null;
+  photo_path?: string | null;
   in_whatsapp_group?: boolean | null;
   medical_notes?: string | null;
   clothing_size?: string | null;
@@ -39,6 +40,7 @@ export type PlayerRow = {
   address_province?: string | null;
   birth_country?: string | null;
   nationality?: string | null;
+  pays_extended_monthly?: boolean | null;
   created_at?: string;
   updated_at?: string;
   teams?: TeamRow | TeamRow[] | null;
@@ -106,6 +108,7 @@ export function mapPlayer(row: PlayerRow): Player {
     docs_delivered_at: row.docs_delivered_at ?? null,
     photo_taken: Boolean(row.photo_taken),
     photo_consent: Boolean(row.photo_consent),
+    photo_path: row.photo_path?.trim() || null,
     in_whatsapp_group: Boolean(row.in_whatsapp_group),
     medical_notes: row.medical_notes ?? null,
     clothing_size: (row.clothing_size as ClothingSize | null) ?? null,
@@ -119,6 +122,7 @@ export function mapPlayer(row: PlayerRow): Player {
     address_province: row.address_province ?? null,
     birth_country: row.birth_country ?? null,
     nationality: row.nationality ?? null,
+    pays_extended_monthly: Boolean(row.pays_extended_monthly),
   };
 }
 

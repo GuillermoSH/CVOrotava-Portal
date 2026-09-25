@@ -20,7 +20,7 @@ import type {
 } from "@/lib/types/db";
 
 const PLAYER_SELECT =
-  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, created_at, updated_at, team:teams(id, name, category, gender, season)";
+  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, photo_path, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, pays_extended_monthly, created_at, updated_at, team:teams(id, name, category, gender, season)";
 
 export type PlayerContactInput = {
   full_name: string;
@@ -56,18 +56,33 @@ export type PlayerWriteInput = {
   address_province?: string | null;
   birth_country?: string | null;
   nationality?: string | null;
+  pays_extended_monthly?: boolean;
   is_active?: boolean;
   contacts?: PlayerContactInput[];
 };
+
+function primaryContactFromContacts(
+  contacts: PlayerContact[],
+  playerId: string,
+): PlayerContact | null {
+  const forPlayer = contacts.filter((contact) => contact.player_id === playerId);
+  return forPlayer.find((contact) => contact.is_primary) ?? forPlayer[0] ?? null;
+}
 
 function primaryPhoneFromContacts(
   contacts: PlayerContact[],
   playerId: string,
 ): string | null {
-  const forPlayer = contacts.filter((contact) => contact.player_id === playerId);
-  const primary = forPlayer.find((contact) => contact.is_primary) ?? forPlayer[0];
-  const phone = primary?.phone?.trim();
+  const phone = primaryContactFromContacts(contacts, playerId)?.phone?.trim();
   return phone || null;
+}
+
+function primaryEmailFromContacts(
+  contacts: PlayerContact[],
+  playerId: string,
+): string | null {
+  const email = primaryContactFromContacts(contacts, playerId)?.email?.trim();
+  return email || null;
 }
 
 export async function listPlayers(
@@ -78,8 +93,8 @@ export async function listPlayers(
     .from("players")
     .select(PLAYER_SELECT)
     .eq("season", season)
-    .order("last_name", { ascending: true })
-    .order("first_name", { ascending: true });
+    .order("first_name", { ascending: true })
+    .order("last_name", { ascending: true });
 
   if (error) throw new Error(dbErrorMessage(error));
   return (data ?? []).map((row) => mapPlayerWithTeam(row as PlayerRow));
@@ -97,6 +112,7 @@ export async function listPlayersWithPrimaryPhone(
   return players.map((player) => ({
     ...player,
     primary_phone: primaryPhoneFromContacts(contacts, player.id),
+    primary_email: primaryEmailFromContacts(contacts, player.id),
   }));
 }
 
@@ -109,8 +125,8 @@ export async function listActivePlayers(
     .select(PLAYER_SELECT)
     .eq("season", season)
     .eq("is_active", true)
-    .order("last_name", { ascending: true })
-    .order("first_name", { ascending: true });
+    .order("first_name", { ascending: true })
+    .order("last_name", { ascending: true });
 
   if (error) throw new Error(dbErrorMessage(error));
   return (data ?? []).map((row) => mapPlayerWithTeam(row as PlayerRow));
@@ -245,6 +261,7 @@ function playerInsert(input: PlayerWriteInput) {
       input.nationality?.trim() && !isSpanishNationality(input.nationality)
         ? input.nationality.trim()
         : null,
+    pays_extended_monthly: input.pays_extended_monthly ?? false,
     is_active: input.is_active ?? true,
   };
 }
@@ -283,6 +300,71 @@ export async function setPlayerActive(
 ): Promise<void> {
   const { error } = await db.from("players").update({ is_active: isActive }).eq("id", id);
   if (error) throw new Error(dbErrorMessage(error));
+}
+
+const ACTIVE_CHUNK = 200;
+
+export async function bulkSetPlayersActive(
+  db: RosterDb,
+  playerIds: string[],
+  isActive: boolean,
+): Promise<number> {
+  const uniqueIds = [...new Set(playerIds)];
+  if (uniqueIds.length === 0) return 0;
+
+  for (let i = 0; i < uniqueIds.length; i += ACTIVE_CHUNK) {
+    const chunk = uniqueIds.slice(i, i + ACTIVE_CHUNK);
+    const { error } = await db
+      .from("players")
+      .update({ is_active: isActive })
+      .in("id", chunk);
+    if (error) throw new Error(dbErrorMessage(error));
+  }
+
+  return uniqueIds.length;
+}
+
+/**
+ * Hard-delete roster players (admin). Cleans guardians first; contacts cascade;
+ * payments / clothing movements keep history with player_id null.
+ * Caller should remove Storage photos when possible.
+ */
+export async function deletePlayers(
+  db: RosterDb,
+  playerIds: string[],
+): Promise<{ deleted: number; photoPaths: string[] }> {
+  const uniqueIds = [...new Set(playerIds)];
+  if (uniqueIds.length === 0) return { deleted: 0, photoPaths: [] };
+
+  const photoPaths: string[] = [];
+  for (let i = 0; i < uniqueIds.length; i += ACTIVE_CHUNK) {
+    const chunk = uniqueIds.slice(i, i + ACTIVE_CHUNK);
+
+    const { data: rows, error: selectError } = await db
+      .from("players")
+      .select("id, photo_path")
+      .in("id", chunk);
+    if (selectError) throw new Error(dbErrorMessage(selectError));
+
+    for (const row of rows ?? []) {
+      const path =
+        typeof row.photo_path === "string" && row.photo_path.trim()
+          ? row.photo_path.trim()
+          : `${row.id}/avatar.webp`;
+      photoPaths.push(path);
+    }
+
+    const { error: guardiansError } = await db
+      .from("player_guardians")
+      .delete()
+      .in("player_id", chunk);
+    if (guardiansError) throw new Error(dbErrorMessage(guardiansError));
+
+    const { error: deleteError } = await db.from("players").delete().in("id", chunk);
+    if (deleteError) throw new Error(dbErrorMessage(deleteError));
+  }
+
+  return { deleted: uniqueIds.length, photoPaths };
 }
 
 export async function updatePlayerChecklistField(

@@ -13,6 +13,7 @@ import {
   Shirt,
   Trash2,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
@@ -20,6 +21,7 @@ import type { FieldError } from "react-hook-form";
 
 import { Badge } from "@/components/club/Badge";
 import { Button } from "@/components/club/Button";
+import { ConfirmDialog } from "@/components/club/ConfirmDialog";
 import { FormDate, FormInput, FormSelect, FormTextarea } from "@/components/club/forms";
 import { Input } from "@/components/club/Input";
 import { Label } from "@/components/club/Label";
@@ -27,8 +29,14 @@ import { SegmentedControl } from "@/components/club/SegmentedControl";
 import { SizePicker } from "@/components/clothing/SizePicker";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { TeamCreateSheet } from "@/components/roster/TeamCreateSheet";
+import { PlayerPhotoSection } from "@/components/roster/PlayerPhotoSection";
 import { PlayerStatusActions } from "@/components/roster/PlayerStatusActions";
-import { createPlayerAction, updatePlayerAction, setPlayerActiveAction } from "@/lib/actions/roster/players";
+import {
+  createPlayerAction,
+  deletePlayersAction,
+  setPlayerActiveAction,
+  updatePlayerAction,
+} from "@/lib/actions/roster/players";
 import { contactsForPlayerAge, isLegalAdult } from "@/lib/roster/age";
 import {
   formatPlayerAddress,
@@ -101,6 +109,70 @@ function toFamilyDrafts(contacts: PlayerContact[]): ContactDraft[] {
     phone: contact.phone ?? "",
     email: contact.email ?? "",
   }));
+}
+
+type PlayerFormSnapshot = {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  dni: string;
+  birthCountry: string;
+  nationality: string;
+  teamId: string;
+  size: ClothingSize | "";
+  streetType: string;
+  street: string;
+  streetNumber: string;
+  door: string;
+  postalCode: string;
+  municipality: string;
+  province: string;
+  licenseCompleted: boolean;
+  papersReceived: boolean;
+  docsDelivered: boolean;
+  docsDeliveredAt: string;
+  photoTaken: boolean;
+  photoConsent: boolean;
+  inWhatsappGroup: boolean;
+  paysExtendedMonthly: boolean;
+  medicalNotes: string;
+  contacts: ContactDraft[];
+  selfPhone: string;
+  selfEmail: string;
+};
+
+function snapshotKey(snapshot: PlayerFormSnapshot): string {
+  return JSON.stringify(snapshot);
+}
+
+function buildFormSnapshot(input: PlayerFormSnapshot): PlayerFormSnapshot {
+  return {
+    ...input,
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    birthDate: input.birthDate.trim(),
+    dni: input.dni.trim(),
+    birthCountry: input.birthCountry.trim(),
+    nationality: input.nationality.trim(),
+    teamId: input.teamId,
+    size: input.size,
+    streetType: input.streetType.trim(),
+    street: input.street.trim(),
+    streetNumber: input.streetNumber.trim(),
+    door: input.door.trim(),
+    postalCode: input.postalCode.trim(),
+    municipality: input.municipality.trim(),
+    province: input.province.trim(),
+    medicalNotes: input.medicalNotes.trim(),
+    selfPhone: input.selfPhone.trim(),
+    selfEmail: input.selfEmail.trim(),
+    contacts: input.contacts.map((c) => ({
+      full_name: c.full_name.trim(),
+      relationship: c.relationship,
+      phone: c.phone.trim(),
+      email: c.email.trim(),
+    })),
+  };
 }
 
 function selfContactFrom(contacts: PlayerContact[], birthDate: string | null) {
@@ -220,14 +292,18 @@ export function PlayerForm({
   teams,
   player,
   canWrite,
+  canDelete = false,
 }: {
   teams: Team[];
   player?: PlayerWithDetails;
   canWrite: boolean;
+  /** Hard delete — solo admin. */
+  canDelete?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [teamSheetOpen, setTeamSheetOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const season = player?.season ?? getCurrentSeason();
 
@@ -255,6 +331,9 @@ export function PlayerForm({
   const [photoTaken, setPhotoTaken] = useState(player?.photo_taken ?? false);
   const [photoConsent, setPhotoConsent] = useState(player?.photo_consent ?? false);
   const [inWhatsappGroup, setInWhatsappGroup] = useState(player?.in_whatsapp_group ?? false);
+  const [paysExtendedMonthly, setPaysExtendedMonthly] = useState(
+    player?.pays_extended_monthly ?? false,
+  );
   const [medicalNotes, setMedicalNotes] = useState(player?.medical_notes ?? "");
   const [contacts, setContacts] = useState<ContactDraft[]>(() => toFamilyDrafts(player?.contacts ?? []));
   const [selfPhone, setSelfPhone] = useState(
@@ -267,6 +346,75 @@ export function PlayerForm({
     if (!player) return true;
     return !getPlayerOnboardingStatus(player).isComplete;
   });
+
+  const currentSnapshot = useMemo(
+    () =>
+      buildFormSnapshot({
+        firstName,
+        lastName,
+        birthDate,
+        dni,
+        birthCountry,
+        nationality,
+        teamId,
+        size,
+        streetType,
+        street,
+        streetNumber,
+        door,
+        postalCode,
+        municipality,
+        province,
+        licenseCompleted,
+        papersReceived,
+        docsDelivered,
+        docsDeliveredAt,
+        photoTaken,
+        photoConsent,
+        inWhatsappGroup,
+        paysExtendedMonthly,
+        medicalNotes,
+        contacts,
+        selfPhone,
+        selfEmail,
+      }),
+    [
+      firstName,
+      lastName,
+      birthDate,
+      dni,
+      birthCountry,
+      nationality,
+      teamId,
+      size,
+      streetType,
+      street,
+      streetNumber,
+      door,
+      postalCode,
+      municipality,
+      province,
+      licenseCompleted,
+      papersReceived,
+      docsDelivered,
+      docsDeliveredAt,
+      photoTaken,
+      photoConsent,
+      inWhatsappGroup,
+      paysExtendedMonthly,
+      medicalNotes,
+      contacts,
+      selfPhone,
+      selfEmail,
+    ],
+  );
+
+  const [savedSnapshotKey, setSavedSnapshotKey] = useState(() =>
+    player ? snapshotKey(currentSnapshot) : "",
+  );
+
+  // Nuevo: siempre se puede guardar. Edición: solo con cambios pendientes.
+  const isDirty = !player || snapshotKey(currentSnapshot) !== savedSnapshotKey;
 
   const isAdult = useMemo(() => isLegalAdult(birthDate || null), [birthDate]);
   const isNie = useMemo(() => isNieDocument(dni), [dni]);
@@ -352,7 +500,10 @@ export function PlayerForm({
     showDocsDate && docsDeliveredAt ? `${docsDeliveredAt}T12:00:00` : null,
   );
   const readOnly = !canWrite;
+  const canSave = canWrite && !pending && (!player || isDirty);
   const saveLabel = pending ? "Guardando…" : player ? "Guardar ficha" : "Dar de alta";
+  const saveDisabledReason =
+    player && !isDirty && !pending ? "Sin cambios pendientes" : undefined;
   const teamOptions = [
     { value: "", label: "Sin equipo" },
     ...teams.map((team) => ({
@@ -423,6 +574,7 @@ export function PlayerForm({
   function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     if (!canWrite) return;
+    if (player && !isDirty) return;
 
     const draftContacts: {
       full_name: string;
@@ -459,6 +611,7 @@ export function PlayerForm({
       photo_taken: photoTaken,
       photo_consent: photoConsent,
       in_whatsapp_group: inWhatsappGroup,
+      pays_extended_monthly: paysExtendedMonthly,
       medical_notes: medicalNotes || undefined,
       clothing_size: size || null,
       address: formatPlayerAddress(addressDraft) || undefined,
@@ -502,6 +655,7 @@ export function PlayerForm({
       }
       appToast.success(player ? "Ficha guardada" : "Jugador dado de alta");
       if (player) {
+        setSavedSnapshotKey(snapshotKey(currentSnapshot));
         router.refresh();
       } else {
         router.push(appRoutes.players.list);
@@ -540,7 +694,13 @@ export function PlayerForm({
           </Link>
           {canWrite && player ? <PlayerStatusActions player={player} /> : null}
           {canWrite ? (
-            <Button type="button" className={stickyActionClass} disabled={pending} onClick={() => handleSubmit()}>
+            <Button
+              type="button"
+              className={stickyActionClass}
+              disabled={!canSave}
+              title={saveDisabledReason}
+              onClick={() => handleSubmit()}
+            >
               {saveLabel}
             </Button>
           ) : null}
@@ -683,6 +843,28 @@ export function PlayerForm({
             ) : null}
           </div>
         </section>
+
+        {canWrite && player ? (
+          <PlayerPhotoSection
+            playerId={player.id}
+            hasPhoto={Boolean(player.photo_path)}
+            playerName={`${firstName} ${lastName}`.trim() || player.full_name}
+            onPhotoConfirmed={(marked) => {
+              // La foto ya está en Storage + photo_path (y photo_taken si procedía).
+              // Solo sincronizamos el checklist local sin marcar la ficha como sucia.
+              if (!marked) return;
+              setPhotoTaken(true);
+              setSavedSnapshotKey(
+                snapshotKey(
+                  buildFormSnapshot({
+                    ...currentSnapshot,
+                    photoTaken: true,
+                  }),
+                ),
+              );
+            }}
+          />
+        ) : null}
 
         <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
           <SectionHeading icon={MapPin} title="Domicilio" />
@@ -1090,6 +1272,19 @@ export function PlayerForm({
         </section>
 
         <section className="flex flex-col gap-2 border-t border-[var(--club-border)] pt-5 md:pt-4">
+          <SectionHeading icon={Wallet} title="Cuotas" />
+          <ToggleRow
+            id="pays-extended-monthly"
+            compact
+            label="Cuota mensual ampliada (30 €)"
+            hint="Por defecto 25 €. Solo aplica en categorías base (minivoley–júnior) al generar cuotas; en sénior/aficionados se ignora."
+            checked={paysExtendedMonthly}
+            disabled={readOnly}
+            onChange={setPaysExtendedMonthly}
+          />
+        </section>
+
+        <section className="flex flex-col gap-2 border-t border-[var(--club-border)] pt-5 md:pt-4">
           <SectionHeading icon={MessageCircle} title="Grupo y fotos" />
           <div className="grid gap-2 md:grid-cols-2 md:gap-2.5">
             <ToggleRow
@@ -1136,6 +1331,33 @@ export function PlayerForm({
         onCreated={setTeamId}
       />
 
+      {canDelete && player ? (
+        <ConfirmDialog
+          open={deleteOpen}
+          onClose={() => {
+            if (!pending) setDeleteOpen(false);
+          }}
+          title={`Eliminar a ${firstName} ${lastName}`.trim() || "Eliminar jugador"}
+          description="Borrado definitivo: se eliminan ficha, contactos y foto. Los pagos anotados se conservan sin jugador. No se puede deshacer."
+          confirmLabel="Eliminar definitivamente"
+          destructive
+          pending={pending}
+          onConfirm={() => {
+            startTransition(async () => {
+              const result = await deletePlayersAction({ player_ids: [player.id] });
+              if (!result.ok) {
+                appToast.error(result.error);
+                return;
+              }
+              appToast.success("Jugador eliminado");
+              setDeleteOpen(false);
+              router.push(appRoutes.players.list);
+              router.refresh();
+            });
+          }}
+        />
+      ) : null}
+
       <ClothingStickyActionBar
         layout="row"
         actions={[
@@ -1145,6 +1367,16 @@ export function PlayerForm({
             href: appRoutes.players.list,
             variant: "secondary",
           },
+          ...(canDelete && player
+            ? [
+                {
+                  type: "button" as const,
+                  label: "Eliminar",
+                  variant: "secondary" as const,
+                  onClick: () => setDeleteOpen(true),
+                },
+              ]
+            : []),
           ...(canWrite && player
             ? [
                 {
@@ -1176,6 +1408,7 @@ export function PlayerForm({
                   type: "button" as const,
                   label: saveLabel,
                   pending,
+                  disabled: !canSave,
                   onClick: () => handleSubmit(),
                 },
               ]

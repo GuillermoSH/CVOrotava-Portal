@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 
 import { contactsForPlayerAge } from "@/lib/roster/age";
-import { requireRosterWriteAccess } from "@/lib/roster/auth";
+import { requireRosterAdminAccess, requireRosterWriteAccess } from "@/lib/roster/auth";
 import { getRosterDb } from "@/lib/roster/repository/client";
 import {
+  bulkSetPlayersActive,
   bulkUpdatePlayerChecklist,
   createPlayer,
+  deletePlayers,
   getPlayerById,
   setPlayerActive,
   updatePlayer,
@@ -15,13 +17,17 @@ import {
 } from "@/lib/roster/repository/players";
 import { createTeam, getTeamById } from "@/lib/roster/repository/teams";
 import {
+  bulkSetPlayersActiveSchema,
   bulkUpdatePlayerChecklistSchema,
   createPlayerSchema,
   createTeamSchema,
+  deletePlayersSchema,
   setPlayerActiveSchema,
   updatePlayerChecklistFieldSchema,
   updatePlayerSchema,
 } from "@/lib/roster/schemas";
+import { PLAYER_PHOTOS_BUCKET } from "@/lib/roster/player-photo";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export type ActionResult =
   | { ok: true; id?: string; updated?: number }
@@ -49,7 +55,7 @@ function friendlyDbError(message: string): string {
     return "Falta aplicar la migración de ficha de jugador en Supabase.";
   }
   if (
-    /(first_name|player_contacts|docs_delivered|photo_taken|photo_consent|in_whatsapp_group|address_street|birth_country|nationality)/i.test(
+    /(first_name|player_contacts|docs_delivered|photo_taken|photo_consent|photo_path|in_whatsapp_group|address_street|birth_country|nationality)/i.test(
       message,
     ) &&
     /does not exist|schema cache/i.test(message)
@@ -192,6 +198,60 @@ export async function bulkUpdatePlayerChecklistAction(input: unknown): Promise<A
     );
     revalidateRoster();
     return { ok: true, updated };
+  } catch (e) {
+    return {
+      ok: false,
+      error: friendlyDbError(e instanceof Error ? e.message : "No autorizado"),
+    };
+  }
+}
+
+export async function bulkSetPlayersActiveAction(input: unknown): Promise<ActionResult> {
+  try {
+    await requireRosterWriteAccess();
+    const parsed = bulkSetPlayersActiveSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    }
+
+    const db = await getRosterDb();
+    const updated = await bulkSetPlayersActive(
+      db,
+      parsed.data.player_ids,
+      parsed.data.is_active,
+    );
+    revalidateRoster();
+    return { ok: true, updated };
+  } catch (e) {
+    return {
+      ok: false,
+      error: friendlyDbError(e instanceof Error ? e.message : "No autorizado"),
+    };
+  }
+}
+
+export async function deletePlayersAction(input: unknown): Promise<ActionResult> {
+  try {
+    await requireRosterAdminAccess();
+    const parsed = deletePlayersSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    }
+
+    const db = await getRosterDb();
+    const { deleted, photoPaths } = await deletePlayers(db, parsed.data.player_ids);
+
+    if (photoPaths.length > 0) {
+      try {
+        const admin = createServiceRoleClient();
+        await admin.storage.from(PLAYER_PHOTOS_BUCKET).remove(photoPaths);
+      } catch {
+        // History rows already deleted; orphan Storage objects are acceptable.
+      }
+    }
+
+    revalidateRoster();
+    return { ok: true, updated: deleted };
   } catch (e) {
     return {
       ok: false,

@@ -6,6 +6,7 @@ export const TEAM_CATEGORIES = [
   "cadete",
   "juvenil",
   "junior",
+  "aficionados",
   "senior",
 ] as const;
 
@@ -19,6 +20,7 @@ export const TEAM_CATEGORY_LABELS: Record<TeamCategory, string> = {
   cadete: "Cadete",
   juvenil: "Juvenil",
   junior: "Júnior",
+  aficionados: "Aficionados",
   senior: "Sénior",
 };
 
