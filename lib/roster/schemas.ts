@@ -4,9 +4,9 @@ import { CLOTHING_SIZES } from "@/lib/clothing/constants";
 import { CONTACT_RELATIONSHIPS, STREET_TYPES, TEAM_CATEGORIES, TEAM_GENDERS } from "@/lib/roster/constants";
 import {
   documentValidationMessage,
+  isAcceptablePlayerDocument,
   isNieDocument,
   isSpanishNationality,
-  isValidDniOrNie,
   normalizeDocumentId,
 } from "@/lib/roster/document";
 import {
@@ -44,10 +44,10 @@ export const upsertPlayerSchema = z
     dni: z
       .string()
       .trim()
-      .min(1, "Indica el DNI o NIE")
+      .min(1, "Indica el DNI, NIE o documento")
       .transform(normalizeDocumentId)
       .superRefine((value, ctx) => {
-        if (!isValidDniOrNie(value)) {
+        if (!isAcceptablePlayerDocument(value)) {
           ctx.addIssue({ code: "custom", message: documentValidationMessage(value) });
         }
       }),

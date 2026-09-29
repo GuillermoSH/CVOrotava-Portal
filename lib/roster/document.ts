@@ -49,10 +49,27 @@ export function isValidDniOrNie(value: string | null | undefined): boolean {
   return false;
 }
 
+/** Forma de DNI/NIE español (sin comprobar letra de control). */
+export function looksLikeSpanishDocument(value: string | null | undefined): boolean {
+  const id = normalizeDocumentId(value ?? "");
+  return DNI_RE.test(id) || NIE_RE.test(id);
+}
+
+/**
+ * Identificador aceptable en ficha: DNI/NIE con letra válida, o cualquier
+ * otro documento no vacío que no parezca un DNI/NIE mal formado (pasaporte…).
+ */
+export function isAcceptablePlayerDocument(value: string | null | undefined): boolean {
+  const id = normalizeDocumentId(value ?? "");
+  if (!id) return false;
+  if (looksLikeSpanishDocument(id)) return isValidDniOrNie(id);
+  return true;
+}
+
 export function documentValidationMessage(value: string | null | undefined): string {
   const id = normalizeDocumentId(value ?? "");
-  if (!id) return "Indica el DNI o NIE";
+  if (!id) return "Indica el DNI, NIE o documento";
   if (DNI_RE.test(id) && !isValidDniOrNie(id)) return "La letra del DNI no coincide";
   if (NIE_RE.test(id) && !isValidDniOrNie(id)) return "La letra del NIE no coincide";
-  return "Introduce un DNI (12345678A) o un NIE (X1234567A)";
+  return "Introduce un DNI (12345678A), un NIE (X1234567A) o un documento de identidad";
 }

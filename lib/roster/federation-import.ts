@@ -448,28 +448,57 @@ function mapHeader(raw: string): FederationCsvHeader | null {
   return FEDERATION_CSV_HEADERS.find((header) => fold(header).replace(/\*+$/, "").trim() === folded) ?? null;
 }
 
+function isDocumentTypeToken(value: string): boolean {
+  const folded = fold(value).replace(/[^a-z]/g, "");
+  return (
+    folded === "nif" ||
+    folded === "nie" ||
+    folded === "dni" ||
+    folded === "pasaporte" ||
+    folded === "passport" ||
+    folded === "cif" ||
+    folded === "documento" ||
+    folded === "doc"
+  );
+}
+
+function looksLikeInvalidSpanishId(id: string): boolean {
+  return /^\d{8}[A-Z]$/.test(id) || /^[XYZ]\d{7}[A-Z]$/.test(id);
+}
+
+/**
+ * Prioridad (columnas Federación):
+ * 1. DNI/NIE válido en primaria o en «si no es NIF»
+ * 2. Si primaria no es DNI/NIE válido y hay valor usable en fallback → fallback
+ *    (evita quedarnos con un ID numérico interno y tirar el NIE/pasaporte real)
+ * 3. Patrón ES mal formado → dni_invalido
+ * 4. Cualquier otro no vacío → identificador extranjero
+ */
 function resolveDocument(primary: string, fallback: string): {
   dni: string | null;
   discard?: FederationDiscardReason;
 } {
-  const main = normalizeDocumentId(primary);
-  const alt = normalizeDocumentId(fallback);
+  const rawPrimary = primary.trim() && !isDocumentTypeToken(primary) ? primary.trim() : "";
+  const rawFallback = fallback.trim() && !isDocumentTypeToken(fallback) ? fallback.trim() : "";
+  const main = rawPrimary ? normalizeDocumentId(rawPrimary) : "";
+  const alt = rawFallback ? normalizeDocumentId(rawFallback) : "";
 
-  if (main) {
-    if (isValidDniOrNie(main)) return { dni: main };
-    // Parece DNI/NIE mal formado → inválido; si no encaja patrón ES → extranjero
-    if (/^\d{8}[A-Z]$/.test(main) || /^[XYZ]\d{7}[A-Z]$/.test(main)) {
+  if (main && isValidDniOrNie(main)) return { dni: main };
+  if (alt && isValidDniOrNie(alt)) return { dni: alt };
+
+  // Primaria no es DNI/NIE: la columna «si no es NIF» es la fuente preferida.
+  if (alt) {
+    if (looksLikeInvalidSpanishId(alt)) {
       return { dni: null, discard: "dni_invalido" };
     }
-    return { dni: null, discard: "documento_extranjero" };
+    return { dni: alt };
   }
 
-  if (alt) {
-    if (isValidDniOrNie(alt)) return { dni: alt };
-    if (/^\d{8}[A-Z]$/.test(alt) || /^[XYZ]\d{7}[A-Z]$/.test(alt)) {
+  if (main) {
+    if (looksLikeInvalidSpanishId(main)) {
       return { dni: null, discard: "dni_invalido" };
     }
-    return { dni: null, discard: "documento_extranjero" };
+    return { dni: main };
   }
 
   return { dni: null, discard: "dni_vacio" };
@@ -726,8 +755,9 @@ function parseFederationImportCsvWithSeason(
     let nationality: string | undefined;
     const paisNacimiento = cellText(get(cells, "País de Nacimiento"));
     const nationalityRaw = get(cells, "Nacionalidad");
+    const isForeignDocument = !isValidDniOrNie(doc.dni);
 
-    if (isNieDocument(doc.dni)) {
+    if (isNieDocument(doc.dni) || isForeignDocument) {
       if (paisNacimiento && !isSpanishNationality(paisNacimiento) && fold(paisNacimiento) !== "espana") {
         birth_country = paisNacimiento;
       } else if (paisNacimiento && (isSpanishNationality(paisNacimiento) || fold(paisNacimiento) === "espana")) {
@@ -738,6 +768,9 @@ function parseFederationImportCsvWithSeason(
       nationality = mapFederationNationality(nationalityRaw);
       if (nationalityRaw && !nationality && fold(nationalityRaw) !== "es") {
         missingFields.push("Nacionalidad");
+      }
+      if (isForeignDocument) {
+        missingFields.push("DNI/NIE español (documento extranjero)");
       }
     } else {
       // DNI español: no guardar país/nacionalidad federativos (País ≠ nacionalidad; es → vacío)

@@ -176,8 +176,8 @@ export async function previewFederationImportAction(
 }
 
 /**
- * Importa un lote de jugadores. El cliente encadena llamadas para mostrar progreso real.
- * offset=0 crea los equipos base; los siguientes lotes solo insertan jugadores.
+ * Importa el siguiente lote de pendientes (re-parsea contra DNIs actuales).
+ * No usa offset: tras cada lote los ya creados salen de toImport.
  */
 export async function importFederationChunkAction(
   formData: FormData,
@@ -188,34 +188,36 @@ export async function importFederationChunkAction(
     if (!fileCheck.ok) return fileCheck;
 
     const acknowledged = readAck(formData);
-    const offset = readNonNegInt(formData, "offset", 0);
     const limit = Math.min(
       Math.max(readNonNegInt(formData, "limit", FEDERATION_IMPORT_CHUNK_SIZE), 1),
       50,
     );
+    // Total del preview (estable); si falta, se usa el tamaño del lote pendiente.
+    const previewTotal = readNonNegInt(formData, "preview_total", 0);
 
     const bytes = Buffer.from(await fileCheck.file.arrayBuffer());
     const { season, db, teams, existingDnis } = await loadParseContext();
     const parsed = parseFederationImportCsv(bytes, { season, teams, existingDnis });
-    const gate = validateParsedForImport(parsed, acknowledged);
-    if (!gate.ok) return gate;
 
-    const total = parsed.toImport.length;
-    if (offset >= total) {
+    const remaining = parsed.toImport.length;
+    if (remaining === 0) {
       return {
         ok: true,
         created: 0,
         failed: 0,
-        processed: total,
-        total,
+        processed: previewTotal,
+        total: previewTotal,
         teamsCreated: 0,
-        incompleteCount: parsed.counts.incomplete,
+        incompleteCount: 0,
+        remainingAfter: 0,
         done: true,
-        nextOffset: total,
+        nextOffset: 0,
       };
     }
 
-    let teamsCreated = 0;
+    const gate = validateParsedForImport(parsed, acknowledged);
+    if (!gate.ok) return gate;
+
     const teamKeys = [
       ...new Map(
         parsed.toImport
@@ -224,13 +226,11 @@ export async function importFederationChunkAction(
       ).values(),
     ];
 
+    const existingNames = new Set(teams.map((team) => foldTeamName(team.name)));
     const ensured = await ensureFederationBaseTeams(db, teamKeys, season);
-    if (offset === 0) {
-      const existingNames = new Set(teams.map((team) => foldTeamName(team.name)));
-      teamsCreated = teamKeys.filter((key) => !existingNames.has(foldTeamName(key.name))).length;
-    }
+    const teamsCreated = teamKeys.filter((key) => !existingNames.has(foldTeamName(key.name))).length;
 
-    const slice = parsed.toImport.slice(offset, offset + limit);
+    const slice = parsed.toImport.slice(0, limit);
     const inputs = slice.map((item) => {
       const teamId = item.teamKey
         ? ensured.get(foldTeamName(item.teamKey.name))?.id ?? null
@@ -242,8 +242,18 @@ export async function importFederationChunkAction(
     });
 
     const result = await createPlayers(db, inputs);
-    const nextOffset = Math.min(offset + slice.length, total);
-    const done = nextOffset >= total;
+
+    if (slice.length > 0 && result.created === 0 && result.errors.length > 0) {
+      return {
+        ok: false,
+        error: result.errors[0]?.message ?? "No se pudo importar el lote",
+      };
+    }
+
+    const remainingAfter = Math.max(0, remaining - slice.length);
+    const total = previewTotal > 0 ? previewTotal : remaining;
+    const processed = Math.min(total, total - remainingAfter);
+    const done = remainingAfter === 0;
 
     if (result.created > 0 || done) revalidateRoster();
 
@@ -251,12 +261,13 @@ export async function importFederationChunkAction(
       ok: true,
       created: result.created,
       failed: result.errors.length,
-      processed: nextOffset,
+      processed,
       total,
       teamsCreated,
       incompleteCount: parsed.counts.incomplete,
+      remainingAfter,
       done,
-      nextOffset,
+      nextOffset: 0,
     };
   } catch (error) {
     return {
@@ -278,7 +289,7 @@ export async function confirmFederationImportAction(
     let created = 0;
     let teamsCreated = 0;
     let incompleteCount = 0;
-    let offset = 0;
+    let previewTotal = 0;
     let guard = 0;
 
     while (guard < 200) {
@@ -287,16 +298,16 @@ export async function confirmFederationImportAction(
       chunkData.set("file", fileCheck.file);
       const ack = formData.get("acknowledge_incomplete");
       if (typeof ack === "string") chunkData.set("acknowledge_incomplete", ack);
-      chunkData.set("offset", String(offset));
       chunkData.set("limit", String(FEDERATION_IMPORT_CHUNK_SIZE));
+      if (previewTotal > 0) chunkData.set("preview_total", String(previewTotal));
 
       const chunk = await importFederationChunkAction(chunkData);
       if (!chunk.ok) return chunk;
 
+      if (previewTotal === 0 && chunk.total > 0) previewTotal = chunk.total;
       created += chunk.created;
       teamsCreated += chunk.teamsCreated;
       incompleteCount = chunk.incompleteCount;
-      offset = chunk.nextOffset;
       if (chunk.done) break;
     }
 

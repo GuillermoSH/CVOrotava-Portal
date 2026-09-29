@@ -100,7 +100,7 @@ describe("parseFederationImportCsv — document", () => {
     expect(preview.discarded.some((d) => d.reason === "dni_vacio")).toBe(true);
   });
 
-  it("uses non-NIF fallback column only when it validates as DNI/NIE", () => {
+  it("accepts foreign passport as importable incomplete identifier", () => {
     const csv = buildFederationCsv([
       playerRow({
         Nombre: "FallbackOk",
@@ -108,19 +108,120 @@ describe("parseFederationImportCsv — document", () => {
         "Número de documento (si no es NIF)  *": VALID_DNI,
       }),
       playerRow({
-        Nombre: "FallbackBad",
+        Nombre: "Pasaporte",
         "Documento identidad": "",
         "Número de documento (si no es NIF)  *": "PASAPORTE-ZZ",
+        "País de Nacimiento": "Venezuela",
+        Nacionalidad: "ve",
       }),
     ]);
 
     const preview = parseFederationImportCsv(csv, { season: SEASON_PORTAL });
     expect(findByDni(preview.toImport, VALID_DNI)).toBeTruthy();
-    expect(preview.toImport.some((r) => r.dni.includes("PASAPORTE"))).toBe(false);
-    expect(preview.discarded.some((d) => d.reason === "documento_extranjero")).toBe(true);
+    const foreign = preview.toImport.find((r) => r.dni.includes("PASAPORTE"));
+    expect(foreign).toBeTruthy();
+    expect(foreign?.incomplete).toBe(true);
+    expect(foreign?.missingFields.some((f) => f.includes("documento extranjero"))).toBe(true);
+    expect(preview.discarded.some((d) => d.reason === "documento_extranjero")).toBe(false);
+  });
+
+  it("treats document type token in primary as empty and uses fallback", () => {
+    const csv = buildFederationCsv([
+      playerRow({
+        Nombre: "TipoEnPrimaria",
+        "Documento identidad": "Pasaporte",
+        "Número de documento (si no es NIF)  *": VALID_DNI,
+      }),
+    ]);
+
+    const preview = parseFederationImportCsv(csv, { season: SEASON_PORTAL });
+    expect(findByDni(preview.toImport, VALID_DNI)).toBeTruthy();
+  });
+
+  it("prefers valid NIE in fallback over numeric id in primary", () => {
+    const csv = buildFederationCsv([
+      playerRow({
+        Nombre: "Victor",
+        Apellidos: "Morales",
+        "Segundo Apellido": "Guzman",
+        "Documento identidad": "166599329",
+        "Número de documento (si no es NIF)  *": VALID_NIE,
+        "País de Nacimiento": "Venezuela",
+        Nacionalidad: "ve",
+      }),
+    ]);
+
+    const preview = parseFederationImportCsv(csv, { season: SEASON_PORTAL });
+    expect(findByDni(preview.toImport, VALID_NIE)).toBeTruthy();
+    expect(preview.toImport.some((r) => r.dni === "166599329")).toBe(false);
+  });
+
+  it("prefers non-NIF fallback when primary is a non-DNI numeric id", () => {
+    const csv = buildFederationCsv([
+      playerRow({
+        Nombre: "NumericPrimary",
+        "Documento identidad": "166599329",
+        "Número de documento (si no es NIF)  *": "AB1234567",
+        "País de Nacimiento": "Venezuela",
+        Nacionalidad: "ve",
+      }),
+    ]);
+
+    const preview = parseFederationImportCsv(csv, { season: SEASON_PORTAL });
+    expect(findByDni(preview.toImport, "AB1234567")).toBeTruthy();
+    expect(preview.toImport.some((r) => r.dni === "166599329")).toBe(false);
   });
 });
 
+describe("parseFederationImportCsv — remaining-queue chunks", () => {
+  it("keeps importing after first batch when existingDnis grows (no offset)", () => {
+    const DNI_CONTROL = "TRWAGMYFPDXBNJZSQVHLCKE";
+    const makeDni = (n: number) => {
+      const body = String(n).padStart(8, "0");
+      return `${body}${DNI_CONTROL[n % 23]}`;
+    };
+    const chunkSize = 15;
+    const total = 29;
+    const dnis = Array.from({ length: total }, (_, i) => makeDni(1_000_000 + i));
+    const csv = buildFederationCsv(
+      dnis.map((dni, i) =>
+        playerRow({
+          Nombre: `Jugador${i}`,
+          Apellidos: "Test",
+          "Segundo Apellido": "",
+          "Documento identidad": dni,
+        }),
+      ),
+    );
+
+    const first = parseFederationImportCsv(csv, { season: SEASON_PORTAL });
+    expect(first.toImport).toHaveLength(total);
+
+    const slice1 = first.toImport.slice(0, chunkSize);
+    expect(slice1).toHaveLength(chunkSize);
+    const remainingAfter1 = first.toImport.length - slice1.length;
+    expect(remainingAfter1).toBe(total - chunkSize);
+    expect(remainingAfter1 === 0).toBe(false);
+
+    const existingAfter1 = new Set(slice1.map((row) => row.dni));
+    const second = parseFederationImportCsv(csv, {
+      season: SEASON_PORTAL,
+      existingDnis: existingAfter1,
+    });
+    expect(second.toImport).toHaveLength(total - chunkSize);
+
+    // Contrato nuevo: siempre slice desde 0 de pendientes (no offset=15).
+    const slice2 = second.toImport.slice(0, chunkSize);
+    expect(slice2).toHaveLength(total - chunkSize);
+    const remainingAfter2 = second.toImport.length - slice2.length;
+    expect(remainingAfter2).toBe(0);
+    expect(remainingAfter2 === 0).toBe(true);
+
+    // El bug antiguo: offset=15 sobre lista encogida habría cortado el import.
+    const buggyOffset = chunkSize;
+    expect(buggyOffset >= second.toImport.length).toBe(true);
+  });
+});
 describe("parseFederationImportCsv — address pessimism", () => {
   it("does not invent address from Dirección=Española; marks missingFields", () => {
     const csv = buildFederationCsv([

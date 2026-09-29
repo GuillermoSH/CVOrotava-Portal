@@ -573,7 +573,6 @@ export function PlayersFederationImportSheet({
 
     // Fuera de startTransition: si no, React aplaza setProgress hasta acabar el bucle.
     void (async () => {
-      let offset = 0;
       let created = 0;
       let teamsCreated = 0;
       let incomplete = preview.counts.incomplete;
@@ -586,8 +585,8 @@ export function PlayersFederationImportSheet({
         if (ack) {
           formData.append("acknowledge_incomplete", "1");
         }
-        formData.append("offset", String(offset));
         formData.append("limit", String(FEDERATION_IMPORT_CHUNK_SIZE));
+        formData.append("preview_total", String(total));
 
         const result = await importFederationChunkAction(formData);
         if (!result.ok) {
@@ -600,8 +599,10 @@ export function PlayersFederationImportSheet({
         created += result.created;
         teamsCreated += result.teamsCreated;
         incomplete = result.incompleteCount;
-        offset = result.nextOffset;
-        setProgress({ processed: result.processed, total: result.total });
+        setProgress({
+          processed: Math.min(total, total - result.remainingAfter),
+          total,
+        });
         // Ceder un frame para que la barra pinte entre lotes.
         await new Promise<void>((resolve) => {
           requestAnimationFrame(() => resolve());

@@ -61,7 +61,10 @@ export type FederationImportChunkResult =
       total: number;
       teamsCreated: number;
       incompleteCount: number;
+      /** Jugadores aún pendientes tras este lote (re-parse). */
+      remainingAfter: number;
       done: boolean;
+      /** @deprecated Compat; el lote siempre toma desde el inicio de pendientes. */
       nextOffset: number;
     }
   | { ok: false; error: string };
