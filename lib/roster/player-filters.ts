@@ -1,3 +1,4 @@
+import { appRoutes } from "@/lib/constants";
 import {
   TEAM_CATEGORIES,
   TEAM_GENDER_LABELS,
@@ -254,4 +255,120 @@ export function formatFacetChipLabel(key: PlayerFacetKey, value: string, teams: 
     default:
       return value;
   }
+}
+
+function firstParam(
+  params: URLSearchParams | Record<string, string | string[] | undefined>,
+  key: string,
+): string | undefined {
+  if (params instanceof URLSearchParams) {
+    const value = params.get(key);
+    return value?.trim() || undefined;
+  }
+  const raw = params[key];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value?.trim() || undefined;
+}
+
+export function serializePlayerListSearchParams(state: PlayerFilterState): URLSearchParams {
+  const params = new URLSearchParams();
+  const q = state.query.trim();
+  if (q) params.set("q", q);
+
+  for (const facet of state.facets) {
+    if (facet.key === "unassigned") {
+      if (facet.value === "true") params.set("unassigned", "1");
+      continue;
+    }
+    if (facet.value) params.set(facet.key, facet.value);
+  }
+
+  if (state.statusFilter === "all") params.set("status", "all");
+  return params;
+}
+
+export function parsePlayerListSearchParams(
+  params: URLSearchParams | Record<string, string | string[] | undefined>,
+  teams: Team[] = [],
+): PlayerFilterState {
+  const query = firstParam(params, "q") ?? "";
+  const statusRaw = firstParam(params, "status");
+  const statusFilter: "active" | "all" = statusRaw === "all" ? "all" : "active";
+
+  const facets: PlayerFacet[] = [];
+
+  const category = firstParam(params, "category");
+  if (category && (TEAM_CATEGORIES as readonly string[]).includes(category)) {
+    facets.push({
+      key: "category",
+      value: category,
+      label: formatFacetChipLabel("category", category, teams),
+    });
+  }
+
+  const gender = firstParam(params, "gender");
+  if (gender && (TEAM_GENDERS as readonly string[]).includes(gender)) {
+    facets.push({
+      key: "gender",
+      value: gender,
+      label: formatFacetChipLabel("gender", gender, teams),
+    });
+  }
+
+  const unassigned = firstParam(params, "unassigned");
+  if (unassigned === "1" || unassigned === "true") {
+    facets.push({
+      key: "unassigned",
+      value: "true",
+      label: formatFacetChipLabel("unassigned", "true", teams),
+    });
+  } else {
+    const teamId = firstParam(params, "team");
+    if (teamId) {
+      facets.push({
+        key: "team",
+        value: teamId,
+        label: formatFacetChipLabel("team", teamId, teams),
+      });
+    }
+  }
+
+  const checklist = firstParam(params, "checklist");
+  if (checklist && checklist in CHECKLIST_FILTER_LABELS) {
+    facets.push({
+      key: "checklist",
+      value: checklist,
+      label: formatFacetChipLabel("checklist", checklist, teams),
+    });
+  }
+
+  return {
+    query,
+    facets: reconcileTeamFacet(facets, teams),
+    statusFilter,
+  };
+}
+
+export function playersListHref(state?: PlayerFilterState | null): string {
+  if (!state) return appRoutes.players.list;
+  const qs = serializePlayerListSearchParams(state).toString();
+  return qs ? `${appRoutes.players.list}?${qs}` : appRoutes.players.list;
+}
+
+export function playerDetailHref(id: string, state?: PlayerFilterState | null): string {
+  const base = appRoutes.players.detail(id);
+  if (!state) return base;
+  const qs = serializePlayerListSearchParams(state).toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+/** Compare filter query strings ignoring param order. */
+export function playerListSearchEqual(a: string, b: string): boolean {
+  const left = new URLSearchParams(a.startsWith("?") ? a.slice(1) : a);
+  const right = new URLSearchParams(b.startsWith("?") ? b.slice(1) : b);
+  const keys = new Set([...left.keys(), ...right.keys()]);
+  for (const key of keys) {
+    if (left.get(key) !== right.get(key)) return false;
+  }
+  return true;
 }

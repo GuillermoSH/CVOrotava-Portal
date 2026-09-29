@@ -4,7 +4,8 @@ import * as XLSX from "xlsx";
 
 import { CLOTHING_SIZE_LABELS, CLOTHING_SIZES } from "@/lib/clothing/constants";
 import { formatPlayerAddress, normalizeProvince, normalizeStreetType } from "@/lib/roster/address";
-import { contactsForPlayerAge, isLegalAdult } from "@/lib/roster/age";
+import { contactsForPlayerAge, usesSelfContact } from "@/lib/roster/age";
+import { parseFlexibleDate } from "@/lib/roster/dates";
 import {
   formatTeamCategory,
   GUARDIAN_RELATIONSHIP_LABELS,
@@ -194,17 +195,7 @@ function cellText(value: unknown): string {
 }
 
 function parseDate(raw: string): string | null | "invalid" {
-  const value = raw.trim();
-  if (!value) return null;
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  const dmy = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(value);
-  if (dmy) {
-    const day = dmy[1]!.padStart(2, "0");
-    const month = dmy[2]!.padStart(2, "0");
-    return `${dmy[3]}-${month}-${day}`;
-  }
-  return "invalid";
+  return parseFlexibleDate(raw);
 }
 
 function parseYesNo(raw: string): boolean | "invalid" {
@@ -462,7 +453,10 @@ export function parsePlayerImportFile(
       seenDni.add(key);
     }
 
-    const adult = isLegalAdult(birthRaw);
+    const selfContact = usesSelfContact({
+      birthDate: birthRaw,
+      teamCategory: team?.category,
+    });
     const family = [
       {
         full_name: get("Contacto nombre"),
@@ -484,7 +478,8 @@ export function parsePlayerImportFile(
       birthDate: birthRaw,
       firstName,
       lastName,
-      contacts: adult
+      teamCategory: team?.category,
+      contacts: selfContact
         ? [
             {
               full_name: `${firstName} ${lastName}`.trim(),

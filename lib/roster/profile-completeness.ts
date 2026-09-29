@@ -1,5 +1,5 @@
 import { hasStructuredAddress } from "@/lib/roster/address";
-import { isLegalAdult } from "@/lib/roster/age";
+import { usesSelfContact } from "@/lib/roster/age";
 import { isNieDocument, isValidDniOrNie } from "@/lib/roster/document";
 import { isValidEmail, isValidPhone } from "@/lib/roster/validators";
 
@@ -29,6 +29,8 @@ export type PlayerProfileCompletenessInput = {
   primary_phone?: string | null;
   /** Lista admin: email del contacto primario. */
   primary_email?: string | null;
+  /** Equipo (categoría) para excepción Júnior. */
+  team?: { category?: string | null } | null;
 };
 
 export type PlayerProfileCompleteness = {
@@ -88,7 +90,10 @@ export function getPlayerProfileCompleteness(
     missingFields.push("Domicilio");
   }
 
-  const adult = isLegalAdult(player.birth_date);
+  const adult = usesSelfContact({
+    birthDate: player.birth_date,
+    teamCategory: player.team?.category,
+  });
   const contacts = player.contacts ?? [];
   const hasContactDetails = contacts.length > 0;
 

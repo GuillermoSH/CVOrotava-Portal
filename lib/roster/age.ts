@@ -23,6 +23,18 @@ export function isLegalAdult(
   return age >= LEGAL_AGE_YEARS;
 }
 
+/**
+ * Self (player) contact vs family: adults always; Júnior category even if still under 18
+ * (federation age band / late birthday).
+ */
+export function usesSelfContact(input: {
+  birthDate: string | null | undefined;
+  teamCategory?: string | null;
+}): boolean {
+  if (input.teamCategory === "junior") return true;
+  return isLegalAdult(input.birthDate);
+}
+
 export function contactsForPlayerAge<
   T extends { full_name: string; relationship: string; phone?: string; email?: string; is_primary?: boolean },
 >(input: {
@@ -30,9 +42,10 @@ export function contactsForPlayerAge<
   firstName: string;
   lastName: string;
   contacts: T[];
+  teamCategory?: string | null;
 }): T[] {
   const fullName = `${input.firstName} ${input.lastName}`.trim();
-  if (isLegalAdult(input.birthDate)) {
+  if (usesSelfContact({ birthDate: input.birthDate, teamCategory: input.teamCategory })) {
     const source =
       input.contacts.find((contact) => contact.relationship === "jugador") ?? input.contacts[0];
     if (!source) return [];

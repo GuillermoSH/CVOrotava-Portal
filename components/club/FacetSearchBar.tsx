@@ -191,6 +191,13 @@ export function FacetSearchBar({
               if (!e.target.value.trim()) setActiveFieldKey(null);
             }}
             onFocus={() => setOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              setOpen(false);
+              setActiveFieldKey(null);
+              inputRef.current?.blur();
+            }}
             placeholder={placeholder}
             aria-label="Buscar o filtrar jugadores"
             aria-expanded={open}

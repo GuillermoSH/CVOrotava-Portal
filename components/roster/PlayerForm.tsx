@@ -37,7 +37,7 @@ import {
   setPlayerActiveAction,
   updatePlayerAction,
 } from "@/lib/actions/roster/players";
-import { contactsForPlayerAge, isLegalAdult } from "@/lib/roster/age";
+import { contactsForPlayerAge, isLegalAdult, usesSelfContact } from "@/lib/roster/age";
 import {
   formatPlayerAddress,
   hasStructuredAddress,
@@ -77,6 +77,18 @@ const stickyActionClass = "min-h-9 h-9 px-3 text-sm";
 function todayIsoDate() {
   const today = new Date();
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+}
+
+function selfContactFrom(
+  contacts: PlayerContact[],
+  birthDate: string | null,
+  teamCategory?: string | null,
+) {
+  const self = contacts.find((contact) => contact.relationship === "jugador");
+  const source =
+    self ??
+    (usesSelfContact({ birthDate, teamCategory }) ? contacts[0] : undefined);
+  return { phone: source?.phone ?? "", email: source?.email ?? "" };
 }
 
 function toFieldError(errors: Record<string, string>, name: string): FieldError | undefined {
@@ -173,12 +185,6 @@ function buildFormSnapshot(input: PlayerFormSnapshot): PlayerFormSnapshot {
       email: c.email.trim(),
     })),
   };
-}
-
-function selfContactFrom(contacts: PlayerContact[], birthDate: string | null) {
-  const self = contacts.find((contact) => contact.relationship === "jugador");
-  const source = self ?? (isLegalAdult(birthDate) ? contacts[0] : undefined);
-  return { phone: source?.phone ?? "", email: source?.email ?? "" };
 }
 
 function SectionHeading({
@@ -293,12 +299,15 @@ export function PlayerForm({
   player,
   canWrite,
   canDelete = false,
+  listHref = appRoutes.players.list,
 }: {
   teams: Team[];
   player?: PlayerWithDetails;
   canWrite: boolean;
   /** Hard delete — solo admin. */
   canDelete?: boolean;
+  /** Listado con filtros al volver. */
+  listHref?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -336,11 +345,23 @@ export function PlayerForm({
   );
   const [medicalNotes, setMedicalNotes] = useState(player?.medical_notes ?? "");
   const [contacts, setContacts] = useState<ContactDraft[]>(() => toFamilyDrafts(player?.contacts ?? []));
+  const initialTeamCategory =
+    teams.find((t) => t.id === (player?.team_id ?? teams[0]?.id ?? ""))?.category ?? null;
   const [selfPhone, setSelfPhone] = useState(
-    () => selfContactFrom(player?.contacts ?? [], player?.birth_date ?? null).phone,
+    () =>
+      selfContactFrom(
+        player?.contacts ?? [],
+        player?.birth_date ?? null,
+        player?.team?.category ?? initialTeamCategory,
+      ).phone,
   );
   const [selfEmail, setSelfEmail] = useState(
-    () => selfContactFrom(player?.contacts ?? [], player?.birth_date ?? null).email,
+    () =>
+      selfContactFrom(
+        player?.contacts ?? [],
+        player?.birth_date ?? null,
+        player?.team?.category ?? initialTeamCategory,
+      ).email,
   );
   const [altaExpanded, setAltaExpanded] = useState(() => {
     if (!player) return true;
@@ -417,6 +438,14 @@ export function PlayerForm({
   const isDirty = !player || snapshotKey(currentSnapshot) !== savedSnapshotKey;
 
   const isAdult = useMemo(() => isLegalAdult(birthDate || null), [birthDate]);
+  const teamCategory = useMemo(
+    () => teams.find((t) => t.id === teamId)?.category ?? null,
+    [teams, teamId],
+  );
+  const selfContact = useMemo(
+    () => usesSelfContact({ birthDate: birthDate || null, teamCategory }),
+    [birthDate, teamCategory],
+  );
   const isNie = useMemo(() => isNieDocument(dni), [dni]);
   const showNieExtras =
     isNie || Boolean(birthCountry.trim()) || Boolean(nationality.trim() && !isSpanishNationality(nationality));
@@ -445,7 +474,7 @@ export function PlayerForm({
     [papersReceived, docsDelivered, photoTaken, licenseCompleted, docsDeliveredAt],
   );
   const profileCompleteness = useMemo(() => {
-    const draftContacts = isAdult
+    const draftContacts = selfContact
       ? [
           {
             full_name: `${firstName} ${lastName}`.trim(),
@@ -467,6 +496,7 @@ export function PlayerForm({
       dni,
       birth_date: birthDate || null,
       birth_country: birthCountry,
+      team: teamCategory ? { category: teamCategory } : null,
       address_street_type: streetType,
       address_street: street,
       address_number: streetNumber,
@@ -476,7 +506,7 @@ export function PlayerForm({
       contacts: draftContacts,
     });
   }, [
-    isAdult,
+    selfContact,
     firstName,
     lastName,
     selfPhone,
@@ -485,6 +515,7 @@ export function PlayerForm({
     dni,
     birthDate,
     birthCountry,
+    teamCategory,
     streetType,
     street,
     streetNumber,
@@ -544,18 +575,12 @@ export function PlayerForm({
     if (patch.email != null) clearError(`contact-email-${index}`);
   }
 
-  function handleBirthDateChange(value: string) {
-    const wasAdult = isLegalAdult(birthDate || null);
-    const nextAdult = isLegalAdult(value || null);
-    setBirthDate(value);
-    clearError("birth_date");
-
-    if (nextAdult && !wasAdult) {
+  function applySelfContactMode(nextSelf: boolean, prevSelf: boolean) {
+    if (nextSelf && !prevSelf) {
       setSelfPhone((prev) => prev.trim() || contacts[0]?.phone || "");
       setSelfEmail((prev) => prev.trim() || contacts[0]?.email || "");
     }
-
-    if (!nextAdult && wasAdult) {
+    if (!nextSelf && prevSelf) {
       setContacts((prev) => {
         const list = prev.length ? prev : [emptyContact()];
         const first = list[0] ?? emptyContact();
@@ -571,6 +596,23 @@ export function PlayerForm({
     }
   }
 
+  function handleBirthDateChange(value: string) {
+    const prevSelf = usesSelfContact({ birthDate: birthDate || null, teamCategory });
+    const nextSelf = usesSelfContact({ birthDate: value || null, teamCategory });
+    setBirthDate(value);
+    clearError("birth_date");
+    applySelfContactMode(nextSelf, prevSelf);
+  }
+
+  function handleTeamChange(nextTeamId: string) {
+    const prevCategory = teamCategory;
+    const nextCategory = teams.find((t) => t.id === nextTeamId)?.category ?? null;
+    const prevSelf = usesSelfContact({ birthDate: birthDate || null, teamCategory: prevCategory });
+    const nextSelf = usesSelfContact({ birthDate: birthDate || null, teamCategory: nextCategory });
+    setTeamId(nextTeamId);
+    applySelfContactMode(nextSelf, prevSelf);
+  }
+
   function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     if (!canWrite) return;
@@ -582,7 +624,7 @@ export function PlayerForm({
       phone: string;
       email: string;
       is_primary: boolean;
-    }[] = isAdult
+    }[] = selfContact
       ? [
           {
             full_name: `${firstName} ${lastName}`.trim(),
@@ -629,6 +671,7 @@ export function PlayerForm({
         birthDate: birthDate || null,
         firstName,
         lastName,
+        teamCategory,
         contacts: draftContacts,
       }),
       ...(player ? { id: player.id } : {}),
@@ -636,7 +679,7 @@ export function PlayerForm({
 
     const parsed = player ? updatePlayerSchema.safeParse(payload) : createPlayerSchema.safeParse(payload);
     if (!parsed.success) {
-      const errors = mapPlayerSchemaIssues(parsed.error.issues, isAdult);
+      const errors = mapPlayerSchemaIssues(parsed.error.issues, selfContact);
       setFieldErrors(errors);
       const count = Object.keys(errors).length;
       appToast.error(count === 1 ? "Revisa el campo marcado" : `Revisa los ${count} campos marcados`);
@@ -658,7 +701,7 @@ export function PlayerForm({
         setSavedSnapshotKey(snapshotKey(currentSnapshot));
         router.refresh();
       } else {
-        router.push(appRoutes.players.list);
+        router.push(listHref);
         router.refresh();
       }
     });
@@ -689,7 +732,7 @@ export function PlayerForm({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Link href={appRoutes.players.list} className={cn("btn-secondary", stickyActionClass)}>
+          <Link href={listHref} className={cn("btn-secondary", stickyActionClass)}>
             Volver
           </Link>
           {canWrite && player ? <PlayerStatusActions player={player} /> : null}
@@ -777,8 +820,10 @@ export function PlayerForm({
                       {isAdult ? "Mayor de edad" : "Menor"}
                     </Badge>
                     <span>
-                      {isAdult
-                        ? "El teléfono y el email son los del jugador."
+                      {selfContact
+                        ? teamCategory === "junior" && !isAdult
+                          ? "En Júnior el teléfono y el email son los del jugador."
+                          : "El teléfono y el email son los del jugador."
                         : "El contacto es de madre, padre o tutor."}
                     </span>
                   </>
@@ -985,7 +1030,7 @@ export function PlayerForm({
                   name="team_id"
                   value={teamId}
                   disabled={readOnly}
-                  onChange={(e) => setTeamId(e.target.value)}
+                  onChange={(e) => handleTeamChange(e.target.value)}
                   options={teamOptions}
                   placeholder="Selecciona equipo…"
                 />
@@ -1024,7 +1069,7 @@ export function PlayerForm({
         </section>
 
         <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
-          {isAdult ? (
+          {selfContact ? (
             <>
               <SectionHeading icon={Phone} title="Contacto del jugador" />
               <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
@@ -1328,7 +1373,7 @@ export function PlayerForm({
         open={teamSheetOpen}
         onClose={() => setTeamSheetOpen(false)}
         season={season}
-        onCreated={setTeamId}
+        onCreated={handleTeamChange}
       />
 
       {canDelete && player ? (
@@ -1351,7 +1396,7 @@ export function PlayerForm({
               }
               appToast.success("Jugador eliminado");
               setDeleteOpen(false);
-              router.push(appRoutes.players.list);
+              router.push(listHref);
               router.refresh();
             });
           }}
@@ -1364,7 +1409,7 @@ export function PlayerForm({
           {
             type: "link",
             label: "Volver",
-            href: appRoutes.players.list,
+            href: listHref,
             variant: "secondary",
           },
           ...(canDelete && player

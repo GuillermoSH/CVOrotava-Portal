@@ -1,4 +1,4 @@
-import { contactsForPlayerAge, isLegalAdult } from "@/lib/roster/age";
+import { contactsForPlayerAge, usesSelfContact } from "@/lib/roster/age";
 import {
   TEAM_CATEGORIES,
   TEAM_CATEGORY_LABELS,
@@ -531,6 +531,7 @@ function buildContacts(input: {
   mobile: string;
   email: string;
   tutorName: string;
+  teamCategory?: string | null;
 }): { contacts: PlayerWriteInput["contacts"]; missingFields: string[] } {
   const missingFields: string[] = [];
   const phone = input.mobile && isValidPhone(input.mobile) ? input.mobile.replace(/[\s().-]/g, "") : "";
@@ -538,15 +539,19 @@ function buildContacts(input: {
   if (input.mobile && !phone) missingFields.push("Teléfono");
   if (input.email && !email) missingFields.push("Email");
 
-  const adult = isLegalAdult(input.birthDate);
+  const selfContact = usesSelfContact({
+    birthDate: input.birthDate,
+    teamCategory: input.teamCategory,
+  });
 
-  if (adult) {
+  if (selfContact) {
     if (!phone) missingFields.push("Teléfono");
     if (!email) missingFields.push("Email");
     const contacts = contactsForPlayerAge({
       birthDate: input.birthDate,
       firstName: input.firstName,
       lastName: input.lastName,
+      teamCategory: input.teamCategory,
       contacts: [
         {
           full_name: `${input.firstName} ${input.lastName}`.trim(),
@@ -574,6 +579,7 @@ function buildContacts(input: {
     birthDate: input.birthDate,
     firstName: input.firstName,
     lastName: input.lastName,
+    teamCategory: input.teamCategory,
     contacts: [
       {
         full_name: tutor,
@@ -795,6 +801,7 @@ function parseFederationImportCsvWithSeason(
       mobile: get(cells, "Telf. móvil"),
       email: get(cells, "Correo electrónico"),
       tutorName: get(cells, "Nombre y Apellidos Padre/Madre/Tutor Legal"),
+      teamCategory: teamKey?.category,
     });
     missingFields.push(...contactMissing);
 

@@ -9,21 +9,25 @@ import {
   enrichPlayerClothing,
 } from "@/lib/clothing/snapshots";
 import { requireRosterReadAccess } from "@/lib/roster/auth";
+import { parsePlayerListSearchParams, playersListHref } from "@/lib/roster/player-filters";
 import { getPlayerDetailsSnapshot } from "@/lib/roster/snapshots";
 import { formatPlayerName } from "@/lib/roster/constants";
 
 export default async function PlayerDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const role = await requireRosterReadAccess();
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const snapshot = await getPlayerDetailsSnapshot(id);
   if (!snapshot) notFound();
 
   const canWrite = role === "admin" || role === "manager";
   const canDelete = role === "admin";
+  const listHref = playersListHref(parsePlayerListSearchParams(sp, snapshot.teams));
   const [clothing, lots, storageTree] = await Promise.all([
     enrichPlayerClothing(id),
     enrichInventory(),
@@ -34,6 +38,7 @@ export default async function PlayerDetailPage({
     <DashboardPage
       title={formatPlayerName(snapshot.player)}
       subtitle={snapshot.player.team?.name ?? "Sin equipo"}
+      back={{ href: listHref, label: "Jugadores" }}
       actions={null}
     >
       <div className="flex flex-col gap-8">
@@ -42,6 +47,7 @@ export default async function PlayerDetailPage({
           player={snapshot.player}
           canWrite={canWrite}
           canDelete={canDelete}
+          listHref={listHref}
         />
         <PlayerClothingSection
           possession={clothing.possession}

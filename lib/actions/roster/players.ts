@@ -74,18 +74,21 @@ export async function createPlayerAction(input: unknown): Promise<ActionResult> 
     }
 
     const db = await getRosterDb();
+    let teamCategory: string | null = null;
     if (parsed.data.team_id) {
       const team = await getTeamById(db, parsed.data.team_id);
       if (!team) return { ok: false, error: "Equipo no encontrado" };
       if (team.season !== parsed.data.season) {
         return { ok: false, error: "El equipo no es de esta temporada" };
       }
+      teamCategory = team.category;
     }
 
     const contacts = contactsForPlayerAge({
       birthDate: parsed.data.birth_date,
       firstName: parsed.data.first_name,
       lastName: parsed.data.last_name,
+      teamCategory,
       contacts: parsed.data.contacts,
     });
 
@@ -112,15 +115,18 @@ export async function updatePlayerAction(input: unknown): Promise<ActionResult> 
     const existing = await getPlayerById(db, parsed.data.id);
     if (!existing) return { ok: false, error: "Jugador no encontrado" };
 
+    let teamCategory: string | null = null;
     if (parsed.data.team_id) {
       const team = await getTeamById(db, parsed.data.team_id);
       if (!team) return { ok: false, error: "Equipo no encontrado" };
+      teamCategory = team.category;
     }
 
     const contacts = contactsForPlayerAge({
       birthDate: parsed.data.birth_date,
       firstName: parsed.data.first_name,
       lastName: parsed.data.last_name,
+      teamCategory,
       contacts: parsed.data.contacts,
     });
 

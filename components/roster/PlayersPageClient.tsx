@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 
@@ -43,13 +43,17 @@ import {
   buildTeamOptions,
   buildUnassignedOption,
   formatFacetChipLabel,
+  playerDetailHref,
+  playerListSearchEqual,
   reconcileTeamFacet,
   removePlayerFacet,
+  serializePlayerListSearchParams,
   sortPlayersByFirstName,
   teamsMatchingFacets,
   upsertPlayerFacet,
   type PlayerFacet,
   type PlayerFacetKey,
+  type PlayerFilterState,
   type PlayerSortDir,
 } from "@/lib/roster/player-filters";
 import { isPlayerProfileIncomplete } from "@/lib/roster/profile-completeness";
@@ -257,6 +261,7 @@ export function PlayersPageClient({
   canWrite,
   canDelete = false,
   subtitle,
+  initialFilters,
 }: {
   players: PlayerListItem[];
   teams: Team[];
@@ -264,12 +269,16 @@ export function PlayersPageClient({
   /** Hard delete — solo admin. */
   canDelete?: boolean;
   subtitle: string;
+  initialFilters?: PlayerFilterState;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [pending, startTransition] = useTransition();
-  const [query, setQuery] = useState("");
-  const [facets, setFacets] = useState<PlayerFacet[]>([]);
-  const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
+  const [query, setQuery] = useState(initialFilters?.query ?? "");
+  const [facets, setFacets] = useState<PlayerFacet[]>(() => initialFilters?.facets ?? []);
+  const [statusFilter, setStatusFilter] = useState<"active" | "all">(
+    initialFilters?.statusFilter ?? "active",
+  );
   const [importOpen, setImportOpen] = useState(false);
   const [federationImportOpen, setFederationImportOpen] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
@@ -295,6 +304,14 @@ export function PlayersPageClient({
     () => ({ query, facets, statusFilter }),
     [query, facets, statusFilter],
   );
+
+  useEffect(() => {
+    const next = serializePlayerListSearchParams(filterState).toString();
+    const current =
+      typeof window !== "undefined" ? window.location.search.replace(/^\?/, "") : "";
+    if (playerListSearchEqual(next, current)) return;
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  }, [filterState, pathname, router]);
 
   const visible = useMemo(
     () => sortPlayersByFirstName(applyPlayerFacets(players, filterState), sortDir),
@@ -878,7 +895,7 @@ export function PlayersPageClient({
                       ) : null}
                       <td>
                         <Link
-                          href={appRoutes.players.detail(player.id)}
+                          href={playerDetailHref(player.id, filterState)}
                           className="club-table__primary min-w-0 hover:underline"
                         >
                           {formatPlayerName(player)}
@@ -936,7 +953,7 @@ export function PlayersPageClient({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <Link
-                          href={appRoutes.players.detail(player.id)}
+                          href={playerDetailHref(player.id, filterState)}
                           className="min-w-0 truncate text-sm font-semibold leading-snug tracking-tight text-foreground hover:underline"
                         >
                           {formatPlayerName(player)}

@@ -393,4 +393,28 @@ describe("category + Sexo → base team name", () => {
       expect(row?.teamName).toBe(expected);
     }
   });
+
+  it("uses player contact for junior category even if under 18", () => {
+    const csv = buildFederationCsv([
+      playerRow({
+        Nombre: "Junior",
+        Apellidos: "Tarde",
+        "Fecha nacimiento": "2009-11-01",
+        Categoría: "Junior Voleibol",
+        Sexo: "Masculino",
+        "Documento identidad": VALID_DNI,
+        "Telf. móvil": "612345678",
+        "Correo electrónico": "junior@example.com",
+        "Nombre y Apellidos Padre/Madre/Tutor Legal": "Padre Ejemplo",
+      }),
+    ]);
+    const preview = parseFederationImportCsv(csv, { season: SEASON_PORTAL });
+    const row = findByDni(preview.toImport, VALID_DNI);
+    expect(row?.teamKey?.category).toBe("junior");
+    const contacts = row?.input.contacts ?? [];
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0]?.relationship).toBe("jugador");
+    expect(contacts[0]?.phone).toBe("612345678");
+    expect(contacts[0]?.email).toBe("junior@example.com");
+  });
 });
