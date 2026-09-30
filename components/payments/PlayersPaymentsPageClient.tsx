@@ -7,6 +7,8 @@ import { useMemo, useState, useTransition } from "react";
 import { Badge } from "@/components/club/Badge";
 import { FormDate, FormInput, FormSelect, FormTextarea } from "@/components/club/forms";
 import { Input } from "@/components/club/Input";
+import { Label } from "@/components/club/Label";
+import { SegmentedControl } from "@/components/club/SegmentedControl";
 import {
   Table,
   TableBody,
@@ -314,6 +316,7 @@ export function PlayersPaymentsPageClient({
               value={form.amount}
               onChange={(e) => setForm((f) => (f ? { ...f, amount: e.target.value } : f))}
               placeholder="45"
+              disabled={form.selectedConceptId !== OTHER_CONCEPT_VALUE}
             />
             <FormDate
               label="Fecha de cobro"
@@ -322,18 +325,16 @@ export function PlayersPaymentsPageClient({
               value={form.paid_date}
               onChange={(e) => setForm((f) => (f ? { ...f, paid_date: e.target.value } : f))}
             />
-            <FormSelect
-              label="Método"
-              name="payment-method"
-              id="payment-method"
-              value={form.method}
-              onChange={(e) =>
-                setForm((f) =>
-                  f ? { ...f, method: e.target.value as FormState["method"] } : f,
-                )
-              }
-              options={PAYMENT_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }))}
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-sm font-medium text-foreground">Método</Label>
+              <SegmentedControl
+                aria-label="Método de pago"
+                fullWidth
+                value={form.method}
+                options={PAYMENT_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }))}
+                onChange={(value) => setForm((f) => (f ? { ...f, method: value } : f))}
+              />
+            </div>
             <FormTextarea
               label="Notas"
               name="payment-notes"
