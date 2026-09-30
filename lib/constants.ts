@@ -53,6 +53,9 @@ export const appRoutes = {
     detail: (id: string) => `/admin/jugadores/${id}`,
     whatsapp: "/admin/jugadores/whatsapp",
   },
+  payments: {
+    list: "/admin/pagos",
+  },
 } as const;
 
 /** Roles de Portal — deben coincidir con el CHECK de user_app_roles.role. */

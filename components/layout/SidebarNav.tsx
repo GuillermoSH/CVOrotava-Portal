@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Home, Shirt, Users } from "lucide-react";
+import { Home, Shirt, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 
 import { useDashboardNavigation } from "@/components/layout/DashboardNavigation";
@@ -24,13 +24,15 @@ export function SidebarNav({
     pathname === appRoutes.clothing.hub || pathname.startsWith(`${appRoutes.clothing.hub}/`);
   const playersActive =
     pathname === appRoutes.players.list || pathname.startsWith(`${appRoutes.players.list}/`);
+  const paymentsActive =
+    pathname === appRoutes.payments.list || pathname.startsWith(`${appRoutes.payments.list}/`);
 
   const items = [
     {
       href: homeHref,
       label: "Inicio",
       icon: Home,
-      active: homeActive && !clothingActive && !playersActive,
+      active: homeActive && !clothingActive && !playersActive && !paymentsActive,
     },
     ...(showAdminNav
       ? [
@@ -39,6 +41,12 @@ export function SidebarNav({
             label: "Jugadores",
             icon: Users,
             active: playersActive,
+          },
+          {
+            href: appRoutes.payments.list,
+            label: "Pagos",
+            icon: Wallet,
+            active: paymentsActive,
           },
           {
             href: appRoutes.clothing.hub,
