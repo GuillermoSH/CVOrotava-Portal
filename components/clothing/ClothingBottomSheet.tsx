@@ -17,6 +17,7 @@ export function ClothingBottomSheet({
   children,
   primaryAction,
   secondaryAction,
+  height = "default",
 }: {
   open: boolean;
   onClose: () => void;
@@ -35,6 +36,8 @@ export function ClothingBottomSheet({
     onClick: () => void;
     disabled?: boolean;
   };
+  /** `full` = viewport completo en móvil (listas largas: WhatsApp, etc.). */
+  height?: "default" | "full";
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragStartY = useRef(0);
@@ -142,6 +145,7 @@ export function ClothingBottomSheet({
         ref={sheetRef}
         className={cn(
           "clothing-bottom-sheet",
+          height === "full" && "clothing-bottom-sheet--full",
           isDragging && "clothing-bottom-sheet--dragging",
         )}
         style={sheetStyle}
@@ -159,16 +163,31 @@ export function ClothingBottomSheet({
           <div className="clothing-sheet-handle" aria-hidden />
         </div>
 
-        <div className="clothing-sheet-body">
-          <h2 id="clothing-sheet-title" className="text-lg font-semibold text-foreground">
-            {title}
-          </h2>
-          {description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        <div
+          className={cn(
+            "clothing-sheet-body",
+            height === "full" && "clothing-sheet-body--fill",
+          )}
+        >
+          <div className="shrink-0">
+            <h2 id="clothing-sheet-title" className="text-lg font-semibold text-foreground">
+              {title}
+            </h2>
+            {description ? (
+              <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            ) : null}
+          </div>
+          {children ? (
+            <div
+              className={cn(
+                height === "full" ? "mt-4 flex min-h-0 flex-1 flex-col" : "mt-4",
+              )}
+            >
+              {children}
+            </div>
           ) : null}
-          {children ? <div className="mt-4">{children}</div> : null}
           {(primaryAction || secondaryAction) && (
-            <div className="clothing-sheet-actions mt-6 flex flex-col gap-2">
+            <div className="clothing-sheet-actions mt-6 flex shrink-0 flex-col gap-2">
               {primaryAction ? (
                 <Button
                   type="button"

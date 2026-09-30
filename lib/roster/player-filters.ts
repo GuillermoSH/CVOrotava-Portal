@@ -3,6 +3,7 @@ import {
   TEAM_CATEGORIES,
   TEAM_GENDER_LABELS,
   TEAM_GENDERS,
+  effectivePlayerGender,
   formatPlayerName,
   formatTeamCategory,
   type TeamGender,
@@ -10,6 +11,13 @@ import {
 import { getPlayerOnboardingStatus } from "@/lib/roster/onboarding";
 import { isPlayerProfileIncomplete } from "@/lib/roster/profile-completeness";
 import type { PlayerListItem, Team } from "@/lib/types/db";
+
+function teamMatchesGenderFacet(team: Team, gender: string): boolean {
+  if (team.gender === gender) return true;
+  // En equipos mixtos hay jugadores de ambos sexos.
+  if ((gender === "male" || gender === "female") && team.gender === "mixed") return true;
+  return false;
+}
 
 export type ChecklistFilter =
   | "complete"
@@ -111,7 +119,7 @@ export function applyPlayerFacets(
   return players.filter((player) => {
     if (statusFilter === "active" && !player.is_active && !q) return false;
     if (category && player.team?.category !== category) return false;
-    if (gender && player.team?.gender !== gender) return false;
+    if (gender && effectivePlayerGender(player) !== gender) return false;
     if (unassigned && player.team_id !== null) return false;
     if (teamId && player.team_id !== teamId) return false;
     if (checklist && !matchesChecklistFilter(player, checklist)) return false;
@@ -178,7 +186,7 @@ export function reconcileTeamFacet(facets: PlayerFacet[], teams: Team[]): Player
   const category = facetValue(facets, "category");
   const gender = facetValue(facets, "gender");
   if (category && team.category !== category) return removePlayerFacet(facets, "team");
-  if (gender && team.gender !== gender) return removePlayerFacet(facets, "team");
+  if (gender && !teamMatchesGenderFacet(team, gender)) return removePlayerFacet(facets, "team");
   return facets;
 }
 
@@ -187,7 +195,7 @@ export function teamsMatchingFacets(teams: Team[], facets: PlayerFacet[]): Team[
   const gender = facetValue(facets, "gender");
   return teams.filter((team) => {
     if (category && team.category !== category) return false;
-    if (gender && team.gender !== gender) return false;
+    if (gender && !teamMatchesGenderFacet(team, gender)) return false;
     return true;
   });
 }
@@ -210,7 +218,7 @@ export function buildGenderOptions(pool: PlayerListItem[]): FacetOption[] {
   return TEAM_GENDERS.map((gender) => ({
     value: gender,
     label: TEAM_GENDER_LABELS[gender as TeamGender],
-    count: countInPool(pool, (p) => p.team?.gender === gender),
+    count: countInPool(pool, (p) => effectivePlayerGender(p) === gender),
   }));
 }
 

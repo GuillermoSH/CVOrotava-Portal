@@ -20,7 +20,7 @@ import type {
 } from "@/lib/types/db";
 
 const PLAYER_SELECT =
-  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, photo_path, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, pays_extended_monthly, created_at, updated_at, team:teams(id, name, category, gender, season)";
+  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, photo_path, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, pays_extended_monthly, created_at, updated_at, team:teams(id, name, category, gender, season)";
 
 export type PlayerContactInput = {
   full_name: string;
@@ -36,6 +36,7 @@ export type PlayerWriteInput = {
   birth_date?: string | null;
   dni?: string | null;
   team_id?: string | null;
+  gender?: "male" | "female" | null;
   season: string;
   license_completed?: boolean;
   registration_papers_received?: boolean;
@@ -229,6 +230,7 @@ function playerInsert(input: PlayerWriteInput) {
     birth_date: input.birth_date || null,
     dni: input.dni?.trim() || null,
     team_id: input.team_id || null,
+    gender: input.gender === "male" || input.gender === "female" ? input.gender : null,
     season: input.season,
     license_completed: input.license_completed ?? false,
     registration_papers_received: input.registration_papers_received ?? false,
@@ -317,6 +319,26 @@ export async function bulkSetPlayersActive(
     const { error } = await db
       .from("players")
       .update({ is_active: isActive })
+      .in("id", chunk);
+    if (error) throw new Error(dbErrorMessage(error));
+  }
+
+  return uniqueIds.length;
+}
+
+export async function bulkSetPlayersTeam(
+  db: RosterDb,
+  playerIds: string[],
+  teamId: string | null,
+): Promise<number> {
+  const uniqueIds = [...new Set(playerIds)];
+  if (uniqueIds.length === 0) return 0;
+
+  for (let i = 0; i < uniqueIds.length; i += ACTIVE_CHUNK) {
+    const chunk = uniqueIds.slice(i, i + ACTIVE_CHUNK);
+    const { error } = await db
+      .from("players")
+      .update({ team_id: teamId })
       .in("id", chunk);
     if (error) throw new Error(dbErrorMessage(error));
   }

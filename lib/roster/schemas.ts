@@ -1,7 +1,13 @@
 import { z } from "zod";
 
 import { CLOTHING_SIZES } from "@/lib/clothing/constants";
-import { CONTACT_RELATIONSHIPS, STREET_TYPES, TEAM_CATEGORIES, TEAM_GENDERS } from "@/lib/roster/constants";
+import {
+  CONTACT_RELATIONSHIPS,
+  PLAYER_GENDERS,
+  STREET_TYPES,
+  TEAM_CATEGORIES,
+  TEAM_GENDERS,
+} from "@/lib/roster/constants";
 import {
   documentValidationMessage,
   isAcceptablePlayerDocument,
@@ -53,6 +59,10 @@ export const upsertPlayerSchema = z
       }),
     team_id: z
       .union([z.string().uuid(), z.literal(""), z.null()])
+      .optional()
+      .transform((value) => (value ? value : null)),
+    gender: z
+      .union([z.enum(PLAYER_GENDERS), z.literal(""), z.null()])
       .optional()
       .transform((value) => (value ? value : null)),
     season: z.string().min(4).max(20),
@@ -125,12 +135,22 @@ export const updatePlayerSchema = upsertPlayerSchema.and(
   }),
 );
 
-export const createTeamSchema = z.object({
-  name: z.string().trim().min(1, "Indica el nombre del equipo").max(80),
-  category: z.enum(TEAM_CATEGORIES),
-  gender: z.enum(TEAM_GENDERS),
-  season: z.string().min(4).max(20),
-});
+export const createTeamSchema = z
+  .object({
+    name: z.string().trim().min(1, "Indica el nombre del equipo").max(80),
+    category: z.enum(TEAM_CATEGORIES),
+    gender: z.enum(TEAM_GENDERS),
+    season: z.string().min(4).max(20),
+  })
+  .superRefine((value, ctx) => {
+    if (value.gender === "mixed" && value.category !== "aficionados") {
+      ctx.addIssue({
+        code: "custom",
+        message: "Mixto solo está disponible en aficionados",
+        path: ["gender"],
+      });
+    }
+  });
 
 export const setPlayerActiveSchema = z.object({
   id: z.string().uuid(),
@@ -160,6 +180,11 @@ export const bulkUpdatePlayerChecklistSchema = z.object({
 export const bulkSetPlayersActiveSchema = z.object({
   player_ids: z.array(z.string().uuid()).min(1, "Selecciona al menos un jugador").max(2000),
   is_active: z.boolean(),
+});
+
+export const bulkSetPlayersTeamSchema = z.object({
+  player_ids: z.array(z.string().uuid()).min(1, "Selecciona al menos un jugador").max(2000),
+  team_id: z.string().uuid().nullable(),
 });
 
 export const deletePlayersSchema = z.object({

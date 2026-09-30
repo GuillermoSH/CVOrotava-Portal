@@ -7,6 +7,7 @@ import { requireRosterAdminAccess, requireRosterWriteAccess } from "@/lib/roster
 import { getRosterDb } from "@/lib/roster/repository/client";
 import {
   bulkSetPlayersActive,
+  bulkSetPlayersTeam,
   bulkUpdatePlayerChecklist,
   createPlayer,
   deletePlayers,
@@ -18,6 +19,7 @@ import {
 import { createTeam, getTeamById } from "@/lib/roster/repository/teams";
 import {
   bulkSetPlayersActiveSchema,
+  bulkSetPlayersTeamSchema,
   bulkUpdatePlayerChecklistSchema,
   createPlayerSchema,
   createTeamSchema,
@@ -55,7 +57,7 @@ function friendlyDbError(message: string): string {
     return "Falta aplicar la migración de ficha de jugador en Supabase.";
   }
   if (
-    /(first_name|player_contacts|docs_delivered|photo_taken|photo_consent|photo_path|in_whatsapp_group|address_street|birth_country|nationality)/i.test(
+    /(first_name|player_contacts|docs_delivered|photo_taken|photo_consent|photo_path|in_whatsapp_group|address_street|birth_country|nationality|players\.gender|column .*gender)/i.test(
       message,
     ) &&
     /does not exist|schema cache/i.test(message)
@@ -75,6 +77,7 @@ export async function createPlayerAction(input: unknown): Promise<ActionResult> 
 
     const db = await getRosterDb();
     let teamCategory: string | null = null;
+    let resolvedGender = parsed.data.gender ?? null;
     if (parsed.data.team_id) {
       const team = await getTeamById(db, parsed.data.team_id);
       if (!team) return { ok: false, error: "Equipo no encontrado" };
@@ -82,6 +85,13 @@ export async function createPlayerAction(input: unknown): Promise<ActionResult> 
         return { ok: false, error: "El equipo no es de esta temporada" };
       }
       teamCategory = team.category;
+      if (team.gender === "mixed") {
+        if (resolvedGender !== "male" && resolvedGender !== "female") {
+          return { ok: false, error: "Indica el sexo del jugador (equipo mixto)" };
+        }
+      } else if (!resolvedGender) {
+        resolvedGender = team.gender;
+      }
     }
 
     const contacts = contactsForPlayerAge({
@@ -92,7 +102,11 @@ export async function createPlayerAction(input: unknown): Promise<ActionResult> 
       contacts: parsed.data.contacts,
     });
 
-    const player = await createPlayer(db, { ...parsed.data, contacts });
+    const player = await createPlayer(db, {
+      ...parsed.data,
+      gender: resolvedGender,
+      contacts,
+    });
     revalidateRoster();
     return { ok: true, id: player.id };
   } catch (e) {
@@ -116,10 +130,18 @@ export async function updatePlayerAction(input: unknown): Promise<ActionResult> 
     if (!existing) return { ok: false, error: "Jugador no encontrado" };
 
     let teamCategory: string | null = null;
+    let resolvedGender = parsed.data.gender ?? null;
     if (parsed.data.team_id) {
       const team = await getTeamById(db, parsed.data.team_id);
       if (!team) return { ok: false, error: "Equipo no encontrado" };
       teamCategory = team.category;
+      if (team.gender === "mixed") {
+        if (resolvedGender !== "male" && resolvedGender !== "female") {
+          return { ok: false, error: "Indica el sexo del jugador (equipo mixto)" };
+        }
+      } else if (!resolvedGender) {
+        resolvedGender = team.gender;
+      }
     }
 
     const contacts = contactsForPlayerAge({
@@ -130,7 +152,11 @@ export async function updatePlayerAction(input: unknown): Promise<ActionResult> 
       contacts: parsed.data.contacts,
     });
 
-    await updatePlayer(db, parsed.data.id, { ...parsed.data, contacts });
+    await updatePlayer(db, parsed.data.id, {
+      ...parsed.data,
+      gender: resolvedGender,
+      contacts,
+    });
     revalidateRoster();
     return { ok: true, id: parsed.data.id };
   } catch (e) {
@@ -226,6 +252,42 @@ export async function bulkSetPlayersActiveAction(input: unknown): Promise<Action
       parsed.data.player_ids,
       parsed.data.is_active,
     );
+    revalidateRoster();
+    return { ok: true, updated };
+  } catch (e) {
+    return {
+      ok: false,
+      error: friendlyDbError(e instanceof Error ? e.message : "No autorizado"),
+    };
+  }
+}
+
+export async function bulkSetPlayersTeamAction(input: unknown): Promise<ActionResult> {
+  try {
+    await requireRosterWriteAccess();
+    const parsed = bulkSetPlayersTeamSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    }
+
+    const db = await getRosterDb();
+    const { player_ids, team_id } = parsed.data;
+
+    if (team_id) {
+      const team = await getTeamById(db, team_id);
+      if (!team) return { ok: false, error: "Equipo no encontrado" };
+
+      const { data: seasonRows, error: seasonError } = await db
+        .from("players")
+        .select("season")
+        .in("id", player_ids);
+      if (seasonError) throw new Error(seasonError.message);
+      if ((seasonRows ?? []).some((row) => row.season !== team.season)) {
+        return { ok: false, error: "El equipo no es de esta temporada" };
+      }
+    }
+
+    const updated = await bulkSetPlayersTeam(db, player_ids, team_id);
     revalidateRoster();
     return { ok: true, updated };
   } catch (e) {

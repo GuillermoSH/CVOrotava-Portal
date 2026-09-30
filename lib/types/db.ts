@@ -13,12 +13,12 @@ export type Profile = {
   display_name: string | null;
 };
 
-/** supabase/migrations/20260831120000_portal_access_and_roster.sql */
+/** supabase/migrations/20260831120000_portal_access_and_roster.sql (+ mixed) */
 export type Team = {
   id: string;
   name: string;
   category: string;
-  gender: "male" | "female";
+  gender: "male" | "female" | "mixed";
   season: string;
 };
 
@@ -33,6 +33,8 @@ export type Player = {
   user_id: string | null;
   season: string;
   is_active: boolean;
+  /** Sexo del jugador; en equipos mixtos suele ser obligatorio. */
+  gender: "male" | "female" | null;
   dni: string | null;
   license_completed: boolean;
   registration_papers_received: boolean;

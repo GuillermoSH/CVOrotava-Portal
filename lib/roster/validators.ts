@@ -50,6 +50,7 @@ const PLAYER_ERROR_ORDER = [
   "dni",
   "birth_country",
   "nationality",
+  "gender",
   "address_street_type",
   "address_street",
   "address_number",

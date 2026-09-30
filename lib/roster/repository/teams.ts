@@ -48,7 +48,7 @@ export async function createTeam(
   input: {
     name: string;
     category: string;
-    gender: "male" | "female";
+    gender: TeamGender;
     season: string;
   },
 ): Promise<Team> {

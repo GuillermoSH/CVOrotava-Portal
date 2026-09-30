@@ -4,10 +4,12 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ChevronDown,
+  ChevronLeft,
   ClipboardCheck,
   HeartPulse,
   MapPin,
   MessageCircle,
+  MoreHorizontal,
   Phone,
   Plus,
   Shirt,
@@ -27,6 +29,7 @@ import { Input } from "@/components/club/Input";
 import { Label } from "@/components/club/Label";
 import { SegmentedControl } from "@/components/club/SegmentedControl";
 import { SizePicker } from "@/components/clothing/SizePicker";
+import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { TeamCreateSheet } from "@/components/roster/TeamCreateSheet";
 import { PlayerPhotoSection } from "@/components/roster/PlayerPhotoSection";
@@ -49,8 +52,11 @@ import {
   formatTeamCategory,
   GUARDIAN_RELATIONSHIP_LABELS,
   GUARDIAN_RELATIONSHIPS,
+  PLAYER_GENDER_LABELS,
+  PLAYER_GENDERS,
   type ContactRelationship,
   type GuardianRelationship,
+  type PlayerGender,
 } from "@/lib/roster/constants";
 import { isNieDocument, isSpanishNationality } from "@/lib/roster/document";
 import {
@@ -131,6 +137,7 @@ type PlayerFormSnapshot = {
   birthCountry: string;
   nationality: string;
   teamId: string;
+  gender: PlayerGender | "";
   size: ClothingSize | "";
   streetType: string;
   street: string;
@@ -167,6 +174,7 @@ function buildFormSnapshot(input: PlayerFormSnapshot): PlayerFormSnapshot {
     birthCountry: input.birthCountry.trim(),
     nationality: input.nationality.trim(),
     teamId: input.teamId,
+    gender: input.gender,
     size: input.size,
     streetType: input.streetType.trim(),
     street: input.street.trim(),
@@ -313,6 +321,7 @@ export function PlayerForm({
   const [pending, startTransition] = useTransition();
   const [teamSheetOpen, setTeamSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const season = player?.season ?? getCurrentSeason();
 
@@ -323,6 +332,13 @@ export function PlayerForm({
   const [birthCountry, setBirthCountry] = useState(player?.birth_country ?? "");
   const [nationality, setNationality] = useState(player?.nationality ?? "");
   const [teamId, setTeamId] = useState(player?.team_id ?? teams[0]?.id ?? "");
+  const [gender, setGender] = useState<PlayerGender | "">(() => {
+    if (player?.gender === "male" || player?.gender === "female") return player.gender;
+    const initialTeam =
+      teams.find((t) => t.id === (player?.team_id ?? teams[0]?.id ?? "")) ?? null;
+    if (initialTeam && initialTeam.gender !== "mixed") return initialTeam.gender;
+    return "";
+  });
   const [size, setSize] = useState<ClothingSize | "">(player?.clothing_size ?? "");
   const [streetType, setStreetType] = useState(player?.address_street_type ?? "");
   const [street, setStreet] = useState(player?.address_street ?? "");
@@ -378,6 +394,7 @@ export function PlayerForm({
         birthCountry,
         nationality,
         teamId,
+        gender,
         size,
         streetType,
         street,
@@ -407,6 +424,7 @@ export function PlayerForm({
       birthCountry,
       nationality,
       teamId,
+      gender,
       size,
       streetType,
       street,
@@ -442,6 +460,11 @@ export function PlayerForm({
     () => teams.find((t) => t.id === teamId)?.category ?? null,
     [teams, teamId],
   );
+  const selectedTeam = useMemo(
+    () => teams.find((t) => t.id === teamId) ?? null,
+    [teams, teamId],
+  );
+  const genderRequired = selectedTeam?.gender === "mixed";
   const selfContact = useMemo(
     () => usesSelfContact({ birthDate: birthDate || null, teamCategory }),
     [birthDate, teamCategory],
@@ -496,7 +519,12 @@ export function PlayerForm({
       dni,
       birth_date: birthDate || null,
       birth_country: birthCountry,
-      team: teamCategory ? { category: teamCategory } : null,
+      gender: gender || null,
+      team: selectedTeam
+        ? { category: selectedTeam.category, gender: selectedTeam.gender }
+        : teamCategory
+          ? { category: teamCategory }
+          : null,
       address_street_type: streetType,
       address_street: street,
       address_number: streetNumber,
@@ -515,6 +543,8 @@ export function PlayerForm({
     dni,
     birthDate,
     birthCountry,
+    gender,
+    selectedTeam,
     teamCategory,
     streetType,
     street,
@@ -533,6 +563,7 @@ export function PlayerForm({
   const readOnly = !canWrite;
   const canSave = canWrite && !pending && (!player || isDirty);
   const saveLabel = pending ? "Guardando…" : player ? "Guardar ficha" : "Dar de alta";
+  const mobileSaveLabel = pending ? "Guardando…" : player ? "Guardar" : "Dar de alta";
   const saveDisabledReason =
     player && !isDirty && !pending ? "Sin cambios pendientes" : undefined;
   const teamOptions = [
@@ -606,10 +637,15 @@ export function PlayerForm({
 
   function handleTeamChange(nextTeamId: string) {
     const prevCategory = teamCategory;
-    const nextCategory = teams.find((t) => t.id === nextTeamId)?.category ?? null;
+    const nextTeam = teams.find((t) => t.id === nextTeamId) ?? null;
+    const nextCategory = nextTeam?.category ?? null;
     const prevSelf = usesSelfContact({ birthDate: birthDate || null, teamCategory: prevCategory });
     const nextSelf = usesSelfContact({ birthDate: birthDate || null, teamCategory: nextCategory });
     setTeamId(nextTeamId);
+    if (nextTeam && nextTeam.gender !== "mixed") {
+      setGender(nextTeam.gender);
+      clearError("gender");
+    }
     applySelfContactMode(nextSelf, prevSelf);
   }
 
@@ -617,6 +653,14 @@ export function PlayerForm({
     e?.preventDefault();
     if (!canWrite) return;
     if (player && !isDirty) return;
+
+    const selectedTeam = teams.find((t) => t.id === teamId) ?? null;
+    if (selectedTeam?.gender === "mixed" && gender !== "male" && gender !== "female") {
+      setFieldErrors({ gender: "Indica el sexo del jugador" });
+      appToast.error("Revisa el campo marcado");
+      requestAnimationFrame(() => focusPlayerField("gender"));
+      return;
+    }
 
     const draftContacts: {
       full_name: string;
@@ -645,6 +689,7 @@ export function PlayerForm({
       birth_date: birthDate,
       dni,
       team_id: teamId || null,
+      gender: gender || null,
       season,
       license_completed: licenseCompleted,
       registration_papers_received: papersReceived,
@@ -709,8 +754,36 @@ export function PlayerForm({
 
   return (
     <div className="clothing-page-with-sticky clothing-page-with-sticky--tall flex min-h-full flex-col md:-mt-4">
-      {/* Desktop: sticky flush con el borde del main (compensa py-4 / lg:py-6) */}
-      <div className="sticky top-0 z-20 -mx-4 mb-4 hidden border-b border-[var(--club-border)] bg-[var(--club-bg)]/95 px-4 py-2 backdrop-blur-sm md:-mx-6 md:top-[-1rem] md:flex md:items-center md:justify-between md:gap-3 md:px-6 lg:top-[-1.5rem]">
+      {/* Desktop: sticky flush con el borde del main (compensa py-4 / lg:py-6).
+          Acciones a la izquierda para dejar libre la esquina superior derecha. */}
+      <div className="sticky top-0 z-20 -mx-4 mb-4 hidden border-b border-[var(--club-border)] bg-[var(--club-bg)]/95 px-4 py-2 backdrop-blur-sm md:-mx-6 md:top-[-1rem] md:flex md:items-center md:justify-start md:gap-3 md:px-6 lg:top-[-1.5rem]">
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href={listHref} className={cn("btn-secondary", stickyActionClass)}>
+            Volver
+          </Link>
+          {canWrite && player ? <PlayerStatusActions player={player} /> : null}
+          {canDelete && player ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className={cn(stickyActionClass, "text-[var(--club-danger)]")}
+              onClick={() => setDeleteOpen(true)}
+            >
+              Eliminar
+            </Button>
+          ) : null}
+          {canWrite ? (
+            <Button
+              type="button"
+              className={stickyActionClass}
+              disabled={!canSave}
+              title={saveDisabledReason}
+              onClick={() => handleSubmit()}
+            >
+              {saveLabel}
+            </Button>
+          ) : null}
+        </div>
         <div className="min-w-0 flex-1">
           {!profileCompleteness.isComplete ? (
             <div
@@ -729,23 +802,6 @@ export function PlayerForm({
                 </span>
               </p>
             </div>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Link href={listHref} className={cn("btn-secondary", stickyActionClass)}>
-            Volver
-          </Link>
-          {canWrite && player ? <PlayerStatusActions player={player} /> : null}
-          {canWrite ? (
-            <Button
-              type="button"
-              className={stickyActionClass}
-              disabled={!canSave}
-              title={saveDisabledReason}
-              onClick={() => handleSubmit()}
-            >
-              {saveLabel}
-            </Button>
           ) : null}
         </div>
       </div>
@@ -851,6 +907,37 @@ export function PlayerForm({
                   NIE: indica país de nacimiento
                   {nationality.trim() ? "" : " y la nacionalidad si no es española"}.
                 </p>
+              ) : null}
+            </div>
+            <div
+              id="gender"
+              tabIndex={-1}
+              className="flex flex-col gap-1.5 outline-none"
+            >
+              <Label className="text-sm font-medium text-foreground">
+                {genderRequired ? "Sexo *" : "Sexo"}
+              </Label>
+              <SegmentedControl
+                aria-label="Sexo del jugador"
+                size="sm"
+                value={gender}
+                options={PLAYER_GENDERS.map((item) => ({
+                  value: item,
+                  label: PLAYER_GENDER_LABELS[item],
+                }))}
+                onChange={(value) => {
+                  if (readOnly) return;
+                  setGender(value);
+                  clearError("gender");
+                }}
+              />
+              {genderRequired ? (
+                <p className="text-xs text-[var(--club-warning-strong)]">
+                  Obligatorio en equipo mixto.
+                </p>
+              ) : null}
+              {fieldErrors.gender ? (
+                <p className="text-xs text-destructive">{fieldErrors.gender}</p>
               ) : null}
             </div>
             {showNieExtras ? (
@@ -1048,6 +1135,12 @@ export function PlayerForm({
               ) : null}
             </div>
           )}
+          {selectedTeam?.gender === "mixed" ? (
+            <p className="text-xs text-muted-foreground">
+              Equipo mixto: el sexo del jugador se define en Identidad
+              {gender ? ` (${PLAYER_GENDER_LABELS[gender]})` : ""}.
+            </p>
+          ) : null}
           {teams.length === 0 && canWrite ? (
             <Button
               type="button"
@@ -1376,6 +1469,57 @@ export function PlayerForm({
         onCreated={handleTeamChange}
       />
 
+      {player && (canWrite || canDelete) ? (
+        <ClothingBottomSheet
+          open={manageOpen}
+          onClose={() => setManageOpen(false)}
+          title="Gestionar ficha"
+          description="Baja o borrado definitivo del jugador."
+        >
+          <div className="flex flex-col gap-2">
+            {canWrite ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full justify-center text-sm"
+                onClick={() => {
+                  setManageOpen(false);
+                  void (async () => {
+                    const result = await setPlayerActiveAction({
+                      id: player.id,
+                      is_active: !player.is_active,
+                    });
+                    if (!result.ok) {
+                      appToast.error(result.error);
+                      return;
+                    }
+                    appToast.success(
+                      player.is_active ? "Jugador dado de baja" : "Jugador reactivado",
+                    );
+                    router.refresh();
+                  })();
+                }}
+              >
+                {player.is_active ? "Dar de baja" : "Reactivar"}
+              </Button>
+            ) : null}
+            {canDelete ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full justify-center text-sm text-[var(--club-danger)]"
+                onClick={() => {
+                  setManageOpen(false);
+                  setDeleteOpen(true);
+                }}
+              >
+                Eliminar definitivamente
+              </Button>
+            ) : null}
+          </div>
+        </ClothingBottomSheet>
+      ) : null}
+
       {canDelete && player ? (
         <ConfirmDialog
           open={deleteOpen}
@@ -1404,46 +1548,25 @@ export function PlayerForm({
       ) : null}
 
       <ClothingStickyActionBar
-        layout="row"
+        layout="split"
         actions={[
           {
             type: "link",
-            label: "Volver",
             href: listHref,
             variant: "secondary",
+            primacy: "leading",
+            icon: <ChevronLeft className="size-5" aria-hidden strokeWidth={2.25} />,
+            "aria-label": "Volver al listado",
           },
-          ...(canDelete && player
+          ...(player && (canWrite || canDelete)
             ? [
                 {
                   type: "button" as const,
-                  label: "Eliminar",
                   variant: "secondary" as const,
-                  onClick: () => setDeleteOpen(true),
-                },
-              ]
-            : []),
-          ...(canWrite && player
-            ? [
-                {
-                  type: "button" as const,
-                  label: player.is_active ? "Dar de baja" : "Reactivar",
-                  variant: (player.is_active ? "secondary" : "primary") as "secondary" | "primary",
-                  onClick: () => {
-                    void (async () => {
-                      const result = await setPlayerActiveAction({
-                        id: player.id,
-                        is_active: !player.is_active,
-                      });
-                      if (!result.ok) {
-                        appToast.error(result.error);
-                        return;
-                      }
-                      appToast.success(
-                        player.is_active ? "Jugador dado de baja" : "Jugador reactivado",
-                      );
-                      router.refresh();
-                    })();
-                  },
+                  primacy: "leading" as const,
+                  icon: <MoreHorizontal className="size-5" aria-hidden strokeWidth={2.25} />,
+                  "aria-label": "Más opciones de ficha",
+                  onClick: () => setManageOpen(true),
                 },
               ]
             : []),
@@ -1451,7 +1574,8 @@ export function PlayerForm({
             ? [
                 {
                   type: "button" as const,
-                  label: saveLabel,
+                  label: mobileSaveLabel,
+                  primacy: "primary" as const,
                   pending,
                   disabled: !canSave,
                   onClick: () => handleSubmit(),

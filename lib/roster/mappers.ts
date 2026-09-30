@@ -19,6 +19,7 @@ export type PlayerRow = {
   user_id: string | null;
   season: string;
   is_active: boolean;
+  gender?: string | null;
   dni?: string | null;
   license_completed?: boolean | null;
   registration_papers_received?: boolean | null;
@@ -101,6 +102,8 @@ export function mapPlayer(row: PlayerRow): Player {
     user_id: row.user_id,
     season: row.season,
     is_active: row.is_active,
+    gender:
+      row.gender === "male" || row.gender === "female" ? row.gender : null,
     dni: row.dni ?? null,
     license_completed: Boolean(row.license_completed),
     registration_papers_received: Boolean(row.registration_papers_received),
