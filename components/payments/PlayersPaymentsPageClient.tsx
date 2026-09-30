@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
@@ -17,21 +18,22 @@ import {
 import { TableActionsCell, TableTextAction } from "@/components/club/TableActions";
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { registerPaymentAction } from "@/lib/actions/payments/register";
+import { appRoutes } from "@/lib/constants";
 import {
-  MATRICULA_CONCEPT,
-  PAYMENT_CONCEPTS,
+  OTHER_CONCEPT_VALUE,
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
 } from "@/lib/payments/constants";
+import { pickDefaultConceptId } from "@/lib/payments/concept-selection";
+import type { PaymentConcept, PlayerListItem } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
-import type { PlayerListItem } from "@/lib/types/db";
-import { cn } from "@/lib/utils";
 
 type FormState = {
   playerId: string;
   playerName: string;
+  /** id de payment_concepts, o OTHER_CONCEPT_VALUE para concepto/importe libres. */
+  selectedConceptId: string;
   concept: string;
-  customConcept: string;
   amount: string;
   paid_date: string;
   method: (typeof PAYMENT_METHODS)[number];
@@ -42,13 +44,15 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function emptyForm(player: PlayerListItem): FormState {
+function emptyForm(player: PlayerListItem, concepts: PaymentConcept[]): FormState {
+  const defaultId = pickDefaultConceptId(concepts, player);
+  const match = concepts.find((c) => c.id === defaultId);
   return {
     playerId: player.id,
     playerName: player.full_name,
-    concept: MATRICULA_CONCEPT,
-    customConcept: "",
-    amount: "",
+    selectedConceptId: defaultId,
+    concept: match?.concept ?? "",
+    amount: match ? String(match.amount) : "",
     paid_date: todayIso(),
     method: "transferencia",
     notes: "",
@@ -59,10 +63,12 @@ export function PlayersPaymentsPageClient({
   players,
   season,
   matriculaPaidPlayerIds,
+  paymentConcepts,
 }: {
   players: PlayerListItem[];
   season: string;
   matriculaPaidPlayerIds: string[];
+  paymentConcepts: PaymentConcept[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -73,6 +79,14 @@ export function PlayersPaymentsPageClient({
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<FormState | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const conceptOptions = useMemo(
+    () => [
+      ...paymentConcepts.map((c) => ({ value: c.id, label: `${c.concept} — ${c.amount} €` })),
+      { value: OTHER_CONCEPT_VALUE, label: "Otro" },
+    ],
+    [paymentConcepts],
+  );
 
   const visiblePlayers = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -87,14 +101,32 @@ export function PlayersPaymentsPageClient({
   const missingCount = players.filter((p) => !paidSet.has(p.id)).length;
 
   function openRegister(player: PlayerListItem) {
-    setForm(emptyForm(player));
+    setForm(emptyForm(player, paymentConcepts));
     setFormError(null);
     setFormOpen(true);
   }
 
+  function selectConcept(id: string) {
+    if (id === OTHER_CONCEPT_VALUE) {
+      setForm((f) => (f ? { ...f, selectedConceptId: id, concept: "" } : f));
+      return;
+    }
+    const match = paymentConcepts.find((c) => c.id === id);
+    setForm((f) =>
+      f
+        ? {
+            ...f,
+            selectedConceptId: id,
+            concept: match?.concept ?? "",
+            amount: match ? String(match.amount) : f.amount,
+          }
+        : f,
+    );
+  }
+
   function submit() {
     if (!form) return;
-    const concept = form.concept === "Otro" ? form.customConcept.trim() : form.concept;
+    const concept = form.concept.trim();
     if (!concept) {
       setFormError("Indica el concepto");
       return;
@@ -123,9 +155,14 @@ export function PlayersPaymentsPageClient({
   return (
     <>
       <div className="flex flex-col gap-5">
-        <p className="text-sm text-muted-foreground">
-          {missingCount} sin matrícula · {players.length} jugadores · temporada {season}
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {missingCount} sin matrícula · {players.length} jugadores · temporada {season}
+          </p>
+          <Link href={appRoutes.payments.concepts} className="text-sm text-brand hover:underline">
+            Gestionar predefinidos
+          </Link>
+        </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Input
@@ -251,20 +288,18 @@ export function PlayersPaymentsPageClient({
               label="Concepto"
               name="payment-concept"
               id="payment-concept"
-              value={form.concept}
-              onChange={(e) => setForm((f) => (f ? { ...f, concept: e.target.value } : f))}
-              options={PAYMENT_CONCEPTS.map((c) => ({ value: c, label: c }))}
+              value={form.selectedConceptId}
+              onChange={(e) => selectConcept(e.target.value)}
+              options={conceptOptions}
             />
-            {form.concept === "Otro" ? (
+            {form.selectedConceptId === OTHER_CONCEPT_VALUE ? (
               <FormInput
                 label="Concepto (texto libre)"
                 name="payment-concept-custom"
                 id="payment-concept-custom"
                 className="min-h-11"
-                value={form.customConcept}
-                onChange={(e) =>
-                  setForm((f) => (f ? { ...f, customConcept: e.target.value } : f))
-                }
+                value={form.concept}
+                onChange={(e) => setForm((f) => (f ? { ...f, concept: e.target.value } : f))}
                 placeholder="Ej. Material de temporada"
               />
             ) : null}
@@ -303,7 +338,7 @@ export function PlayersPaymentsPageClient({
               label="Notas"
               name="payment-notes"
               id="payment-notes"
-              className={cn("min-h-[4.5rem] resize-none")}
+              className="min-h-[4.5rem] resize-none"
               value={form.notes}
               onChange={(e) => setForm((f) => (f ? { ...f, notes: e.target.value } : f))}
               placeholder="Opcional"

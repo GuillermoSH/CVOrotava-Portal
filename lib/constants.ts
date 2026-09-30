@@ -55,6 +55,7 @@ export const appRoutes = {
   },
   payments: {
     list: "/admin/pagos",
+    concepts: "/admin/pagos/conceptos",
   },
 } as const;
 

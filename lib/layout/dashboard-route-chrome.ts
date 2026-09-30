@@ -79,6 +79,15 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     };
   }
 
+  if (pathname === appRoutes.payments.concepts) {
+    return {
+      title: "Conceptos predefinidos",
+      subtitle: "Cuotas, matrícula y otros importes fijos para agilizar el registro de pagos.",
+      back: { href: appRoutes.payments.list, label: "Pagos" },
+      skeleton: "products",
+    };
+  }
+
   if (pathname === appRoutes.clothing.hub) {
     return {
       title: "Gestión de ropa",

@@ -12,3 +12,19 @@ export const registerPaymentSchema = z.object({
 });
 
 export type RegisterPaymentInput = z.infer<typeof registerPaymentSchema>;
+
+export const createPaymentConceptSchema = z.object({
+  concept: z.string().trim().min(1, "Indica el concepto").max(120),
+  amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
+  is_matricula: z.boolean().optional().default(false),
+});
+
+export const updatePaymentConceptSchema = createPaymentConceptSchema.and(
+  z.object({
+    id: z.string().uuid(),
+    is_active: z.boolean(),
+  }),
+);
+
+export type CreatePaymentConceptFormInput = z.infer<typeof createPaymentConceptSchema>;
+export type UpdatePaymentConceptFormInput = z.infer<typeof updatePaymentConceptSchema>;

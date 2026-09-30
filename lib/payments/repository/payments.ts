@@ -1,7 +1,6 @@
 import "server-only";
 
 import { dbErrorMessage } from "@/lib/clothing/repository/helpers";
-import { MATRICULA_CONCEPT } from "@/lib/payments/constants";
 import { mapPayment, type PaymentRow } from "@/lib/payments/mappers";
 import type { PaymentsDb } from "@/lib/payments/repository/client";
 import { getCurrentSeason, type SeasonId } from "@/lib/season";
@@ -10,16 +9,27 @@ import type { Payment } from "@/lib/types/db";
 const PAYMENT_SELECT =
   "id, user_id, player_id, concept, amount, status, due_date, paid_date, notes, created_at, updated_at, season, method";
 
-/** player_ids con Matrícula ya pagada esta temporada — base del badge Pagada/Pendiente. */
+/** player_ids con Matrícula ya pagada esta temporada — base del badge Pagada/Pendiente.
+ *  "Matrícula" se determina por payment_concepts.is_matricula (no por texto fijo), para
+ *  que renombrar el concepto desde la mini-UI de gestión no rompa esta comprobación. */
 export async function listPlayerIdsWithPaidMatricula(
   db: PaymentsDb,
   season: SeasonId = getCurrentSeason(),
 ): Promise<Set<string>> {
+  const { data: concepts, error: conceptsError } = await db
+    .from("payment_concepts")
+    .select("concept")
+    .eq("is_matricula", true);
+  if (conceptsError) throw new Error(dbErrorMessage(conceptsError));
+
+  const matriculaConcepts = [...new Set((concepts ?? []).map((row) => row.concept as string))];
+  if (matriculaConcepts.length === 0) return new Set();
+
   const { data, error } = await db
     .from("payments")
     .select("player_id")
     .eq("season", season)
-    .eq("concept", MATRICULA_CONCEPT)
+    .in("concept", matriculaConcepts)
     .eq("status", "paid")
     .not("player_id", "is", null);
 

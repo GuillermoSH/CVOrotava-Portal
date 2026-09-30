@@ -127,6 +127,19 @@ export type Payment = {
   method: PaymentMethod | null;
 };
 
+/** supabase/migrations/20261001100000_payment_concepts.sql — catálogo propio del Portal. */
+export type PaymentConcept = {
+  id: string;
+  concept: string;
+  amount: number;
+  /** Cuenta para "matrícula pagada" en /admin/pagos (ver lib/payments/repository/payments.ts). */
+  is_matricula: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
 /** supabase/migrations/20260831130000_clothing_warehouse.sql */
 
 export type ClothingProductCategory =
