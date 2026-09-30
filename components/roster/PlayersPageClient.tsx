@@ -59,6 +59,11 @@ import {
   type PlayerFilterState,
   type PlayerSortDir,
 } from "@/lib/roster/player-filters";
+import {
+  readPlayerListScroll,
+  writePlayerListScroll,
+  type PlayerListScrollState,
+} from "@/lib/roster/player-list-scroll";
 import { isPlayerProfileIncomplete } from "@/lib/roster/profile-completeness";
 import type { PlayerListItem, Team } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
@@ -320,9 +325,20 @@ export function PlayersPageClient({
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const [bulkMarkMode, setBulkMarkMode] = useState(true);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<PageSize>(50);
-  const [sortDir, setSortDir] = useState<PlayerSortDir>("asc");
+  const [savedScroll] = useState<PlayerListScrollState | null>(() =>
+    readPlayerListScroll({
+      query: initialFilters?.query ?? "",
+      facets: initialFilters?.facets ?? [],
+      statusFilter: initialFilters?.statusFilter ?? "active",
+    }),
+  );
+  const [page, setPage] = useState(() => savedScroll?.page ?? 1);
+  const [pageSize, setPageSize] = useState<PageSize>(() =>
+    savedScroll && PAGE_SIZE_OPTIONS.some((opt) => opt.value === savedScroll.pageSize)
+      ? (savedScroll.pageSize as PageSize)
+      : 50,
+  );
+  const [sortDir, setSortDir] = useState<PlayerSortDir>(() => savedScroll?.sortDir ?? "asc");
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   const searching = query.trim().length > 0 || facets.length > 0;
@@ -378,13 +394,70 @@ export function PlayersPageClient({
     return `${start}–${end} de ${visible.length} ${unit}`;
   }, [visible.length, pageSize, safePage, searching]);
 
+  const didMountPageResetRef = useRef(false);
   useEffect(() => {
+    if (!didMountPageResetRef.current) {
+      // Salta el primer render: evita pisar una página restaurada desde sessionStorage.
+      didMountPageResetRef.current = true;
+      return;
+    }
     setPage(1);
   }, [query, facets, statusFilter, pageSize, sortDir]);
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
+
+  // Restaura el scroll guardado (una sola vez), diferido para ir después del
+  // reset a top que hace DashboardMain al terminar la navegación pendiente.
+  const scrollRestoredRef = useRef(false);
+  useEffect(() => {
+    if (scrollRestoredRef.current) return;
+    scrollRestoredRef.current = true;
+    if (!savedScroll) return;
+
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById("dashboard-main")?.scrollTo({ top: savedScroll.scrollTop });
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [savedScroll]);
+
+  // Guarda scroll/página/orden por combinación de filtros, para restaurarlos
+  // al volver desde la ficha de un jugador.
+  useEffect(() => {
+    const node = document.getElementById("dashboard-main");
+    if (!node) return;
+
+    let ticking = false;
+    function flush() {
+      writePlayerListScroll(filterState, {
+        scrollTop: node!.scrollTop,
+        page,
+        pageSize,
+        sortDir,
+      });
+    }
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        flush();
+        ticking = false;
+      });
+    }
+
+    node.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      flush();
+      node.removeEventListener("scroll", onScroll);
+      document.removeEventListener("visibilitychange", flush);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [filterState, page, pageSize, sortDir]);
 
   function toggleSortDir() {
     setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));

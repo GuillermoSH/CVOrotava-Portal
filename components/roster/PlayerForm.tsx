@@ -48,6 +48,7 @@ import {
   streetTypeSelectOptions,
 } from "@/lib/roster/address";
 import {
+  appliesExtendedMonthlyFee,
   DEFAULT_PLAYER_PROVINCE,
   formatTeamCategory,
   GUARDIAN_RELATIONSHIP_LABELS,
@@ -645,6 +646,9 @@ export function PlayerForm({
     if (nextTeam && nextTeam.gender !== "mixed") {
       setGender(nextTeam.gender);
       clearError("gender");
+    }
+    if (!appliesExtendedMonthlyFee(nextCategory)) {
+      setPaysExtendedMonthly(false);
     }
     applySelfContactMode(nextSelf, prevSelf);
   }
@@ -1409,18 +1413,20 @@ export function PlayerForm({
           ) : null}
         </section>
 
-        <section className="flex flex-col gap-2 border-t border-[var(--club-border)] pt-5 md:pt-4">
-          <SectionHeading icon={Wallet} title="Cuotas" />
-          <ToggleRow
-            id="pays-extended-monthly"
-            compact
-            label="Cuota mensual ampliada (30 €)"
-            hint="Por defecto 25 €. Solo aplica en categorías base (minivoley–júnior) al generar cuotas; en sénior/aficionados se ignora."
-            checked={paysExtendedMonthly}
-            disabled={readOnly}
-            onChange={setPaysExtendedMonthly}
-          />
-        </section>
+        {appliesExtendedMonthlyFee(teamCategory) ? (
+          <section className="flex flex-col gap-2 border-t border-[var(--club-border)] pt-5 md:pt-4">
+            <SectionHeading icon={Wallet} title="Cuotas" />
+            <ToggleRow
+              id="pays-extended-monthly"
+              compact
+              label="Cuota mensual ampliada (30 €)"
+              hint="Por defecto 25 €. Solo aplica en categorías base (minivoley–júnior) al generar cuotas."
+              checked={paysExtendedMonthly}
+              disabled={readOnly}
+              onChange={setPaysExtendedMonthly}
+            />
+          </section>
+        ) : null}
 
         <section className="flex flex-col gap-2 border-t border-[var(--club-border)] pt-5 md:pt-4">
           <SectionHeading icon={MessageCircle} title="Grupo y fotos" />

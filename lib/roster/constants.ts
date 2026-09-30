@@ -51,6 +51,11 @@ export function defaultTeamGenderForCategory(category: string): TeamGender {
   return category === "aficionados" ? "mixed" : "female";
 }
 
+/** Categorías base (minivoley–júnior) donde aplica la cuota mensual ampliada (30 €); en sénior/aficionados se ignora. */
+export function appliesExtendedMonthlyFee(category: string | null | undefined): boolean {
+  return category !== "senior" && category !== "aficionados";
+}
+
 /** Género efectivo para filtros: jugador, o el del equipo si falta. */
 export function effectivePlayerGender(player: {
   gender?: string | null;

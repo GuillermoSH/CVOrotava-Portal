@@ -208,7 +208,6 @@ html.dark {
 [data-sileo-toast] {
   filter: var(--sileo-toast-shadow);
   color: var(--sileo-toast-title);
-  --sileo-width: min(280px, calc(100vw - 1.5rem));
 }
 
 /* Toasts aún no listos / en animación de entrada: sin captura de puntero */
