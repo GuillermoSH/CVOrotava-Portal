@@ -29,8 +29,10 @@ export type PlayerProfileCompletenessInput = {
   primary_phone?: string | null;
   /** Lista admin: email del contacto primario. */
   primary_email?: string | null;
-  /** Equipo (categoría) para excepción Júnior. */
-  team?: { category?: string | null } | null;
+  /** Equipo (categoría / género) para excepción Júnior y sexo en mixtos. */
+  team?: { category?: string | null; gender?: string | null } | null;
+  /** Sexo del jugador (obligatorio si el equipo es mixto). */
+  gender?: string | null;
 };
 
 export type PlayerProfileCompleteness = {
@@ -52,6 +54,10 @@ export function getPlayerProfileCompleteness(
   if (!player.first_name?.trim()) missingFields.push("Nombre");
   if (!player.last_name?.trim()) missingFields.push("Apellidos");
   if (!player.birth_date?.trim()) missingFields.push("Fecha de nacimiento");
+
+  if (player.team?.gender === "mixed" && player.gender !== "male" && player.gender !== "female") {
+    missingFields.push("Sexo");
+  }
 
   const dni = player.dni?.trim() ?? "";
   if (!dni) {

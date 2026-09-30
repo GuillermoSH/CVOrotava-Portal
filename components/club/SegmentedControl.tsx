@@ -16,6 +16,10 @@ type SegmentedControlProps<T extends string> = {
   "aria-label": string;
   label?: string;
   className?: string;
+  /** `sm` = control que abraza el contenido (p. ej. Sexo). */
+  size?: "sm" | "md";
+  /** Estira el grupo al 100% y reparte los botones. */
+  fullWidth?: boolean;
 };
 
 export function SegmentedControl<T extends string>({
@@ -25,11 +29,17 @@ export function SegmentedControl<T extends string>({
   "aria-label": ariaLabel,
   label,
   className = "",
+  size = "md",
+  fullWidth = false,
 }: SegmentedControlProps<T>) {
+  const compact = size === "sm";
+
   const control = (
     <div
       className={cn(
-        "inline-flex max-w-full overflow-x-auto rounded-xl border border-border bg-[var(--club-surface-2)] p-1",
+        "inline-flex max-w-full overflow-x-auto border border-border bg-[var(--club-surface-2)]",
+        compact ? "rounded-lg p-0.5" : "rounded-xl p-1",
+        fullWidth && "w-full",
         !label && className,
       )}
       role="group"
@@ -44,7 +54,11 @@ export function SegmentedControl<T extends string>({
             aria-pressed={active}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              compact
+                ? "h-8 rounded-md px-2.5 text-[11px]"
+                : "h-9 rounded-lg px-3 text-xs",
+              fullWidth && "min-w-0 flex-1",
               active
                 ? "bg-[var(--club-brand-soft)] text-brand ring-1 ring-[color-mix(in_srgb,var(--club-brand)_32%,transparent)]"
                 : "text-muted-foreground hover:bg-[var(--club-surface-hover)] hover:text-foreground",

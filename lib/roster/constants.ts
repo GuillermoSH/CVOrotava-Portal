@@ -24,13 +24,40 @@ export const TEAM_CATEGORY_LABELS: Record<TeamCategory, string> = {
   senior: "Sénior",
 };
 
-export const TEAM_GENDERS = ["female", "male"] as const;
+export const TEAM_GENDERS = ["female", "male", "mixed"] as const;
 export type TeamGender = (typeof TEAM_GENDERS)[number];
 
 export const TEAM_GENDER_LABELS: Record<TeamGender, string> = {
   female: "Femenino",
   male: "Masculino",
+  mixed: "Mixto",
 };
+
+/** Sexo del jugador (no incluye mixto). */
+export const PLAYER_GENDERS = ["female", "male"] as const;
+export type PlayerGender = (typeof PLAYER_GENDERS)[number];
+
+export const PLAYER_GENDER_LABELS: Record<PlayerGender, string> = {
+  female: "Femenino",
+  male: "Masculino",
+};
+
+/** Géneros ofrecidos al crear equipo según categoría (Mixto solo aficionados). */
+export function teamGenderOptionsForCategory(category: string): readonly TeamGender[] {
+  return category === "aficionados" ? TEAM_GENDERS : (["female", "male"] as const);
+}
+
+export function defaultTeamGenderForCategory(category: string): TeamGender {
+  return category === "aficionados" ? "mixed" : "female";
+}
+
+/** Género efectivo para filtros: jugador, o el del equipo si falta. */
+export function effectivePlayerGender(player: {
+  gender?: string | null;
+  team?: { gender?: string | null } | null;
+}): string | null {
+  return player.gender ?? player.team?.gender ?? null;
+}
 
 export const GUARDIAN_RELATIONSHIPS = ["madre", "padre", "tutor", "otro"] as const;
 export type GuardianRelationship = (typeof GUARDIAN_RELATIONSHIPS)[number];

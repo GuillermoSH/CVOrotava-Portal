@@ -10,6 +10,8 @@ import {
   SPAIN_PROVINCES,
   STREET_TYPE_LABELS,
   STREET_TYPES,
+  TEAM_GENDER_LABELS,
+  type TeamGender,
 } from "@/lib/roster/constants";
 import {
   PLAYER_IMPORT_HEADERS,
@@ -188,7 +190,7 @@ export async function buildPlayerImportWorkbook(teams: Team[]): Promise<Buffer> 
   teams.forEach((team, index) => {
     teamsSheet.getCell(index + 2, 1).value = team.name;
     teamsSheet.getCell(index + 2, 2).value = formatTeamCategory(team.category);
-    teamsSheet.getCell(index + 2, 3).value = team.gender === "female" ? "Femenino" : "Masculino";
+    teamsSheet.getCell(index + 2, 3).value = TEAM_GENDER_LABELS[team.gender as TeamGender] ?? team.gender;
   });
   teamsSheet.columns = [{ width: 28 }, { width: 16 }, { width: 14 }];
 

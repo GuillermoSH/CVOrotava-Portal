@@ -10,7 +10,10 @@ import {
   TEAM_CATEGORIES,
   TEAM_CATEGORY_LABELS,
   TEAM_GENDER_LABELS,
-  TEAM_GENDERS,
+  defaultTeamGenderForCategory,
+  teamGenderOptionsForCategory,
+  type TeamCategory,
+  type TeamGender,
 } from "@/lib/roster/constants";
 import { getCurrentSeason } from "@/lib/season";
 import { appToast } from "@/lib/toast";
@@ -29,18 +32,31 @@ export function TeamCreateSheet({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<(typeof TEAM_CATEGORIES)[number]>("cadete");
-  const [gender, setGender] = useState<(typeof TEAM_GENDERS)[number]>("female");
+  const [category, setCategory] = useState<TeamCategory>("cadete");
+  const [gender, setGender] = useState<TeamGender>(defaultTeamGenderForCategory("cadete"));
+
+  const genderOptions = teamGenderOptionsForCategory(category);
 
   function reset() {
     setName("");
     setCategory("cadete");
-    setGender("female");
+    setGender(defaultTeamGenderForCategory("cadete"));
   }
 
   function handleClose() {
     reset();
     onClose();
+  }
+
+  function handleCategoryChange(next: TeamCategory) {
+    setCategory(next);
+    const options = teamGenderOptionsForCategory(next);
+    if (!options.includes(gender)) {
+      setGender(defaultTeamGenderForCategory(next));
+    } else if (next === "aficionados" && gender !== "mixed") {
+      // Prefiere Mixto al pasar a aficionados (caso habitual del club).
+      setGender("mixed");
+    }
   }
 
   function handleSubmit() {
@@ -94,7 +110,7 @@ export function TeamCreateSheet({
           name="team-category"
           id="team-category"
           value={category}
-          onChange={(e) => setCategory(e.target.value as (typeof TEAM_CATEGORIES)[number])}
+          onChange={(e) => handleCategoryChange(e.target.value as TeamCategory)}
           options={TEAM_CATEGORIES.map((item) => ({
             value: item,
             label: TEAM_CATEGORY_LABELS[item],
@@ -105,8 +121,8 @@ export function TeamCreateSheet({
           name="team-gender"
           id="team-gender"
           value={gender}
-          onChange={(e) => setGender(e.target.value as (typeof TEAM_GENDERS)[number])}
-          options={TEAM_GENDERS.map((item) => ({
+          onChange={(e) => setGender(e.target.value as TeamGender)}
+          options={genderOptions.map((item) => ({
             value: item,
             label: TEAM_GENDER_LABELS[item],
           }))}

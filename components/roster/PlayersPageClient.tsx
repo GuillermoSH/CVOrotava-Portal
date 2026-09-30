@@ -11,13 +11,16 @@ import { ConfirmDialog } from "@/components/club/ConfirmDialog";
 import { FacetSearchBar, type FacetField } from "@/components/club/FacetSearchBar";
 import { Pagination } from "@/components/club/Pagination";
 import { SegmentedControl } from "@/components/club/SegmentedControl";
-import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
+import { Select } from "@/components/club/Select";
+import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { DashboardPage } from "@/components/layout/DashboardPage";
 import { PlayersFederationImportSheet } from "@/components/roster/PlayersFederationImportSheet";
 import { PlayersImportSheet } from "@/components/roster/PlayersImportSheet";
 import { PlayersWhatsAppSheet } from "@/components/roster/PlayersWhatsAppSheet";
+import { WhatsAppGlyph } from "@/components/shared/WhatsAppGlyph";
 import {
   bulkSetPlayersActiveAction,
+  bulkSetPlayersTeamAction,
   bulkUpdatePlayerChecklistAction,
   deletePlayersAction,
   updatePlayerChecklistFieldAction,
@@ -148,6 +151,7 @@ function ChecklistToggleChip({
   disabled,
   pending,
   onToggle,
+  className,
 }: {
   field: PlayerListToggleField;
   checked: boolean;
@@ -155,6 +159,7 @@ function ChecklistToggleChip({
   disabled?: boolean;
   pending?: boolean;
   onToggle: () => void;
+  className?: string;
 }) {
   const label =
     field === "docs_delivered_to_family" && checked && docsDate
@@ -176,6 +181,7 @@ function ChecklistToggleChip({
           ? "bg-success/15 text-success"
           : "bg-[var(--club-surface-2)] text-muted-foreground ring-1 ring-inset ring-[var(--club-border)]",
         (disabled || pending) && "opacity-60",
+        className,
       )}
       aria-pressed={checked}
       aria-label={`${PLAYER_CHECKLIST_LONG_LABELS[field]}: ${checked ? "sí" : "no"}`}
@@ -189,10 +195,12 @@ function ChecklistReadChip({
   field,
   checked,
   docsDate,
+  className,
 }: {
   field: PlayerListToggleField;
   checked: boolean;
   docsDate?: string | null;
+  className?: string;
 }) {
   return (
     <span
@@ -201,6 +209,7 @@ function ChecklistReadChip({
         checked
           ? "bg-success/15 text-success"
           : "bg-[var(--club-surface-2)] text-muted-foreground ring-1 ring-inset ring-[var(--club-border)]",
+        className,
       )}
     >
       {field === "docs_delivered_to_family" && checked && docsDate
@@ -217,6 +226,7 @@ function PlayerChecklistTags({
   togglingKey,
   onToggle,
   className,
+  scrollable = false,
 }: {
   player: PlayerListItem;
   canWrite: boolean;
@@ -224,6 +234,7 @@ function PlayerChecklistTags({
   togglingKey: string | null;
   onToggle: (field: PlayerListToggleField) => void;
   className?: string;
+  scrollable?: boolean;
 }) {
   const status = getPlayerOnboardingStatus(player);
   const docsDate = docsDateForList(player);
@@ -232,13 +243,32 @@ function PlayerChecklistTags({
     : [...PLAYER_LIST_TOGGLE_FIELDS];
 
   const profileIncomplete = isPlayerProfileIncomplete(player);
+  const chipShrink = scrollable ? "shrink-0" : undefined;
 
   return (
-    <div className={cn("flex flex-wrap gap-1", className)}>
-      {profileIncomplete ? <FichaIncompletaMark /> : null}
-      {status.isComplete ? <AltaCompletaMark /> : null}
-      {fields.map((field) =>
-        canWrite ? (
+    <div
+      className={cn(
+        "flex gap-1",
+        scrollable
+          ? "-mx-0.5 flex-nowrap overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          : "flex-wrap",
+        className,
+      )}
+    >
+      {profileIncomplete ? <FichaIncompletaMark className={chipShrink} /> : null}
+      {status.isComplete ? <AltaCompletaMark className={chipShrink} /> : null}
+      {fields.map((field) => {
+        // WA se gestiona en el flujo WhatsApp, no con toggle en la lista.
+        const readOnly = !canWrite || field === "in_whatsapp_group";
+        return readOnly ? (
+          <ChecklistReadChip
+            key={field}
+            field={field}
+            checked={player[field]}
+            docsDate={docsDate}
+            className={chipShrink}
+          />
+        ) : (
           <ChecklistToggleChip
             key={field}
             field={field}
@@ -246,11 +276,10 @@ function PlayerChecklistTags({
             docsDate={docsDate}
             pending={pending && togglingKey === `${player.id}:${field}`}
             onToggle={() => onToggle(field)}
+            className={chipShrink}
           />
-        ) : (
-          <ChecklistReadChip key={field} field={field} checked={player[field]} docsDate={docsDate} />
-        ),
-      )}
+        );
+      })}
     </div>
   );
 }
@@ -286,6 +315,9 @@ export function PlayersPageClient({
   const [bulkIntent, setBulkIntent] = useState<BulkIntent | null>(null);
   const [bulkActiveIntent, setBulkActiveIntent] = useState<BulkActiveIntent | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkMoveTeamId, setBulkMoveTeamId] = useState("");
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const [bulkMarkMode, setBulkMarkMode] = useState(true);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -601,6 +633,48 @@ export function PlayersPageClient({
     });
   }
 
+  function openBulkMove() {
+    if (selectedCount === 0) return;
+    setBulkMoveTeamId("");
+    setBulkMoveOpen(true);
+  }
+
+  function confirmBulkMove() {
+    if (selectedCount === 0) return;
+    const ids = [...selected];
+    const teamId = bulkMoveTeamId.trim() ? bulkMoveTeamId : null;
+    const teamLabel = teamId
+      ? (teams.find((team) => team.id === teamId)?.name ?? "equipo")
+      : "Sin equipo";
+    startTransition(async () => {
+      const result = await bulkSetPlayersTeamAction({
+        player_ids: ids,
+        team_id: teamId,
+      });
+      if (!result.ok) {
+        appToast.error(result.error);
+        return;
+      }
+      appToast.success(
+        `${result.updated ?? ids.length} jugador${(result.updated ?? ids.length) === 1 ? "" : "es"} movido${(result.updated ?? ids.length) === 1 ? "" : "s"} a ${teamLabel}`,
+      );
+      setBulkMoveOpen(false);
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
+  const teamMoveOptions = useMemo(
+    () => [
+      { value: "", label: "Sin equipo" },
+      ...teams.map((team) => ({
+        value: team.id,
+        label: `${team.name} · ${formatTeamCategory(team.category)}`,
+      })),
+    ],
+    [teams],
+  );
+
   const bulkActiveTitle = bulkActiveIntent
     ? bulkActiveIntent.is_active
       ? `Reactivar ${selectedInactiveCount} jugador${selectedInactiveCount === 1 ? "" : "es"}`
@@ -630,22 +704,22 @@ export function PlayersPageClient({
   );
 
   const listPager = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       <button
         type="button"
         onClick={toggleSortDir}
-        className="inline-flex min-h-9 cursor-pointer touch-manipulation items-center gap-1.5 rounded-lg border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] md:hidden"
+        className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center gap-1 rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] md:hidden"
         aria-label={`Orden por nombre ${sortDir === "asc" ? "ascendente" : "descendente"}; pulsa para invertir`}
       >
         Nombre
         {sortDir === "asc" ? (
-          <ArrowUp className="size-3.5" aria-hidden strokeWidth={2.25} />
+          <ArrowUp className="size-3" aria-hidden strokeWidth={2.25} />
         ) : (
-          <ArrowDown className="size-3.5" aria-hidden strokeWidth={2.25} />
+          <ArrowDown className="size-3" aria-hidden strokeWidth={2.25} />
         )}
       </button>
       <div
-        className="inline-flex items-center rounded-lg border border-[var(--club-border)] bg-[var(--club-surface-2)] p-0.5"
+        className="inline-flex items-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] p-0.5"
         role="group"
         aria-label="Jugadores por página"
       >
@@ -657,7 +731,7 @@ export function PlayersPageClient({
               type="button"
               onClick={() => setPageSize(opt.value)}
               className={cn(
-                "min-h-9 cursor-pointer touch-manipulation rounded-md px-2.5 text-xs font-semibold tabular-nums transition-colors",
+                "min-h-8 cursor-pointer touch-manipulation rounded px-2 text-[11px] font-semibold tabular-nums transition-colors",
                 active
                   ? "bg-[var(--club-drawer-bg)] text-foreground shadow-sm"
                   : "text-[var(--club-fg-muted)] hover:text-foreground",
@@ -705,7 +779,7 @@ export function PlayersPageClient({
         )
       }
     >
-      <div className={cn("flex flex-col gap-3", hasSelection && canWrite && "max-md:pb-36")}>
+      <div className={cn("flex flex-col gap-3", hasSelection && canWrite && "max-md:pb-28")}>
         <div className={showBajasToggle ? "flex flex-col gap-3 md:flex-row md:items-start" : undefined}>
           <FacetSearchBar
             query={query}
@@ -774,14 +848,14 @@ export function PlayersPageClient({
           <>
             <div
               className={cn(
-                "rounded-xl border px-3 py-2.5 transition-colors",
+                "rounded-lg border px-2.5 py-1.5 transition-colors",
                 hasSelection && canWrite
                   ? "sticky top-0 z-20 border-[color-mix(in_srgb,var(--club-brand)_28%,transparent)] bg-[color-mix(in_srgb,var(--club-brand-soft)_40%,var(--club-drawer-bg))] shadow-[var(--club-shadow-card)] max-md:static max-md:shadow-none"
                   : "border-[var(--club-border)] bg-[var(--club-surface)]/60",
               )}
             >
-              <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1">
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1">
                   {canWrite && hasSelection ? (
                     <label className="flex cursor-pointer items-center gap-2.5">
                       <input
@@ -799,12 +873,14 @@ export function PlayersPageClient({
                       </span>
                     </label>
                   ) : (
-                    <p className="text-sm font-medium tabular-nums text-foreground">{rangeLabel}</p>
+                    <p className="text-[13px] font-medium tabular-nums text-foreground">
+                      {rangeLabel}
+                    </p>
                   )}
                   {hasSelection && canWrite ? (
                     <button
                       type="button"
-                      className="min-h-9 cursor-pointer touch-manipulation rounded-lg px-2 text-xs font-medium text-[var(--club-fg-muted)] transition-colors hover:bg-[var(--club-surface-hover)] hover:text-foreground"
+                      className="min-h-8 cursor-pointer touch-manipulation rounded-lg px-2 text-xs font-medium text-[var(--club-fg-muted)] transition-colors hover:bg-[var(--club-surface-hover)] hover:text-foreground"
                       onClick={() => setSelected(new Set())}
                     >
                       Quitar selección
@@ -838,6 +914,14 @@ export function PlayersPageClient({
                         Reactivar ({selectedInactiveCount})
                       </button>
                     ) : null}
+                    <button
+                      type="button"
+                      className="btn-secondary min-h-9 text-xs"
+                      disabled={pending}
+                      onClick={openBulkMove}
+                    >
+                      Mover a equipo
+                    </button>
                     {canDelete ? (
                       <button
                         type="button"
@@ -934,178 +1018,185 @@ export function PlayersPageClient({
             </div>
 
             {/* Mobile — card densa: identidad + meta/tel + etiquetas */}
-            <ul className="flex flex-col gap-2 md:hidden">
-              {pageItems.map((player) => (
-                <li
-                  key={player.id}
-                  className="clothing-list-card !px-3 !py-2.5"
-                >
-                  <div className="flex gap-2.5">
-                    {canWrite ? (
-                      <input
-                        type="checkbox"
-                        className="mt-1 size-4 shrink-0 rounded border-[var(--club-border)] accent-brand"
-                        checked={selected.has(player.id)}
-                        onChange={() => toggleSelect(player.id)}
-                        aria-label={`Seleccionar ${formatPlayerName(player)}`}
-                      />
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <Link
-                          href={playerDetailHref(player.id, filterState)}
-                          className="min-w-0 truncate text-sm font-semibold leading-snug tracking-tight text-foreground hover:underline"
-                        >
-                          {formatPlayerName(player)}
-                        </Link>
-                        {player.is_active ? null : (
-                          <Badge variant="secondary" className="shrink-0 text-[10px]">
-                            Baja
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="mt-0.5 truncate text-xs leading-snug text-muted-foreground">
-                        {player.team?.name ?? "Sin equipo"}
-                        {player.clothing_size ? ` · ${formatClothingSize(player.clothing_size)}` : null}
-                        {player.primary_phone ? (
-                          <>
-                            {" · "}
+            <ul className="flex flex-col gap-1.5 md:hidden">
+              {pageItems.map((player) => {
+                const teamName = player.team?.name ?? "Sin equipo";
+                const metaParts: string[] = [];
+                if (player.clothing_size) metaParts.push(formatClothingSize(player.clothing_size));
+                return (
+                  <li key={player.id} className="clothing-list-card !px-2.5 !py-2">
+                    <div className="flex gap-2">
+                      {canWrite ? (
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 size-4 shrink-0 rounded border-[var(--club-border)] accent-brand"
+                          checked={selected.has(player.id)}
+                          onChange={() => toggleSelect(player.id)}
+                          aria-label={`Seleccionar ${formatPlayerName(player)}`}
+                        />
+                      ) : null}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline gap-1.5">
+                          <Link
+                            href={playerDetailHref(player.id, filterState)}
+                            className="min-w-0 truncate text-sm font-semibold leading-tight tracking-tight text-foreground hover:underline"
+                          >
+                            {formatPlayerName(player)}
+                          </Link>
+                          <span className="min-w-0 truncate text-[11px] font-medium leading-tight text-muted-foreground">
+                            · {teamName}
+                          </span>
+                          {player.is_active ? null : (
+                            <Badge variant="secondary" className="ml-auto shrink-0 text-[10px]">
+                              Baja
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] leading-snug text-[var(--club-fg-muted)]">
+                          {player.primary_phone ? (
                             <a
                               href={phoneHref(player.primary_phone)}
-                              className="font-medium text-brand tabular-nums"
+                              className="font-medium tabular-nums text-brand"
                             >
                               {player.primary_phone}
                             </a>
-                          </>
-                        ) : null}
-                      </p>
-                      <PlayerChecklistTags
-                        className="mt-2"
-                        player={player}
-                        canWrite={canWrite}
-                        pending={pending}
-                        togglingKey={togglingKey}
-                        onToggle={(field) => toggleField(player, field)}
-                      />
+                          ) : (
+                            <span>—</span>
+                          )}
+                          {metaParts.length > 0 ? ` · ${metaParts.join(" · ")}` : null}
+                        </p>
+                        <PlayerChecklistTags
+                          className="mt-1.5"
+                          scrollable
+                          player={player}
+                          canWrite={canWrite}
+                          pending={pending}
+                          togglingKey={togglingKey}
+                          onToggle={(field) => toggleField(player, field)}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}
       </div>
 
-      {canWrite && hasSelection && typeof document !== "undefined"
-        ? createPortal(
-            <div className="clothing-sticky-bar md:hidden">
-              <div className="clothing-sticky-bar__inner gap-2.5">
-                <div className="flex items-center justify-between gap-2 px-0.5">
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
-                    {selectedCount} seleccionado{selectedCount === 1 ? "" : "s"}
-                  </p>
-                  <button
-                    type="button"
-                    className="min-h-9 cursor-pointer touch-manipulation rounded-lg px-2 text-xs font-medium text-[var(--club-fg-muted)]"
-                    onClick={() => setSelected(new Set())}
-                  >
-                    Quitar selección
-                  </button>
+      {typeof document !== "undefined"
+        ? canWrite && hasSelection
+          ? createPortal(
+              <div className="clothing-sticky-bar md:hidden">
+                <div className="clothing-sticky-bar__inner gap-1.5 !py-2">
+                  <div className="flex items-center justify-between gap-2 px-0.5">
+                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                      {selectedCount} seleccionado{selectedCount === 1 ? "" : "s"}
+                    </p>
+                    <button
+                      type="button"
+                      className="min-h-8 cursor-pointer touch-manipulation rounded-lg px-2 text-xs font-medium text-[var(--club-fg-muted)]"
+                      onClick={() => setSelected(new Set())}
+                    >
+                      Quitar selección
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {selectedActiveCount > 0 ? (
+                      <button
+                        type="button"
+                        className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] disabled:opacity-60"
+                        disabled={pending}
+                        onClick={() => setBulkActiveIntent({ is_active: false })}
+                      >
+                        Baja
+                      </button>
+                    ) : null}
+                    {selectedInactiveCount > 0 ? (
+                      <button
+                        type="button"
+                        className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] disabled:opacity-60"
+                        disabled={pending}
+                        onClick={() => setBulkActiveIntent({ is_active: true })}
+                      >
+                        Reactivar
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] disabled:opacity-60"
+                      disabled={pending}
+                      onClick={openBulkMove}
+                    >
+                      Mover
+                    </button>
+                    {canDelete ? (
+                      <button
+                        type="button"
+                        className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full border border-[color-mix(in_srgb,var(--club-danger)_35%,var(--club-border))] bg-[var(--club-surface-2)] px-2.5 text-[11px] font-semibold text-[var(--club-danger)] transition-colors hover:bg-[var(--club-surface-hover)] disabled:opacity-60"
+                        disabled={pending}
+                        onClick={() => setBulkDeleteOpen(true)}
+                      >
+                        Eliminar
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="ml-auto inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full px-2.5 text-[11px] font-semibold text-brand transition-colors hover:bg-[var(--club-brand-soft)] disabled:opacity-60"
+                      disabled={pending}
+                      onClick={() => setMoreActionsOpen(true)}
+                    >
+                      Más acciones
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedActiveCount > 0 ? (
+              </div>,
+              document.body,
+            )
+          : createPortal(
+              <div className="clothing-sticky-bar md:hidden">
+                <div className="clothing-sticky-bar__inner clothing-sticky-bar__inner--dense">
+                  <div className="flex items-stretch gap-1.5">
                     <button
                       type="button"
-                      className="btn-secondary min-h-11 flex-1 text-xs"
-                      disabled={pending}
-                      onClick={() => setBulkActiveIntent({ is_active: false })}
+                      className="inline-flex size-9 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
+                      onClick={() => setWhatsappOpen(true)}
+                      aria-label="WhatsApp"
                     >
-                      Dar de baja ({selectedActiveCount})
+                      <WhatsAppGlyph className="size-4" />
                     </button>
-                  ) : null}
-                  {selectedInactiveCount > 0 ? (
-                    <button
-                      type="button"
-                      className="btn-secondary min-h-11 flex-1 text-xs"
-                      disabled={pending}
-                      onClick={() => setBulkActiveIntent({ is_active: true })}
+                    {canWrite ? (
+                      <>
+                        <button
+                          type="button"
+                          className="inline-flex min-h-9 min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
+                          onClick={() => setImportOpen(true)}
+                        >
+                          Importar
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex min-h-9 min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
+                          onClick={() => setFederationImportOpen(true)}
+                        >
+                          Federación
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                  {canWrite ? (
+                    <Link
+                      href={appRoutes.players.new}
+                      className="btn-primary min-h-10 w-full text-sm"
                     >
-                      Reactivar ({selectedInactiveCount})
-                    </button>
-                  ) : null}
-                  {canDelete ? (
-                    <button
-                      type="button"
-                      className="btn-secondary min-h-11 flex-1 text-xs text-[var(--club-danger)]"
-                      disabled={pending}
-                      onClick={() => setBulkDeleteOpen(true)}
-                    >
-                      Eliminar ({selectedCount})
-                    </button>
+                      Nuevo jugador
+                    </Link>
                   ) : null}
                 </div>
-                <SegmentedControl
-                  aria-label="Acción en lote"
-                  value={bulkMarkMode ? "mark" : "unmark"}
-                  onChange={(value) => setBulkMarkMode(value === "mark")}
-                  options={[
-                    { value: "mark", label: "Marcar" },
-                    { value: "unmark", label: "Desmarcar" },
-                  ]}
-                />
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                  {PLAYER_LIST_TOGGLE_FIELDS.map((field) => (
-                    <button
-                      key={field}
-                      type="button"
-                      className="btn-secondary min-h-11 text-xs"
-                      disabled={pending}
-                      onClick={() => requestBulk(field, bulkMarkMode)}
-                    >
-                      {PLAYER_CHECKLIST_LABELS[field]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : (
-        <ClothingStickyActionBar
-          actions={
-            canWrite
-              ? [
-                  {
-                    type: "button",
-                    label: "WhatsApp",
-                    onClick: () => setWhatsappOpen(true),
-                    variant: "secondary",
-                  },
-                  {
-                    type: "button",
-                    label: "Importar",
-                    onClick: () => setImportOpen(true),
-                    variant: "secondary",
-                  },
-                  {
-                    type: "button",
-                    label: "Federación",
-                    onClick: () => setFederationImportOpen(true),
-                    variant: "secondary",
-                  },
-                  { type: "link", label: "Nuevo jugador", href: appRoutes.players.new },
-                ]
-              : [
-                  {
-                    type: "button",
-                    label: "WhatsApp",
-                    onClick: () => setWhatsappOpen(true),
-                    variant: "secondary",
-                  },
-                ]
-          }
-        />
-      )}
+              </div>,
+              document.body,
+            )
+        : null}
 
       <ConfirmDialog
         open={bulkIntent !== null}
@@ -1155,6 +1246,75 @@ export function PlayersPageClient({
         pending={pending}
         onConfirm={confirmBulkDelete}
       />
+
+      <ClothingBottomSheet
+        open={bulkMoveOpen}
+        onClose={() => {
+          if (!pending) setBulkMoveOpen(false);
+        }}
+        title={`Mover ${selectedCount} jugador${selectedCount === 1 ? "" : "es"}`}
+        description="Elige el equipo de destino de esta temporada, o déjalos sin equipo."
+        primaryAction={{
+          label: "Mover",
+          onClick: confirmBulkMove,
+          disabled: pending || selectedCount === 0,
+          pending,
+        }}
+        secondaryAction={{
+          label: "Cancelar",
+          onClick: () => {
+            if (!pending) setBulkMoveOpen(false);
+          },
+          disabled: pending,
+        }}
+      >
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-foreground">Equipo</span>
+          <Select
+            value={bulkMoveTeamId}
+            onChange={setBulkMoveTeamId}
+            options={teamMoveOptions}
+            placeholder="Sin equipo"
+            aria-label="Equipo de destino"
+            disabled={pending}
+          />
+        </label>
+      </ClothingBottomSheet>
+
+      <ClothingBottomSheet
+        open={moreActionsOpen}
+        onClose={() => setMoreActionsOpen(false)}
+        title="Más acciones"
+        description={`Checklist en ${selectedCount} jugador${selectedCount === 1 ? "" : "es"} seleccionados.`}
+      >
+        <div className="flex flex-col gap-3">
+          <SegmentedControl
+            aria-label="Acción en lote"
+            value={bulkMarkMode ? "mark" : "unmark"}
+            onChange={(value) => setBulkMarkMode(value === "mark")}
+            options={[
+              { value: "mark", label: "Marcar" },
+              { value: "unmark", label: "Desmarcar" },
+            ]}
+          />
+          <div className="flex flex-col gap-1.5">
+            {PLAYER_LIST_TOGGLE_FIELDS.map((field) => (
+              <button
+                key={field}
+                type="button"
+                className="btn-secondary min-h-11 w-full justify-start text-sm"
+                disabled={pending}
+                onClick={() => {
+                  setMoreActionsOpen(false);
+                  requestBulk(field, bulkMarkMode);
+                }}
+              >
+                {PLAYER_CHECKLIST_LABELS[field]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </ClothingBottomSheet>
 
       {canWrite ? (
         <>
