@@ -48,6 +48,7 @@ export function DashboardMain({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
       <main
+        id="dashboard-main"
         ref={mainRef}
         className="scrollbar-hidden flex-1 overflow-auto px-4 py-4 pb-[calc(4rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:px-6 lg:py-6"
         aria-busy={navigating}

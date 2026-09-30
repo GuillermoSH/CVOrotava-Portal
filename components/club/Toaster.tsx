@@ -20,7 +20,7 @@ export function Toaster() {
       theme={theme}
       offset={{
         top: "calc(env(safe-area-inset-top, 0px) + 0.75rem)",
-        right: 12,
+        right: "calc(env(safe-area-inset-right, 0px) + 0.75rem)",
       }}
     />
   );
