@@ -148,6 +148,21 @@ export async function listContactsForPlayers(
   return (data ?? []).map(mapPlayerContact);
 }
 
+/** Pares id/nombre/user_id para un lote de jugadores (p.ej. registro de pagos en bloque). */
+export async function listPlayerUserIds(
+  db: RosterDb,
+  ids: string[],
+): Promise<{ id: string; full_name: string; user_id: string | null }[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await db
+    .from("players")
+    .select("id, full_name, user_id")
+    .in("id", ids);
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return data ?? [];
+}
+
 export async function getPlayerById(
   db: RosterDb,
   id: string,

@@ -24,6 +24,7 @@ import {
   createPlayerSchema,
   createTeamSchema,
   deletePlayersSchema,
+  quickCreatePlayerSchema,
   setPlayerActiveSchema,
   updatePlayerChecklistFieldSchema,
   updatePlayerSchema,
@@ -106,6 +107,44 @@ export async function createPlayerAction(input: unknown): Promise<ActionResult> 
       ...parsed.data,
       gender: resolvedGender,
       contacts,
+    });
+    revalidateRoster();
+    return { ok: true, id: player.id };
+  } catch (e) {
+    return {
+      ok: false,
+      error: friendlyDbError(e instanceof Error ? e.message : "No autorizado"),
+    };
+  }
+}
+
+/** Alta rápida: solo nombre/apellidos (+ equipo opcional). Ver quickCreatePlayerSchema. */
+export async function quickCreatePlayerAction(input: unknown): Promise<ActionResult> {
+  try {
+    await requireRosterWriteAccess();
+    const parsed = quickCreatePlayerSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    }
+
+    const db = await getRosterDb();
+    let resolvedGender: "male" | "female" | null = null;
+    if (parsed.data.team_id) {
+      const team = await getTeamById(db, parsed.data.team_id);
+      if (!team) return { ok: false, error: "Equipo no encontrado" };
+      if (team.season !== parsed.data.season) {
+        return { ok: false, error: "El equipo no es de esta temporada" };
+      }
+      // Equipo mixto: se deja sin sexo — se pedirá al completar la ficha.
+      if (team.gender !== "mixed") resolvedGender = team.gender;
+    }
+
+    const player = await createPlayer(db, {
+      first_name: parsed.data.first_name,
+      last_name: parsed.data.last_name,
+      team_id: parsed.data.team_id,
+      gender: resolvedGender,
+      season: parsed.data.season,
     });
     revalidateRoster();
     return { ok: true, id: player.id };

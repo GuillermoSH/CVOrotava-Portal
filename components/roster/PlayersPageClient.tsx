@@ -17,6 +17,7 @@ import { DashboardPage } from "@/components/layout/DashboardPage";
 import { PlayersFederationImportSheet } from "@/components/roster/PlayersFederationImportSheet";
 import { PlayersImportSheet } from "@/components/roster/PlayersImportSheet";
 import { PlayersWhatsAppSheet } from "@/components/roster/PlayersWhatsAppSheet";
+import { QuickAddPlayerSheet } from "@/components/roster/QuickAddPlayerSheet";
 import { WhatsAppGlyph } from "@/components/shared/WhatsAppGlyph";
 import {
   bulkSetPlayersActiveAction,
@@ -65,6 +66,7 @@ import {
   type PlayerListScrollState,
 } from "@/lib/roster/player-list-scroll";
 import { isPlayerProfileIncomplete } from "@/lib/roster/profile-completeness";
+import { getCurrentSeason } from "@/lib/season";
 import type { PlayerListItem, Team } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -296,6 +298,7 @@ export function PlayersPageClient({
   canDelete = false,
   subtitle,
   initialFilters,
+  matriculaPaidPlayerIds = [],
 }: {
   players: PlayerListItem[];
   teams: Team[];
@@ -304,6 +307,8 @@ export function PlayersPageClient({
   canDelete?: boolean;
   subtitle: string;
   initialFilters?: PlayerFilterState;
+  /** player_id con Matrícula pagada esta temporada — filtro "Sin matrícula". */
+  matriculaPaidPlayerIds?: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -316,6 +321,7 @@ export function PlayersPageClient({
   const [importOpen, setImportOpen] = useState(false);
   const [federationImportOpen, setFederationImportOpen] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkIntent, setBulkIntent] = useState<BulkIntent | null>(null);
   const [bulkActiveIntent, setBulkActiveIntent] = useState<BulkActiveIntent | null>(null);
@@ -361,9 +367,18 @@ export function PlayersPageClient({
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
   }, [filterState, pathname, router]);
 
+  const matriculaPaidSet = useMemo(
+    () => new Set(matriculaPaidPlayerIds),
+    [matriculaPaidPlayerIds],
+  );
+  const filterContext = useMemo(
+    () => ({ matriculaPaidPlayerIds: matriculaPaidSet }),
+    [matriculaPaidSet],
+  );
+
   const visible = useMemo(
-    () => sortPlayersByFirstName(applyPlayerFacets(players, filterState), sortDir),
-    [players, filterState, sortDir],
+    () => sortPlayersByFirstName(applyPlayerFacets(players, filterState, filterContext), sortDir),
+    [players, filterState, filterContext, sortDir],
   );
 
   const pageCount = useMemo(() => {
@@ -479,8 +494,8 @@ export function PlayersPageClient({
   );
 
   const checklistPool = useMemo(
-    () => applyPlayerFacetsExceptChecklist(players, filterState),
-    [players, filterState],
+    () => applyPlayerFacetsExceptChecklist(players, filterState, filterContext),
+    [players, filterState, filterContext],
   );
 
   const cascadedTeams = useMemo(
@@ -522,7 +537,10 @@ export function PlayersPageClient({
       {
         key: "checklist",
         label: "Alta",
-        options: buildChecklistOptions(checklistPool),
+        // "Sin matrícula" depende de payments, con SELECT solo para admin/manager (RLS).
+        options: buildChecklistOptions(checklistPool, filterContext).filter(
+          (opt) => canWrite || opt.value !== "missing_matricula",
+        ),
       },
       {
         key: "unassigned",
@@ -531,7 +549,7 @@ export function PlayersPageClient({
         instant: true,
       },
     ];
-  }, [players, facets, statusFilter, cascadePool, cascadedTeams, checklistPool]);
+  }, [players, facets, statusFilter, cascadePool, cascadedTeams, checklistPool, filterContext, canWrite]);
 
   const visibleIds = useMemo(() => visible.map((player) => player.id), [visible]);
 
@@ -838,6 +856,9 @@ export function PlayersPageClient({
               onClick={() => setFederationImportOpen(true)}
             >
               Importar federación
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => setQuickAddOpen(true)}>
+              Alta rápida
             </button>
             <Link href={appRoutes.players.new} className="btn-primary">
               Nuevo jugador
@@ -1258,12 +1279,21 @@ export function PlayersPageClient({
                     ) : null}
                   </div>
                   {canWrite ? (
-                    <Link
-                      href={appRoutes.players.new}
-                      className="btn-primary min-h-10 w-full text-sm"
-                    >
-                      Nuevo jugador
-                    </Link>
+                    <div className="flex items-stretch gap-1.5">
+                      <button
+                        type="button"
+                        className="btn-secondary min-h-10 flex-1 text-sm"
+                        onClick={() => setQuickAddOpen(true)}
+                      >
+                        Alta rápida
+                      </button>
+                      <Link
+                        href={appRoutes.players.new}
+                        className="btn-primary min-h-10 flex-[2] text-sm"
+                      >
+                        Nuevo jugador
+                      </Link>
+                    </div>
                   ) : null}
                 </div>
               </div>,
@@ -1395,6 +1425,12 @@ export function PlayersPageClient({
           <PlayersFederationImportSheet
             open={federationImportOpen}
             onClose={() => setFederationImportOpen(false)}
+          />
+          <QuickAddPlayerSheet
+            open={quickAddOpen}
+            onClose={() => setQuickAddOpen(false)}
+            teams={teams}
+            season={getCurrentSeason()}
           />
         </>
       ) : null}

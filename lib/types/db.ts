@@ -5,8 +5,6 @@
 
 import type { UserRole } from "@/lib/constants";
 
-export type PaymentMethod = "transfer" | "cash";
-
 export type Profile = {
   id: string;
   role: UserRole;
@@ -102,14 +100,44 @@ export type UserAppRole = {
   role: UserRole;
 };
 
+export type PaymentMethod = "transferencia" | "efectivo";
+export type PaymentStatus = "paid" | "pending";
+
+/**
+ * Fila de `payments` — tabla compartida con Team Manager (no gestionada solo por
+ * este repo). `amount` son euros (numeric), no céntimos. El Portal solo escribe
+ * filas con status "paid" (ver lib/payments/repository/payments.ts); "pending"
+ * puede existir por datos de Team Manager pero no se crea desde aquí.
+ * supabase/migrations/20260925120000_payments_player_id.sql,
+ * 20260930130000_payments_method.sql
+ */
 export type Payment = {
   id: string;
-  parent_id: string;
+  user_id: string | null;
+  player_id: string | null;
   concept: string;
-  amount_cents: number;
-  method: PaymentMethod;
-  paid_at: string | null;
+  amount: number;
+  status: PaymentStatus;
+  due_date: string | null;
+  paid_date: string | null;
   notes: string | null;
+  created_at: string;
+  updated_at: string;
+  season: string | null;
+  method: PaymentMethod | null;
+};
+
+/** supabase/migrations/20261001100000_payment_concepts.sql — catálogo propio del Portal. */
+export type PaymentConcept = {
+  id: string;
+  concept: string;
+  amount: number;
+  /** Cuenta para "matrícula pagada" en /admin/pagos (ver lib/payments/repository/payments.ts). */
+  is_matricula: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 };
 
 /** supabase/migrations/20260831130000_clothing_warehouse.sql */

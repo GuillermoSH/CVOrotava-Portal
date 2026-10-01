@@ -277,9 +277,9 @@ function DeliveriesBody() {
 function ProductsBody() {
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-sm text-muted-foreground">
+      <div className="text-sm text-muted-foreground">
         <Bone className="inline-block h-4 w-40 rounded-md align-middle" />
-      </p>
+      </div>
       <div className="flex flex-col gap-2.5 md:hidden">
         {Array.from({ length: 5 }, (_, index) => (
           <ListCardBone key={index} chips={3} />

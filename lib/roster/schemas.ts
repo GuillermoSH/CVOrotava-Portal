@@ -129,6 +129,21 @@ export const upsertPlayerSchema = z
 
 export const createPlayerSchema = upsertPlayerSchema;
 
+/**
+ * Alta rápida: solo nombre/apellidos (+ equipo opcional) para tener al jugador
+ * ya en el sistema mientras llegan papeles, foto y pago. El resto de la ficha
+ * (DNI, dirección, contactos...) se completa después editando al jugador.
+ */
+export const quickCreatePlayerSchema = z.object({
+  first_name: z.string().trim().min(1, "Indica el nombre").max(80),
+  last_name: z.string().trim().min(1, "Indica los apellidos").max(120),
+  team_id: z
+    .union([z.string().uuid(), z.literal(""), z.null()])
+    .optional()
+    .transform((value) => (value ? value : null)),
+  season: z.string().min(4).max(20),
+});
+
 export const updatePlayerSchema = upsertPlayerSchema.and(
   z.object({
     id: z.string().uuid(),

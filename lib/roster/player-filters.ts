@@ -26,6 +26,8 @@ export type ChecklistFilter =
   | "missing_docs"
   | "missing_photo"
   | "missing_license"
+  | "license_blocked"
+  | "missing_matricula"
   | "missing_whatsapp";
 
 export const CHECKLIST_FILTER_LABELS: Record<ChecklistFilter, string> = {
@@ -35,6 +37,8 @@ export const CHECKLIST_FILTER_LABELS: Record<ChecklistFilter, string> = {
   missing_papers: "Falta papeles",
   missing_photo: "Falta foto",
   missing_license: "Falta licencia",
+  license_blocked: "Licencia bloqueada (papeles/foto)",
+  missing_matricula: "Sin matrícula",
   missing_whatsapp: "Sin WhatsApp",
 };
 
@@ -45,8 +49,16 @@ export const CHECKLIST_FILTER_ORDER: ChecklistFilter[] = [
   "missing_papers",
   "missing_photo",
   "missing_license",
+  "license_blocked",
+  "missing_matricula",
   "missing_whatsapp",
 ];
+
+/** Datos externos (de otros módulos) que algunos filtros de checklist necesitan. */
+export type PlayerFilterContext = {
+  /** player_id con Matrícula ya pagada esta temporada (lib/payments/repository/payments.ts). */
+  matriculaPaidPlayerIds?: ReadonlySet<string>;
+};
 
 export type PlayerFacetKey = "category" | "gender" | "team" | "checklist" | "unassigned";
 
@@ -62,7 +74,11 @@ export type PlayerFilterState = {
   statusFilter: "active" | "all";
 };
 
-export function matchesChecklistFilter(player: PlayerListItem, filter: ChecklistFilter): boolean {
+export function matchesChecklistFilter(
+  player: PlayerListItem,
+  filter: ChecklistFilter,
+  context: PlayerFilterContext = {},
+): boolean {
   const status = getPlayerOnboardingStatus(player);
   switch (filter) {
     case "complete":
@@ -77,6 +93,13 @@ export function matchesChecklistFilter(player: PlayerListItem, filter: Checklist
       return !player.photo_taken;
     case "missing_license":
       return !player.license_completed;
+    case "license_blocked":
+      return (
+        !player.license_completed &&
+        (!player.registration_papers_received || !player.photo_taken)
+      );
+    case "missing_matricula":
+      return !(context.matriculaPaidPlayerIds?.has(player.id) ?? false);
     case "missing_whatsapp":
       return !player.in_whatsapp_group;
     default:
@@ -108,6 +131,7 @@ function matchesQuery(player: PlayerListItem, query: string): boolean {
 export function applyPlayerFacets(
   players: PlayerListItem[],
   { query, facets, statusFilter }: PlayerFilterState,
+  context: PlayerFilterContext = {},
 ): PlayerListItem[] {
   const category = facetValue(facets, "category");
   const gender = facetValue(facets, "gender");
@@ -122,7 +146,7 @@ export function applyPlayerFacets(
     if (gender && effectivePlayerGender(player) !== gender) return false;
     if (unassigned && player.team_id !== null) return false;
     if (teamId && player.team_id !== teamId) return false;
-    if (checklist && !matchesChecklistFilter(player, checklist)) return false;
+    if (checklist && !matchesChecklistFilter(player, checklist, context)) return false;
     return matchesQuery(player, query);
   });
 }
@@ -151,11 +175,16 @@ export function sortPlayersByFirstName(
 export function applyPlayerFacetsExceptChecklist(
   players: PlayerListItem[],
   state: PlayerFilterState,
+  context: PlayerFilterContext = {},
 ): PlayerListItem[] {
-  return applyPlayerFacets(players, {
-    ...state,
-    facets: state.facets.filter((f) => f.key !== "checklist"),
-  });
+  return applyPlayerFacets(
+    players,
+    {
+      ...state,
+      facets: state.facets.filter((f) => f.key !== "checklist"),
+    },
+    context,
+  );
 }
 
 export function upsertPlayerFacet(facets: PlayerFacet[], next: PlayerFacet): PlayerFacet[] {
@@ -230,11 +259,14 @@ export function buildTeamOptions(teams: Team[], pool: PlayerListItem[]): FacetOp
   }));
 }
 
-export function buildChecklistOptions(pool: PlayerListItem[]): FacetOption[] {
+export function buildChecklistOptions(
+  pool: PlayerListItem[],
+  context: PlayerFilterContext = {},
+): FacetOption[] {
   return CHECKLIST_FILTER_ORDER.map((filter) => ({
     value: filter,
     label: CHECKLIST_FILTER_LABELS[filter],
-    count: countInPool(pool, (p) => matchesChecklistFilter(p, filter)),
+    count: countInPool(pool, (p) => matchesChecklistFilter(p, filter, context)),
   }));
 }
 
