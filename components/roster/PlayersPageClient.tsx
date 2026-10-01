@@ -17,6 +17,7 @@ import { DashboardPage } from "@/components/layout/DashboardPage";
 import { PlayersFederationImportSheet } from "@/components/roster/PlayersFederationImportSheet";
 import { PlayersImportSheet } from "@/components/roster/PlayersImportSheet";
 import { PlayersWhatsAppSheet } from "@/components/roster/PlayersWhatsAppSheet";
+import { QuickAddPlayerSheet } from "@/components/roster/QuickAddPlayerSheet";
 import { WhatsAppGlyph } from "@/components/shared/WhatsAppGlyph";
 import {
   bulkSetPlayersActiveAction,
@@ -65,6 +66,7 @@ import {
   type PlayerListScrollState,
 } from "@/lib/roster/player-list-scroll";
 import { isPlayerProfileIncomplete } from "@/lib/roster/profile-completeness";
+import { getCurrentSeason } from "@/lib/season";
 import type { PlayerListItem, Team } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -319,6 +321,7 @@ export function PlayersPageClient({
   const [importOpen, setImportOpen] = useState(false);
   const [federationImportOpen, setFederationImportOpen] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkIntent, setBulkIntent] = useState<BulkIntent | null>(null);
   const [bulkActiveIntent, setBulkActiveIntent] = useState<BulkActiveIntent | null>(null);
@@ -854,6 +857,9 @@ export function PlayersPageClient({
             >
               Importar federación
             </button>
+            <button type="button" className="btn-secondary" onClick={() => setQuickAddOpen(true)}>
+              Alta rápida
+            </button>
             <Link href={appRoutes.players.new} className="btn-primary">
               Nuevo jugador
             </Link>
@@ -1273,12 +1279,21 @@ export function PlayersPageClient({
                     ) : null}
                   </div>
                   {canWrite ? (
-                    <Link
-                      href={appRoutes.players.new}
-                      className="btn-primary min-h-10 w-full text-sm"
-                    >
-                      Nuevo jugador
-                    </Link>
+                    <div className="flex items-stretch gap-1.5">
+                      <button
+                        type="button"
+                        className="btn-secondary min-h-10 flex-1 text-sm"
+                        onClick={() => setQuickAddOpen(true)}
+                      >
+                        Alta rápida
+                      </button>
+                      <Link
+                        href={appRoutes.players.new}
+                        className="btn-primary min-h-10 flex-[2] text-sm"
+                      >
+                        Nuevo jugador
+                      </Link>
+                    </div>
                   ) : null}
                 </div>
               </div>,
@@ -1410,6 +1425,12 @@ export function PlayersPageClient({
           <PlayersFederationImportSheet
             open={federationImportOpen}
             onClose={() => setFederationImportOpen(false)}
+          />
+          <QuickAddPlayerSheet
+            open={quickAddOpen}
+            onClose={() => setQuickAddOpen(false)}
+            teams={teams}
+            season={getCurrentSeason()}
           />
         </>
       ) : null}
