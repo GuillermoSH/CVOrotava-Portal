@@ -296,6 +296,7 @@ export function PlayersPageClient({
   canDelete = false,
   subtitle,
   initialFilters,
+  matriculaPaidPlayerIds = [],
 }: {
   players: PlayerListItem[];
   teams: Team[];
@@ -304,6 +305,8 @@ export function PlayersPageClient({
   canDelete?: boolean;
   subtitle: string;
   initialFilters?: PlayerFilterState;
+  /** player_id con Matrícula pagada esta temporada — filtro "Sin matrícula". */
+  matriculaPaidPlayerIds?: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -361,9 +364,18 @@ export function PlayersPageClient({
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
   }, [filterState, pathname, router]);
 
+  const matriculaPaidSet = useMemo(
+    () => new Set(matriculaPaidPlayerIds),
+    [matriculaPaidPlayerIds],
+  );
+  const filterContext = useMemo(
+    () => ({ matriculaPaidPlayerIds: matriculaPaidSet }),
+    [matriculaPaidSet],
+  );
+
   const visible = useMemo(
-    () => sortPlayersByFirstName(applyPlayerFacets(players, filterState), sortDir),
-    [players, filterState, sortDir],
+    () => sortPlayersByFirstName(applyPlayerFacets(players, filterState, filterContext), sortDir),
+    [players, filterState, filterContext, sortDir],
   );
 
   const pageCount = useMemo(() => {
@@ -479,8 +491,8 @@ export function PlayersPageClient({
   );
 
   const checklistPool = useMemo(
-    () => applyPlayerFacetsExceptChecklist(players, filterState),
-    [players, filterState],
+    () => applyPlayerFacetsExceptChecklist(players, filterState, filterContext),
+    [players, filterState, filterContext],
   );
 
   const cascadedTeams = useMemo(
@@ -522,7 +534,10 @@ export function PlayersPageClient({
       {
         key: "checklist",
         label: "Alta",
-        options: buildChecklistOptions(checklistPool),
+        // "Sin matrícula" depende de payments, con SELECT solo para admin/manager (RLS).
+        options: buildChecklistOptions(checklistPool, filterContext).filter(
+          (opt) => canWrite || opt.value !== "missing_matricula",
+        ),
       },
       {
         key: "unassigned",
@@ -531,7 +546,7 @@ export function PlayersPageClient({
         instant: true,
       },
     ];
-  }, [players, facets, statusFilter, cascadePool, cascadedTeams, checklistPool]);
+  }, [players, facets, statusFilter, cascadePool, cascadedTeams, checklistPool, filterContext, canWrite]);
 
   const visibleIds = useMemo(() => visible.map((player) => player.id), [visible]);
 
