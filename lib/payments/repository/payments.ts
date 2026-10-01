@@ -66,25 +66,44 @@ export type CreatePaymentInput = {
   season?: SeasonId;
 };
 
+function buildPaymentRow(input: CreatePaymentInput) {
+  return {
+    player_id: input.player_id,
+    user_id: input.user_id,
+    concept: input.concept,
+    amount: input.amount,
+    status: "paid" as const,
+    paid_date: input.paid_date,
+    due_date: null,
+    method: input.method,
+    notes: input.notes?.trim() || null,
+    season: input.season ?? getCurrentSeason(),
+  };
+}
+
 /** Crea un pago ya cobrado: status="paid" fijo (ver AGENTS.md — sin pasarela de pago). */
 export async function createPayment(db: PaymentsDb, input: CreatePaymentInput): Promise<Payment> {
   const { data, error } = await db
     .from("payments")
-    .insert({
-      player_id: input.player_id,
-      user_id: input.user_id,
-      concept: input.concept,
-      amount: input.amount,
-      status: "paid",
-      paid_date: input.paid_date,
-      due_date: null,
-      method: input.method,
-      notes: input.notes?.trim() || null,
-      season: input.season ?? getCurrentSeason(),
-    })
+    .insert(buildPaymentRow(input))
     .select(PAYMENT_SELECT)
     .single();
 
   if (error) throw new Error(dbErrorMessage(error));
   return mapPayment(data as PaymentRow);
+}
+
+/** Crea un pago idéntico (mismo concepto/importe/fecha/método) para varios jugadores a la vez. */
+export async function createPayments(
+  db: PaymentsDb,
+  inputs: CreatePaymentInput[],
+): Promise<Payment[]> {
+  if (inputs.length === 0) return [];
+  const { data, error } = await db
+    .from("payments")
+    .insert(inputs.map(buildPaymentRow))
+    .select(PAYMENT_SELECT);
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return (data ?? []).map((row) => mapPayment(row as PaymentRow));
 }
