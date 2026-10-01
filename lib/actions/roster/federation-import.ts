@@ -16,6 +16,7 @@ import {
 } from "@/lib/roster/federation-import";
 import { requireRosterWriteAccess } from "@/lib/roster/auth";
 import { normalizeDocumentId } from "@/lib/roster/document";
+import { federationIdentityKey } from "@/lib/roster/federation-import";
 import { getRosterDb } from "@/lib/roster/repository/client";
 import { createPlayers, listPlayers } from "@/lib/roster/repository/players";
 import { ensureFederationBaseTeams, listTeams } from "@/lib/roster/repository/teams";
@@ -118,7 +119,14 @@ async function loadParseContext() {
       .filter((dni): dni is string => Boolean(dni))
       .map((dni) => normalizeDocumentId(dni)),
   );
-  return { season, db, teams, existingDnis };
+  const existingIdentities = new Set(
+    players
+      .filter((player) => Boolean(player.birth_date?.trim()))
+      .map((player) =>
+        federationIdentityKey(player.first_name, player.last_name, player.birth_date!.trim()),
+      ),
+  );
+  return { season, db, teams, existingDnis, existingIdentities };
 }
 
 function validateParsedForImport(
@@ -159,8 +167,13 @@ export async function previewFederationImportAction(
     if (!fileCheck.ok) return fileCheck;
 
     const bytes = Buffer.from(await fileCheck.file.arrayBuffer());
-    const { season, teams, existingDnis } = await loadParseContext();
-    const parsed = parseFederationImportCsv(bytes, { season, teams, existingDnis });
+    const { season, teams, existingDnis, existingIdentities } = await loadParseContext();
+    const parsed = parseFederationImportCsv(bytes, {
+      season,
+      teams,
+      existingDnis,
+      existingIdentities,
+    });
 
     if (parsed.counts.toImport === 0 && parsed.counts.discarded === 0) {
       return { ok: false, error: "El CSV no tiene filas de jugadores" };
@@ -196,8 +209,13 @@ export async function importFederationChunkAction(
     const previewTotal = readNonNegInt(formData, "preview_total", 0);
 
     const bytes = Buffer.from(await fileCheck.file.arrayBuffer());
-    const { season, db, teams, existingDnis } = await loadParseContext();
-    const parsed = parseFederationImportCsv(bytes, { season, teams, existingDnis });
+    const { season, db, teams, existingDnis, existingIdentities } = await loadParseContext();
+    const parsed = parseFederationImportCsv(bytes, {
+      season,
+      teams,
+      existingDnis,
+      existingIdentities,
+    });
 
     const remaining = parsed.toImport.length;
     if (remaining === 0) {

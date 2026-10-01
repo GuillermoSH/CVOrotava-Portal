@@ -171,6 +171,76 @@ describe("parseFederationImportCsv — document", () => {
     expect(findByDni(preview.toImport, "AB1234567")).toBeTruthy();
     expect(preview.toImport.some((r) => r.dni === "166599329")).toBe(false);
   });
+
+  it("uses foreign document number when Documento identidad is empty (real CSV shape)", () => {
+    const csv = buildFederationCsv([
+      playerRow({
+        Nombre: "Víctor Manuel",
+        Apellidos: "Morales",
+        "Segundo Apellido": "Guzmán",
+        "Fecha nacimiento": "2008-03-15",
+        "Documento identidad": "",
+        "Número de documento (si no es NIF)  *": "166599329",
+        "País de Nacimiento": "Venezuela",
+        Nacionalidad: "ve",
+      }),
+    ]);
+
+    const preview = parseFederationImportCsv(csv, { season: SEASON_PORTAL });
+    expect(findByDni(preview.toImport, "166599329")).toBeTruthy();
+  });
+
+  it("discards foreign CSV doc when same name+birth already exists with a NIE", () => {
+    const csv = buildFederationCsv([
+      playerRow({
+        Nombre: "Víctor Manuel",
+        Apellidos: "Morales",
+        "Segundo Apellido": "Guzmán",
+        "Fecha nacimiento": "2008-03-15",
+        "Documento identidad": "",
+        "Número de documento (si no es NIF)  *": "166599329",
+        "País de Nacimiento": "Venezuela",
+        Nacionalidad: "ve",
+      }),
+    ]);
+
+    const existingIdentities = new Set([
+      "victor manuel|morales guzman|2008-03-15",
+    ]);
+    const existingDnis = new Set([VALID_NIE]);
+
+    const preview = parseFederationImportCsv(csv, {
+      season: SEASON_PORTAL,
+      existingDnis,
+      existingIdentities,
+    });
+
+    expect(preview.toImport).toHaveLength(0);
+    expect(preview.discarded.some((d) => d.reason === "identidad_duplicada_temporada")).toBe(
+      true,
+    );
+  });
+
+  it("treats truncated NIE without control letter as duplicate of full NIE", () => {
+    const csv = buildFederationCsv([
+      playerRow({
+        Nombre: "Giordana",
+        Apellidos: "Natale",
+        "Documento identidad": "",
+        "Número de documento (si no es NIF)  *": "Y8872640",
+        "País de Nacimiento": "España",
+        Nacionalidad: "es",
+      }),
+    ]);
+
+    const preview = parseFederationImportCsv(csv, {
+      season: SEASON_PORTAL,
+      existingDnis: new Set(["Y8872640X"]),
+    });
+
+    expect(preview.toImport).toHaveLength(0);
+    expect(preview.discarded.some((d) => d.reason === "dni_duplicado_temporada")).toBe(true);
+  });
 });
 
 describe("parseFederationImportCsv — remaining-queue chunks", () => {
