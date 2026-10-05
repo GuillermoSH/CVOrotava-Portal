@@ -1,0 +1,49 @@
+---
+description: Backlog de optimizaciones post Next 16 (no implementar hasta que se pida)
+globs:
+alwaysApply: false
+---
+
+# Optimizaciones — backlog
+
+Ideas recogidas tras la migración Next 16 (`feature/migration-v16`). **No implementar** hasta que se pida explícitamente.
+
+## Prioridad alta (jugadores / datos)
+
+1. **Paginación/filtros en servidor** — Hoy `PlayersPageClient` pagina con `slice` pero `listPlayers` / `getRosterSnapshot` traen toda la temporada. Mover page + filtros/orden a query Supabase.
+2. **Select ligero de lista vs ficha** — `PLAYER_SELECT` incluye dirección, medical, nacionalidad, etc. Separar campos de tabla/checklist de los de ficha (`/jugadores/[id]`).
+3. **Fotos** — `/admin/jugadores/[id]/foto` usa `sharp` en cada hit. Preferir URL firmada de Storage o cache HTTP fuerte para avatares de lista.
+4. **Optimistic UI en checklist** — Menos `router.refresh()` tras toggles/bulk; actualizar estado local e invalidar solo cuando haga falta.
+
+## Bundle / cliente
+
+5. **`next/dynamic` en sheets pesados** — Federación, Excel import, WhatsApp, crop de foto: no cargar en el chunk inicial de jugadores.
+6. **Partir `PlayersPageClient` / `PlayerForm`** — Extraer toolbar, tabla, bulk bar y sheets.
+7. **Deps pesadas acotadas** — `exceljs` / `xlsx` / `@dnd-kit` / `framer-motion` solo en pantallas que los usan (evitar arrastre al listado).
+
+## Caché / Next 16 (siguiente paso)
+
+8. **Más pilotos `'use cache'`** — Pedidos, almacén, conceptos de pago (dato staff). Plantilla solo con fetch post-auth + service role y revisión de privacidad.
+9. **Invalidación más fina** — Tags por temporada/jugador; menos `revalidatePath(... layout)` amplio.
+10. **`refresh()` en más actions** — Extender el patrón de create/update jugador y quitar `router.refresh()` del cliente donde sobra.
+
+## Proxy / auth
+
+11. **Matcher más estrecho** — Si hay latencia Node en `proxy`, excluir más rutas; rollback a Edge middleware solo si Supabase lo exige.
+12. **Sesión por request (`React.cache`)** — Evitar doble `createClient` / `require*Access` en layout + página + snapshot del mismo render.
+
+## Ropa / pagos (si crecen)
+
+13. **Snapshots inventario/pedidos** — Select acotado + caché etiquetada.
+14. **Kanban** — Virtualizar columnas si hay muchos pedidos; `@dnd-kit` solo ahí.
+
+## DX
+
+15. **Arreglar `pnpm lint`** — Bug ESLint 9 + `eslint-config-next` (estructura circular al validar config).
+16. **Índices Supabase** — p. ej. `players(season, team_id)`, `players(season, is_active)`, contactos por `player_id` (crítico al paginar en SQL).
+
+## Orden sugerido (tras paginar de verdad)
+
+1. Select ligero de lista  
+2. Dynamic import de sheets  
+3. URLs firmadas / cache de fotos  
