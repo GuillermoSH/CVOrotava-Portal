@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
   serverExternalPackages: ["xlsx"],
   async redirects() {
     return [
