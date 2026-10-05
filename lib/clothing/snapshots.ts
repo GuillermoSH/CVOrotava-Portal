@@ -18,6 +18,10 @@ import {
   listOrderStatusEvents,
 } from "@/lib/clothing/repository/orders";
 import { listActivePlayers } from "@/lib/clothing/repository/players";
+import {
+  getCachedActiveProductsSnapshot,
+  getCachedAllProductsSnapshot,
+} from "@/lib/clothing/cached-products";
 import { listActiveProducts, listProducts } from "@/lib/clothing/repository/products";
 import type {
   ClothingDeliveryHistoryItem,
@@ -215,17 +219,11 @@ export async function getClothingHubKpis(): Promise<ClothingHubKpis> {
 }
 
 export async function getProductsSnapshot(): Promise<ClothingProduct[]> {
-  const db = await getClothingDb();
-  return listActiveProducts(db);
+  return getCachedActiveProductsSnapshot();
 }
 
 export async function getAllProductsSnapshot(): Promise<ClothingProduct[]> {
-  const db = await getClothingDb();
-  const products = await listProducts(db);
-  return [...products].sort((a, b) => {
-    if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
-    return a.model.localeCompare(b.model, "es");
-  });
+  return getCachedAllProductsSnapshot();
 }
 
 export async function getRosterSnapshot(): Promise<PlayerWithTeam[]> {

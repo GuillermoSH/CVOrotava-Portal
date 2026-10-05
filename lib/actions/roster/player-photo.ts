@@ -1,7 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
+import { invalidatePlayer } from "@/lib/cache/invalidate";
 import { requireRosterWriteAccess } from "@/lib/roster/auth";
 import {
   PLAYER_PHOTOS_BUCKET,
@@ -18,11 +17,6 @@ export type PhotoActionResult =
 export type PhotoUploadUrlResult =
   | { ok: true; signedUrl: string; token: string; path: string }
   | { ok: false; error: string };
-
-function revalidatePlayer(playerId: string) {
-  revalidatePath("/admin/jugadores", "layout");
-  revalidatePath(`/admin/jugadores/${playerId}`);
-}
 
 export async function createPlayerPhotoUploadUrl(
   playerId: string,
@@ -96,7 +90,7 @@ export async function confirmPlayerPhoto(
       return { ok: false, error: error.message };
     }
 
-    revalidatePlayer(player.id);
+    invalidatePlayer(player.id);
     return {
       ok: true,
       path,
@@ -141,7 +135,7 @@ export async function removePlayerPhoto(
     }
 
     // No tocar photo_taken ni photo_consent.
-    revalidatePlayer(player.id);
+    invalidatePlayer(player.id);
     return { ok: true };
   } catch (e) {
     return {

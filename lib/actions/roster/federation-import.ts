@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { invalidateRoster } from "@/lib/cache/invalidate";
 
 import type {
   FederationImportChunkResult,
@@ -33,11 +33,6 @@ export type {
 } from "@/lib/roster/federation-import-types";
 
 const MAX_FILE_BYTES = 2_000_000;
-
-function revalidateRoster() {
-  revalidatePath("/admin/jugadores", "layout");
-  revalidatePath("/admin/ropa/entregas");
-}
 
 function foldTeamName(value: string): string {
   return value
@@ -273,7 +268,7 @@ export async function importFederationChunkAction(
     const processed = Math.min(total, total - remainingAfter);
     const done = remainingAfter === 0;
 
-    if (result.created > 0 || done) revalidateRoster();
+    if (result.created > 0 || done) invalidateRoster(getCurrentSeason());
 
     return {
       ok: true,
