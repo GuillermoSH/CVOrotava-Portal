@@ -13,15 +13,11 @@ import {
   productMapFromList,
 } from "@/lib/clothing/repository/helpers";
 import {
-  listInventoryLots,
   listPlayerStockMovements,
   listStockMovements,
 } from "@/lib/clothing/repository/inventory";
 import { listLocations } from "@/lib/clothing/repository/locations";
-import {
-  listOrdersWithLines,
-  listOrderStatusEvents,
-} from "@/lib/clothing/repository/orders";
+import { listOrderStatusEvents } from "@/lib/clothing/repository/orders";
 import { listActivePlayers } from "@/lib/clothing/repository/players";
 import { listProducts } from "@/lib/clothing/repository/products";
 import type {
@@ -161,9 +157,12 @@ export type ClothingHubKpis = {
   } | null;
 };
 
+/** KPIs del hub ropa — derivados de snapshots cacheados (sin cookies). Auth en la página. */
 export async function getClothingHubKpis(): Promise<ClothingHubKpis> {
-  const db = await getClothingDb();
-  const [{ orders }, lots] = await Promise.all([listOrdersWithLines(db), listInventoryLots(db)]);
+  const [orders, lots] = await Promise.all([
+    getCachedOrdersSnapshot(),
+    getCachedInventorySnapshot(),
+  ]);
 
   const open = orders.filter((o) => o.status !== "closed");
   const featured = open[0] ?? null;

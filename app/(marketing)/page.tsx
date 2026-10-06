@@ -3,8 +3,6 @@ import { redirect } from "next/navigation";
 
 import { roleHomeRoute, requirePortalRole } from "@/lib/auth/portal-access";
 
-export const instant = false;
-
 /** Entrada del portal: sin landing; sesión → home por rol, si no → login. */
 async function HomeRedirect(): Promise<null> {
   const role = await requirePortalRole();

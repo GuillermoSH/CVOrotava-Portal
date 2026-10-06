@@ -9,9 +9,6 @@ import type { ClothingInventoryStatus } from "@/lib/types/db";
 
 import { InventoryWarehouseView } from "@/components/clothing/InventoryWarehouseView";
 
-/** Auth + live inventory — do not instant-prerender this floor surface. */
-export const instant = false;
-
 function parseStatus(value: string | undefined): ClothingInventoryStatus | "all" {
   if (value === "pending_storage" || value === "stored") return value;
   return "all";

@@ -1,10 +1,13 @@
+import { Suspense } from "react";
+
 import { ClothingHubCards } from "@/components/clothing/ClothingHubCards";
 import { ClothingHubQuickLinks } from "@/components/clothing/ClothingHubQuickLinks";
 import { ClothingHubSearch } from "@/components/clothing/ClothingHubSearch";
+import { DashboardBodySkeleton } from "@/components/shared/skeletons";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
 import { getClothingHubKpis } from "@/lib/clothing/snapshots";
 
-export default async function ClothingHubPage() {
+async function ClothingHubContent() {
   await requireClothingReadAccess();
   const kpis = await getClothingHubKpis();
 
@@ -32,5 +35,13 @@ export default async function ClothingHubPage() {
         />
       </section>
     </>
+  );
+}
+
+export default function ClothingHubPage() {
+  return (
+    <Suspense fallback={<DashboardBodySkeleton kind="hub" />}>
+      <ClothingHubContent />
+    </Suspense>
   );
 }

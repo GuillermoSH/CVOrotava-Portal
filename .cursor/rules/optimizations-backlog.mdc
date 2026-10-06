@@ -8,6 +8,8 @@ alwaysApply: false
 
 Ideas recogidas tras la migración Next 16 (`feature/migration-v16`). La mayor parte del roadmap ya está implementada (ver Status abajo). Lo marcado **partial** / virtualización kanban queda para iteraciones futuras.
 
+**Nav Cache Components:** layouts auth en `<Suspense>` + `loading.tsx` por segmento (sin blanket `instant = false`). Lecciones en Notion *Errores conocidos* (#11–13).
+
 ## Status (roadmap post-Next 16)
 
 | # | Item | Estado |

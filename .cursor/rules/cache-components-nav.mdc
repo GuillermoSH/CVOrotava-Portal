@@ -1,0 +1,27 @@
+---
+description: Cache Components — navegación instantánea (Suspense/loading, no instant=false)
+globs: app/**/page.tsx,app/**/layout.tsx,app/**/loading.tsx
+alwaysApply: false
+---
+
+# Cache Components — navegación
+
+Con `cacheComponents: true` (Next 16), cada **page** se valida sola. Un `instant = false` en el layout **no** cubre las páginas hijas.
+
+## Hacer
+
+- Auth en layout: componente async en `<Suspense>` que **solo hace gate/redirect y devuelve `null`** — **no** envuelva `{children}` tras el `await`.
+- Shell (`AppShell`) estático alrededor; `{children}` hermano del gate.
+- Datos de página: `loading.tsx` del segmento y/o `<Suspense>` en la page alrededor del contenido async.
+- Datos compartidos de staff: `'use cache'` + `cacheTag` + `updateTag`.
+
+## No hacer
+
+- `async function LayoutGate({ children }) { await cookies(); return <Shell>{children}</Shell>; }` — bloquea la navegación aunque haya Suspense.
+- Confiar solo en `export const instant = false` en el layout.
+- `await cookies()` / `await searchParams` / fetch sin cache **fuera** de Suspense/`loading.tsx`.
+- Meter plantilla (menores) en `'use cache'` con JWT de usuario (RLS leak).
+
+## Al fallar
+
+Documentar síntoma/causa/fix/regla en Notion → **Errores conocidos** (CVOrotava Team Manager). No dejar el aprendizaje solo en el chat.
