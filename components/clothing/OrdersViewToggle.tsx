@@ -22,18 +22,13 @@ export function OrdersViewToggle({
     <div
       role="group"
       aria-label="Vista de pedidos"
-      className="inline-flex items-center rounded-lg border border-[var(--club-border)] p-0.5"
+      className="ropa-view-toggle"
     >
       <button
         type="button"
         onClick={() => onChange("kanban")}
         aria-pressed={view === "kanban"}
-        className={cn(
-          "inline-flex min-h-11 items-center gap-1.5 rounded-md px-3.5 text-xs font-medium transition-colors",
-          view === "kanban"
-            ? "bg-[var(--club-brand-soft)] text-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        )}
+        className={cn("ropa-view-toggle__btn", view === "kanban" && "ropa-view-toggle__btn--on")}
       >
         <LayoutGrid className="size-3.5 shrink-0" aria-hidden />
         Kanban
@@ -42,12 +37,7 @@ export function OrdersViewToggle({
         type="button"
         onClick={() => onChange("list")}
         aria-pressed={view === "list"}
-        className={cn(
-          "inline-flex min-h-11 items-center gap-1.5 rounded-md px-3.5 text-xs font-medium transition-colors",
-          view === "list"
-            ? "bg-[var(--club-brand-soft)] text-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        )}
+        className={cn("ropa-view-toggle__btn", view === "list" && "ropa-view-toggle__btn--on")}
       >
         <List className="size-3.5 shrink-0" aria-hidden />
         Lista

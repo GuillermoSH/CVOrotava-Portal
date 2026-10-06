@@ -2,9 +2,12 @@ import { PlayersPageClient } from "@/components/roster/PlayersPageClient";
 import { getPaymentsDb } from "@/lib/payments/repository/client";
 import { listPlayerIdsWithPaidMatricula } from "@/lib/payments/repository/payments";
 import { requireRosterReadAccess } from "@/lib/roster/auth";
-import { parsePlayerListSearchParams } from "@/lib/roster/player-filters";
-import { getRosterSnapshot } from "@/lib/roster/snapshots";
-import { formatSeasonShort } from "@/lib/season";
+import {
+  parsePlayerListUrlState,
+  playerFilterStateToListFilters,
+} from "@/lib/roster/player-filters";
+import { getPlayersListSnapshot, getTeamsSnapshot } from "@/lib/roster/snapshots";
+import { formatSeasonShort, getCurrentSeason } from "@/lib/season";
 
 export default async function PlayersPage({
   searchParams,
@@ -14,23 +17,40 @@ export default async function PlayersPage({
   const role = await requireRosterReadAccess();
   const canWrite = role === "admin" || role === "manager";
   const canDelete = role === "admin";
-  const [{ players, teams, season }, params] = await Promise.all([
-    getRosterSnapshot(),
-    searchParams,
-  ]);
-  // payments solo tiene SELECT para admin/manager (RLS) — coach no debe ni consultarla.
+  const season = getCurrentSeason();
+  const params = await searchParams;
+  // Teams first so facet labels resolve; then page query with filters from URL.
+  const teams = await getTeamsSnapshot(season);
+  const urlState = parsePlayerListUrlState(params, teams);
+  const listFilters = playerFilterStateToListFilters(urlState);
+
   const matriculaPaidPlayerIds = canWrite
     ? [...(await listPlayerIdsWithPaidMatricula(await getPaymentsDb(), season))]
     : [];
-  const initialFilters = parsePlayerListSearchParams(params, teams);
+
+  const { players, total, page, pageSize, inactiveCount } = await getPlayersListSnapshot({
+    season,
+    page: urlState.page,
+    pageSize: urlState.pageSize,
+    sortDir: urlState.sortDir,
+    filters: listFilters,
+    context: {
+      matriculaPaidPlayerIds: new Set(matriculaPaidPlayerIds),
+    },
+  });
 
   return (
     <PlayersPageClient
       players={players}
+      total={total}
+      page={page}
+      pageSize={pageSize}
+      sortDir={urlState.sortDir}
       teams={teams}
+      inactiveCount={inactiveCount}
       canWrite={canWrite}
       canDelete={canDelete}
-      initialFilters={initialFilters}
+      initialFilters={urlState}
       subtitle={`Plantilla ${formatSeasonShort(season)}. Equipo principal, trámites y contacto familiar.`}
       matriculaPaidPlayerIds={matriculaPaidPlayerIds}
     />

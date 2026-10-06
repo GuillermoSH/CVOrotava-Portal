@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  invalidateClothingInventory,
+  invalidateClothingOrders,
+} from "@/lib/cache/invalidate";
 import { requireClothingWriteAccess } from "@/lib/clothing/auth";
 import { getClothingDb } from "@/lib/clothing/repository/client";
 import {
@@ -19,16 +23,9 @@ export type ActionResult =
   | { ok: true; orderId?: string }
   | { ok: false; error: string };
 
-const CLOTHING_PATHS = [
-  "/admin/ropa",
-  "/admin/ropa/pedidos",
-  "/admin/ropa/almacen",
-];
-
-function revalidateClothing() {
-  for (const path of CLOTHING_PATHS) {
-    revalidatePath(path, "layout");
-  }
+function revalidateOrders(extraPath?: string) {
+  invalidateClothingOrders();
+  if (extraPath) revalidatePath(extraPath);
 }
 
 export async function createSupplierOrderAction(
@@ -53,8 +50,7 @@ export async function createSupplierOrderAction(
       changed_by: authData.user?.id ?? null,
     });
 
-    revalidateClothing();
-    revalidatePath(`/admin/ropa/pedidos/${order.id}`);
+    revalidateOrders(`/admin/ropa/pedidos/${order.id}`);
     return { ok: true, orderId: order.id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
@@ -77,7 +73,8 @@ export async function updateOrderStatus(input: unknown): Promise<ActionResult> {
     const { order_id, status } = parsed.data;
     await updateOrderStatusRepo(db, order_id, status, authData.user?.id ?? null);
 
-    revalidateClothing();
+    invalidateClothingOrders();
+    invalidateClothingInventory();
     revalidatePath(`/admin/ropa/pedidos/${order_id}`);
     return { ok: true };
   } catch (e) {
@@ -100,7 +97,8 @@ export async function updateOrderLineReceived(input: unknown): Promise<ActionRes
       parsed.data.quantity_received,
     );
 
-    revalidateClothing();
+    invalidateClothingOrders();
+    invalidateClothingInventory();
     revalidatePath(`/admin/ropa/pedidos/${line.order_id}`);
     return { ok: true };
   } catch (e) {

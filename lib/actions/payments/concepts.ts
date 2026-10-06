@@ -1,8 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
-import { appRoutes } from "@/lib/constants";
+import { invalidatePaymentConcepts } from "@/lib/cache/invalidate";
 import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
 import { getPaymentsDb } from "@/lib/payments/repository/client";
 import {
@@ -19,8 +17,7 @@ import {
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
 function revalidatePaymentConcepts() {
-  revalidatePath(appRoutes.payments.concepts, "layout");
-  revalidatePath(appRoutes.payments.list, "layout");
+  invalidatePaymentConcepts();
 }
 
 export async function createPaymentConceptAction(input: unknown): Promise<ActionResult> {

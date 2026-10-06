@@ -1,13 +1,11 @@
 import { PaymentConceptsPageClient } from "@/components/payments/PaymentConceptsPageClient";
 import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
-import { getPaymentsDb } from "@/lib/payments/repository/client";
-import { listPaymentConcepts } from "@/lib/payments/repository/concepts";
+import { getCachedAllPaymentConceptsSnapshot } from "@/lib/payments/cached-concepts";
 
 export default async function PaymentConceptsPage() {
   await requirePaymentsWriteAccess();
 
-  const db = await getPaymentsDb();
-  const concepts = await listPaymentConcepts(db, { activeOnly: false });
+  const concepts = await getCachedAllPaymentConceptsSnapshot();
 
   return <PaymentConceptsPageClient concepts={concepts} />;
 }

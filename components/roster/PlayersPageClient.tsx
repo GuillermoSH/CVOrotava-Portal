@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -14,9 +15,7 @@ import { SegmentedControl } from "@/components/club/SegmentedControl";
 import { Select } from "@/components/club/Select";
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { DashboardPage } from "@/components/layout/DashboardPage";
-import { PlayersFederationImportSheet } from "@/components/roster/PlayersFederationImportSheet";
-import { PlayersImportSheet } from "@/components/roster/PlayersImportSheet";
-import { PlayersWhatsAppSheet } from "@/components/roster/PlayersWhatsAppSheet";
+import { PlayersBulkBar } from "@/components/roster/PlayersBulkBar";
 import { QuickAddPlayerSheet } from "@/components/roster/QuickAddPlayerSheet";
 import { WhatsAppGlyph } from "@/components/shared/WhatsAppGlyph";
 import {
@@ -26,9 +25,17 @@ import {
   deletePlayersAction,
   updatePlayerChecklistFieldAction,
 } from "@/lib/actions/roster/players";
+import { listWhatsAppPlayersAction } from "@/lib/actions/roster/whatsapp-players";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { appRoutes } from "@/lib/constants";
-import { formatPlayerName, formatTeamCategory } from "@/lib/roster/constants";
+import {
+  formatPlayerName,
+  formatTeamCategory,
+  TEAM_CATEGORIES,
+  TEAM_GENDER_LABELS,
+  TEAM_GENDERS,
+  type TeamGender,
+} from "@/lib/roster/constants";
 import {
   formatDocsDeliveredShort,
   getPlayerOnboardingStatus,
@@ -39,25 +46,22 @@ import {
   type PlayerListToggleField,
 } from "@/lib/roster/onboarding";
 import {
-  applyPlayerFacets,
-  applyPlayerFacetsExceptChecklist,
-  buildCategoryOptions,
-  buildChecklistOptions,
-  buildGenderOptions,
-  buildTeamOptions,
-  buildUnassignedOption,
+  CHECKLIST_FILTER_LABELS,
+  CHECKLIST_FILTER_ORDER,
   formatFacetChipLabel,
   playerDetailHref,
   playerListSearchEqual,
+  PLAYER_LIST_PAGE_SIZES,
   reconcileTeamFacet,
   removePlayerFacet,
   serializePlayerListSearchParams,
-  sortPlayersByFirstName,
   teamsMatchingFacets,
   upsertPlayerFacet,
   type PlayerFacet,
   type PlayerFacetKey,
   type PlayerFilterState,
+  type PlayerListPageSize,
+  type PlayerListPagingState,
   type PlayerSortDir,
 } from "@/lib/roster/player-filters";
 import {
@@ -70,6 +74,24 @@ import { getCurrentSeason } from "@/lib/season";
 import type { PlayerListItem, Team } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+
+const PlayersFederationImportSheet = dynamic(
+  () =>
+    import("@/components/roster/PlayersFederationImportSheet").then(
+      (m) => m.PlayersFederationImportSheet,
+    ),
+  { ssr: false, loading: () => null },
+);
+
+const PlayersImportSheet = dynamic(
+  () => import("@/components/roster/PlayersImportSheet").then((m) => m.PlayersImportSheet),
+  { ssr: false, loading: () => null },
+);
+
+const PlayersWhatsAppSheet = dynamic(
+  () => import("@/components/roster/PlayersWhatsAppSheet").then((m) => m.PlayersWhatsAppSheet),
+  { ssr: false, loading: () => null },
+);
 
 type BulkIntent = {
   field: PlayerListToggleField;
@@ -85,9 +107,7 @@ const PAGE_SIZE_OPTIONS = [
   { value: 50, label: "50" },
   { value: 100, label: "100" },
   { value: 0, label: "Todos" },
-] as const;
-
-type PageSize = (typeof PAGE_SIZE_OPTIONS)[number]["value"];
+] as const satisfies ReadonlyArray<{ value: PlayerListPageSize; label: string }>;
 
 function phoneHref(phone: string) {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
@@ -291,25 +311,40 @@ function PlayerChecklistTags({
   );
 }
 
+function isPlayerListPageSize(value: number): value is PlayerListPageSize {
+  return (PLAYER_LIST_PAGE_SIZES as readonly number[]).includes(value);
+}
+
 export function PlayersPageClient({
   players,
+  total,
+  page,
+  pageSize,
+  sortDir,
   teams,
+  inactiveCount,
   canWrite,
   canDelete = false,
   subtitle,
   initialFilters,
-  matriculaPaidPlayerIds = [],
+  matriculaPaidPlayerIds: _matriculaPaidPlayerIds = [],
 }: {
   players: PlayerListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  sortDir: PlayerSortDir;
   teams: Team[];
+  inactiveCount: number;
   canWrite: boolean;
   /** Hard delete — solo admin. */
   canDelete?: boolean;
   subtitle: string;
   initialFilters?: PlayerFilterState;
-  /** player_id con Matrícula pagada esta temporada — filtro "Sin matrícula". */
+  /** SSR filtra «Sin matrícula»; el cliente ya no lo usa en la tabla. */
   matriculaPaidPlayerIds?: string[];
 }) {
+  void _matriculaPaidPlayerIds;
   const router = useRouter();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
@@ -318,9 +353,12 @@ export function PlayersPageClient({
   const [statusFilter, setStatusFilter] = useState<"active" | "all">(
     initialFilters?.statusFilter ?? "active",
   );
+  const [pagePlayers, setPagePlayers] = useState(players);
   const [importOpen, setImportOpen] = useState(false);
   const [federationImportOpen, setFederationImportOpen] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [whatsappPlayers, setWhatsappPlayers] = useState<PlayerListItem[]>([]);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkIntent, setBulkIntent] = useState<BulkIntent | null>(null);
@@ -338,21 +376,17 @@ export function PlayersPageClient({
       statusFilter: initialFilters?.statusFilter ?? "active",
     }),
   );
-  const [page, setPage] = useState(() => savedScroll?.page ?? 1);
-  const [pageSize, setPageSize] = useState<PageSize>(() =>
-    savedScroll && PAGE_SIZE_OPTIONS.some((opt) => opt.value === savedScroll.pageSize)
-      ? (savedScroll.pageSize as PageSize)
-      : 50,
-  );
-  const [sortDir, setSortDir] = useState<PlayerSortDir>(() => savedScroll?.sortDir ?? "asc");
   const selectAllRef = useRef<HTMLInputElement>(null);
 
-  const searching = query.trim().length > 0 || facets.length > 0;
-  const inactiveCount = useMemo(
-    () => players.filter((player) => !player.is_active).length,
-    [players],
+  const safePageSize: PlayerListPageSize = isPlayerListPageSize(pageSize) ? pageSize : 50;
+  const paging: PlayerListPagingState = useMemo(
+    () => ({ page, pageSize: safePageSize, sortDir }),
+    [page, safePageSize, sortDir],
   );
+
+  const searching = query.trim().length > 0 || facets.length > 0;
   const showBajasToggle = inactiveCount > 0;
+  const noPlayersAtAll = total === 0 && !searching && inactiveCount === 0;
 
   const filterState = useMemo(
     () => ({ query, facets, statusFilter }),
@@ -360,68 +394,61 @@ export function PlayersPageClient({
   );
 
   useEffect(() => {
-    const next = serializePlayerListSearchParams(filterState).toString();
+    setPagePlayers(players);
+  }, [players]);
+
+  function replaceListUrl(nextFilters: PlayerFilterState, nextPaging: PlayerListPagingState) {
+    const next = serializePlayerListSearchParams(nextFilters, nextPaging).toString();
     const current =
       typeof window !== "undefined" ? window.location.search.replace(/^\?/, "") : "";
     if (playerListSearchEqual(next, current)) return;
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [filterState, pathname, router]);
+  }
 
-  const matriculaPaidSet = useMemo(
-    () => new Set(matriculaPaidPlayerIds),
-    [matriculaPaidPlayerIds],
-  );
-  const filterContext = useMemo(
-    () => ({ matriculaPaidPlayerIds: matriculaPaidSet }),
-    [matriculaPaidSet],
-  );
-
-  const visible = useMemo(
-    () => sortPlayersByFirstName(applyPlayerFacets(players, filterState, filterContext), sortDir),
-    [players, filterState, filterContext, sortDir],
-  );
-
-  const pageCount = useMemo(() => {
-    if (pageSize === 0 || visible.length === 0) return 1;
-    return Math.max(1, Math.ceil(visible.length / pageSize));
-  }, [visible.length, pageSize]);
-
-  const safePage = Math.min(page, pageCount);
-
-  const pageItems = useMemo(() => {
-    if (pageSize === 0) return visible;
-    const start = (safePage - 1) * pageSize;
-    return visible.slice(start, start + pageSize);
-  }, [visible, pageSize, safePage]);
-
-  const rangeLabel = useMemo(() => {
-    if (visible.length === 0) {
-      return searching ? "0 visibles" : "0 jugadores";
-    }
-    if (pageSize === 0 || visible.length <= pageSize) {
-      return searching
-        ? `${visible.length} ${visible.length === 1 ? "visible" : "visibles"}`
-        : `${visible.length} ${visible.length === 1 ? "jugador" : "jugadores"}`;
-    }
-    const start = (safePage - 1) * pageSize + 1;
-    const end = Math.min(safePage * pageSize, visible.length);
-    const unit = searching ? "visibles" : "jugadores";
-    return `${start}–${end} de ${visible.length} ${unit}`;
-  }, [visible.length, pageSize, safePage, searching]);
-
-  const didMountPageResetRef = useRef(false);
+  // Filtros → URL (reinicia página). Salta el primer render para no pisar ?page= de la URL.
+  const didMountFiltersRef = useRef(false);
   useEffect(() => {
-    if (!didMountPageResetRef.current) {
-      // Salta el primer render: evita pisar una página restaurada desde sessionStorage.
-      didMountPageResetRef.current = true;
+    if (!didMountFiltersRef.current) {
+      didMountFiltersRef.current = true;
       return;
     }
-    setPage(1);
-  }, [query, facets, statusFilter, pageSize, sortDir]);
+    replaceListUrl(filterState, { page: 1, pageSize: safePageSize, sortDir });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar filtros
+  }, [filterState]);
 
-  useEffect(() => {
-    if (page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
+  function navigatePage(nextPage: number) {
+    replaceListUrl(filterState, { page: nextPage, pageSize: safePageSize, sortDir });
+  }
+
+  function navigatePageSize(nextSize: PlayerListPageSize) {
+    replaceListUrl(filterState, { page: 1, pageSize: nextSize, sortDir });
+  }
+
+  function toggleSortDir() {
+    replaceListUrl(filterState, {
+      page,
+      pageSize: safePageSize,
+      sortDir: sortDir === "asc" ? "desc" : "asc",
+    });
+  }
+
+  const pageCount = safePageSize === 0 ? 1 : Math.ceil(total / safePageSize);
+  const safePage = pageCount > 0 ? Math.min(page, pageCount) : 1;
+
+  const rangeLabel = useMemo(() => {
+    if (total === 0) {
+      return searching ? "0 visibles" : "0 jugadores";
+    }
+    if (safePageSize === 0 || total <= safePageSize) {
+      return searching
+        ? `${total} ${total === 1 ? "visible" : "visibles"}`
+        : `${total} ${total === 1 ? "jugador" : "jugadores"}`;
+    }
+    const start = (safePage - 1) * safePageSize + 1;
+    const end = Math.min(safePage * safePageSize, total);
+    const unit = searching ? "visibles" : "jugadores";
+    return `${start}–${end} de ${total} ${unit}`;
+  }, [total, safePageSize, safePage, searching]);
 
   // Restaura el scroll guardado (una sola vez), diferido para ir después del
   // reset a top que hace DashboardMain al terminar la navegación pendiente.
@@ -439,20 +466,14 @@ export function PlayersPageClient({
     return () => cancelAnimationFrame(raf);
   }, [savedScroll]);
 
-  // Guarda scroll/página/orden por combinación de filtros, para restaurarlos
-  // al volver desde la ficha de un jugador.
+  // Guarda scroll por combinación de filtros, para restaurarlo al volver de la ficha.
   useEffect(() => {
     const node = document.getElementById("dashboard-main");
     if (!node) return;
 
     let ticking = false;
     function flush() {
-      writePlayerListScroll(filterState, {
-        scrollTop: node!.scrollTop,
-        page,
-        pageSize,
-        sortDir,
-      });
+      writePlayerListScroll(filterState, { scrollTop: node!.scrollTop });
     }
     function onScroll() {
       if (ticking) return;
@@ -472,31 +493,29 @@ export function PlayersPageClient({
       document.removeEventListener("visibilitychange", flush);
       window.removeEventListener("pagehide", flush);
     };
-  }, [filterState, page, pageSize, sortDir]);
+  }, [filterState]);
 
-  function toggleSortDir() {
-    setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
-  }
+  useEffect(() => {
+    if (!whatsappOpen) return;
+    if (whatsappPlayers.length > 0) return;
 
-  const categoryGenderFacets = useMemo(
-    () => facets.filter((f) => f.key === "category" || f.key === "gender"),
-    [facets],
-  );
+    let cancelled = false;
+    setWhatsappLoading(true);
+    void listWhatsAppPlayersAction().then((result) => {
+      if (cancelled) return;
+      setWhatsappLoading(false);
+      if (!result.ok) {
+        appToast.error(result.error);
+        setWhatsappOpen(false);
+        return;
+      }
+      setWhatsappPlayers(result.players);
+    });
 
-  const cascadePool = useMemo(
-    () =>
-      applyPlayerFacets(players, {
-        query: "",
-        facets: categoryGenderFacets,
-        statusFilter,
-      }),
-    [players, categoryGenderFacets, statusFilter],
-  );
-
-  const checklistPool = useMemo(
-    () => applyPlayerFacetsExceptChecklist(players, filterState, filterContext),
-    [players, filterState, filterContext],
-  );
+    return () => {
+      cancelled = true;
+    };
+  }, [whatsappOpen, whatsappPlayers.length]);
 
   const cascadedTeams = useMemo(
     () => teamsMatchingFacets(teams, facets),
@@ -504,64 +523,62 @@ export function PlayersPageClient({
   );
 
   const facetFields: FacetField[] = useMemo(() => {
-    const category = facets.find((f) => f.key === "category");
-    const gender = facets.find((f) => f.key === "gender");
-    const categoryOptionsPool = applyPlayerFacets(players, {
-      query: "",
-      facets: gender ? [gender] : [],
-      statusFilter,
-    });
-    const genderOptionsPool = applyPlayerFacets(players, {
-      query: "",
-      facets: category ? [category] : [],
-      statusFilter,
-    });
-    const unassigned = buildUnassignedOption(cascadePool);
-
     return [
       {
         key: "category",
         label: "Categoría",
-        options: buildCategoryOptions(categoryOptionsPool),
+        options: TEAM_CATEGORIES.map((category) => ({
+          value: category,
+          label: formatTeamCategory(category),
+        })),
       },
       {
         key: "gender",
         label: "Género",
-        options: buildGenderOptions(genderOptionsPool),
+        options: TEAM_GENDERS.map((gender) => ({
+          value: gender,
+          label: TEAM_GENDER_LABELS[gender as TeamGender],
+        })),
       },
       {
         key: "team",
         label: "Equipo",
-        options: buildTeamOptions(cascadedTeams, cascadePool),
+        options: cascadedTeams.map((team) => ({
+          value: team.id,
+          label: team.name,
+        })),
       },
       {
         key: "checklist",
         label: "Alta",
         // "Sin matrícula" depende de payments, con SELECT solo para admin/manager (RLS).
-        options: buildChecklistOptions(checklistPool, filterContext).filter(
-          (opt) => canWrite || opt.value !== "missing_matricula",
-        ),
+        options: CHECKLIST_FILTER_ORDER.filter(
+          (filter) => canWrite || filter !== "missing_matricula",
+        ).map((filter) => ({
+          value: filter,
+          label: CHECKLIST_FILTER_LABELS[filter],
+        })),
       },
       {
         key: "unassigned",
         label: "Sin equipo",
-        options: [unassigned],
+        options: [{ value: "true", label: "Sin equipo" }],
         instant: true,
       },
     ];
-  }, [players, facets, statusFilter, cascadePool, cascadedTeams, checklistPool, filterContext, canWrite]);
+  }, [cascadedTeams, canWrite]);
 
-  const visibleIds = useMemo(() => visible.map((player) => player.id), [visible]);
+  const pageIds = useMemo(() => pagePlayers.map((player) => player.id), [pagePlayers]);
 
   useEffect(() => {
     setSelected((prev) => {
       const next = new Set<string>();
       for (const id of prev) {
-        if (visibleIds.includes(id)) next.add(id);
+        if (pageIds.includes(id)) next.add(id);
       }
       return next.size === prev.size ? prev : next;
     });
-  }, [visibleIds]);
+  }, [pageIds]);
 
   function handleAddFacet(chip: { key: string; value: string; label: string }) {
     const key = chip.key as PlayerFacetKey;
@@ -584,25 +601,25 @@ export function PlayersPageClient({
     setFacets([]);
   }
 
-  const allVisibleSelected =
-    visible.length > 0 && visible.every((player) => selected.has(player.id));
+  const allPageSelected =
+    pagePlayers.length > 0 && pagePlayers.every((player) => selected.has(player.id));
   const selectedCount = selected.size;
   const hasSelection = selectedCount > 0;
   const selectedActiveCount = useMemo(
-    () => players.filter((player) => selected.has(player.id) && player.is_active).length,
-    [players, selected],
+    () => pagePlayers.filter((player) => selected.has(player.id) && player.is_active).length,
+    [pagePlayers, selected],
   );
   const selectedInactiveCount = useMemo(
-    () => players.filter((player) => selected.has(player.id) && !player.is_active).length,
-    [players, selected],
+    () => pagePlayers.filter((player) => selected.has(player.id) && !player.is_active).length,
+    [pagePlayers, selected],
   );
-  const someVisibleSelected = hasSelection && !allVisibleSelected;
+  const somePageSelected = hasSelection && !allPageSelected;
 
   useEffect(() => {
     if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = someVisibleSelected;
+      selectAllRef.current.indeterminate = somePageSelected;
     }
-  }, [someVisibleSelected]);
+  }, [somePageSelected]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -613,15 +630,15 @@ export function PlayersPageClient({
     });
   }
 
-  function toggleSelectAllVisible() {
+  function toggleSelectAllPage() {
     setSelected((prev) => {
-      if (allVisibleSelected) {
+      if (allPageSelected) {
         const next = new Set(prev);
-        for (const id of visibleIds) next.delete(id);
+        for (const id of pageIds) next.delete(id);
         return next;
       }
       const next = new Set(prev);
-      for (const id of visibleIds) next.add(id);
+      for (const id of pageIds) next.add(id);
       return next;
     });
   }
@@ -630,7 +647,18 @@ export function PlayersPageClient({
     if (!canWrite) return;
     const key = `${player.id}:${field}`;
     const nextValue = !player[field];
+    const snapshot = pagePlayers;
     setTogglingKey(key);
+    setPagePlayers((list) =>
+      list.map((row) => {
+        if (row.id !== player.id) return row;
+        const next: PlayerListItem = { ...row, [field]: nextValue };
+        if (field === "docs_delivered_to_family") {
+          next.docs_delivered_at = nextValue ? new Date().toISOString() : null;
+        }
+        return next;
+      }),
+    );
     startTransition(async () => {
       const result = await updatePlayerChecklistFieldAction({
         id: player.id,
@@ -639,10 +667,9 @@ export function PlayersPageClient({
       });
       setTogglingKey(null);
       if (!result.ok) {
+        setPagePlayers(snapshot);
         appToast.error(result.error);
-        return;
       }
-      router.refresh();
     });
   }
 
@@ -655,6 +682,19 @@ export function PlayersPageClient({
     if (!bulkIntent || selectedCount === 0) return;
     const { field, value } = bulkIntent;
     const ids = [...selected];
+    const snapshot = pagePlayers;
+    setPagePlayers((list) =>
+      list.map((row) => {
+        if (!ids.includes(row.id)) return row;
+        const next: PlayerListItem = { ...row, [field]: value };
+        if (field === "docs_delivered_to_family") {
+          next.docs_delivered_at = value ? new Date().toISOString() : null;
+        }
+        return next;
+      }),
+    );
+    setBulkIntent(null);
+    setSelected(new Set());
     startTransition(async () => {
       const result = await bulkUpdatePlayerChecklistAction({
         player_ids: ids,
@@ -662,6 +702,7 @@ export function PlayersPageClient({
         value,
       });
       if (!result.ok) {
+        setPagePlayers(snapshot);
         appToast.error(result.error);
         return;
       }
@@ -670,16 +711,13 @@ export function PlayersPageClient({
           ? `${PLAYER_CHECKLIST_LONG_LABELS[field]} marcado en ${result.updated ?? ids.length} jugadores`
           : `${PLAYER_CHECKLIST_LONG_LABELS[field]} desmarcado en ${result.updated ?? ids.length} jugadores`,
       );
-      setBulkIntent(null);
-      setSelected(new Set());
-      router.refresh();
     });
   }
 
   function confirmBulkActive() {
     if (!bulkActiveIntent || selectedCount === 0) return;
     const { is_active } = bulkActiveIntent;
-    const ids = players
+    const ids = pagePlayers
       .filter((player) => selected.has(player.id) && player.is_active !== is_active)
       .map((player) => player.id);
     if (ids.length === 0) {
@@ -702,7 +740,6 @@ export function PlayersPageClient({
       );
       setBulkActiveIntent(null);
       setSelected(new Set());
-      router.refresh();
     });
   }
 
@@ -720,7 +757,6 @@ export function PlayersPageClient({
       );
       setBulkDeleteOpen(false);
       setSelected(new Set());
-      router.refresh();
     });
   }
 
@@ -751,7 +787,6 @@ export function PlayersPageClient({
       );
       setBulkMoveOpen(false);
       setSelected(new Set());
-      router.refresh();
     });
   }
 
@@ -778,22 +813,6 @@ export function PlayersPageClient({
     ? `${bulkIntent.value ? "Marcar" : "Desmarcar"} ${PLAYER_CHECKLIST_LABELS[bulkIntent.field].toLowerCase()} en ${selectedCount} jugador${selectedCount === 1 ? "" : "es"}`
     : "";
 
-  const bulkFieldButtons = (
-    <div className="flex flex-wrap gap-1.5">
-      {PLAYER_LIST_TOGGLE_FIELDS.map((field) => (
-        <button
-          key={field}
-          type="button"
-          className="btn-secondary min-h-9 px-2.5 text-xs"
-          disabled={pending}
-          onClick={() => requestBulk(field, bulkMarkMode)}
-        >
-          {PLAYER_CHECKLIST_LABELS[field]}
-        </button>
-      ))}
-    </div>
-  );
-
   const listPager = (
     <div className="flex flex-wrap items-center gap-1.5">
       <button
@@ -815,12 +834,12 @@ export function PlayersPageClient({
         aria-label="Jugadores por página"
       >
         {PAGE_SIZE_OPTIONS.map((opt) => {
-          const active = pageSize === opt.value;
+          const active = safePageSize === opt.value;
           return (
             <button
               key={opt.value}
               type="button"
-              onClick={() => setPageSize(opt.value)}
+              onClick={() => navigatePageSize(opt.value)}
               className={cn(
                 "min-h-8 cursor-pointer touch-manipulation rounded px-2 text-[11px] font-semibold tabular-nums transition-colors",
                 active
@@ -834,9 +853,16 @@ export function PlayersPageClient({
           );
         })}
       </div>
-      <Pagination page={safePage} pageCount={pageCount} onChange={setPage} label="Jugadores" />
+      <Pagination
+        page={safePage}
+        pageCount={pageCount}
+        onChange={navigatePage}
+        label="Jugadores"
+      />
     </div>
   );
+
+  const detailPaging = paging;
 
   return (
     <DashboardPage
@@ -902,13 +928,13 @@ export function PlayersPageClient({
           ) : null}
         </div>
 
-        {visible.length === 0 ? (
+        {total === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
             <p className="font-medium text-foreground">
-              {players.length === 0 ? "Aún no hay jugadores" : "Ningún jugador coincide"}
+              {noPlayersAtAll ? "Aún no hay jugadores" : "Ningún jugador coincide"}
             </p>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              {players.length === 0
+              {noPlayersAtAll
                 ? "Da de alta jugadores uno a uno o importa el Excel de la temporada."
                 : searching
                   ? "Prueba otra búsqueda, quita algún filtro o marca mostrar bajas."
@@ -916,7 +942,7 @@ export function PlayersPageClient({
                     ? "Marca mostrar bajas o ajusta los filtros."
                     : "Ajusta los filtros de búsqueda."}
             </p>
-            {canWrite && players.length === 0 ? (
+            {canWrite && noPlayersAtAll ? (
               <div className="mt-5 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
                 <Link href={appRoutes.players.new} className="btn-primary min-h-11">
                   Nuevo jugador
@@ -956,9 +982,9 @@ export function PlayersPageClient({
                         ref={selectAllRef}
                         type="checkbox"
                         className="size-4 rounded border-[var(--club-border)] accent-brand"
-                        checked={allVisibleSelected}
-                        onChange={toggleSelectAllVisible}
-                        aria-label="Seleccionar todos los visibles"
+                        checked={allPageSelected}
+                        onChange={toggleSelectAllPage}
+                        aria-label="Seleccionar todos en esta página"
                       />
                       <span className="text-sm font-medium text-foreground">
                         <span className="tabular-nums">{selectedCount}</span>
@@ -986,59 +1012,22 @@ export function PlayersPageClient({
               </div>
 
               {hasSelection && canWrite ? (
-                <div className="mt-2.5 hidden flex-col gap-2 border-t border-[color-mix(in_srgb,var(--club-brand)_16%,transparent)] pt-2.5 md:flex">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selectedActiveCount > 0 ? (
-                      <button
-                        type="button"
-                        className="btn-secondary min-h-9 text-xs"
-                        disabled={pending}
-                        onClick={() => setBulkActiveIntent({ is_active: false })}
-                      >
-                        Dar de baja ({selectedActiveCount})
-                      </button>
-                    ) : null}
-                    {selectedInactiveCount > 0 ? (
-                      <button
-                        type="button"
-                        className="btn-secondary min-h-9 text-xs"
-                        disabled={pending}
-                        onClick={() => setBulkActiveIntent({ is_active: true })}
-                      >
-                        Reactivar ({selectedInactiveCount})
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="btn-secondary min-h-9 text-xs"
-                      disabled={pending}
-                      onClick={openBulkMove}
-                    >
-                      Mover a equipo
-                    </button>
-                    {canDelete ? (
-                      <button
-                        type="button"
-                        className="btn-secondary min-h-9 text-xs text-[var(--club-danger)]"
-                        disabled={pending}
-                        onClick={() => setBulkDeleteOpen(true)}
-                      >
-                        Eliminar ({selectedCount})
-                      </button>
-                    ) : null}
-                    <SegmentedControl
-                      aria-label="Acción en lote"
-                      value={bulkMarkMode ? "mark" : "unmark"}
-                      onChange={(value) => setBulkMarkMode(value === "mark")}
-                      options={[
-                        { value: "mark", label: "Marcar" },
-                        { value: "unmark", label: "Desmarcar" },
-                      ]}
-                    />
-                    <span className="text-xs text-[var(--club-fg-muted)]">checklist en la selección</span>
-                  </div>
-                  {bulkFieldButtons}
-                </div>
+                <PlayersBulkBar
+                  variant="desktop"
+                  selectedCount={selectedCount}
+                  selectedActiveCount={selectedActiveCount}
+                  selectedInactiveCount={selectedInactiveCount}
+                  pending={pending}
+                  canDelete={canDelete}
+                  bulkMarkMode={bulkMarkMode}
+                  onBulkMarkModeChange={setBulkMarkMode}
+                  onClearSelection={() => setSelected(new Set())}
+                  onDeactivate={() => setBulkActiveIntent({ is_active: false })}
+                  onReactivate={() => setBulkActiveIntent({ is_active: true })}
+                  onMove={openBulkMove}
+                  onDelete={() => setBulkDeleteOpen(true)}
+                  onRequestBulk={requestBulk}
+                />
               ) : null}
             </div>
 
@@ -1058,7 +1047,7 @@ export function PlayersPageClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {pageItems.map((player) => (
+                  {pagePlayers.map((player) => (
                     <tr key={player.id} className={cn(!player.is_active && "opacity-70")}>
                       {canWrite ? (
                         <td>
@@ -1073,7 +1062,7 @@ export function PlayersPageClient({
                       ) : null}
                       <td>
                         <Link
-                          href={playerDetailHref(player.id, filterState)}
+                          href={playerDetailHref(player.id, filterState, detailPaging)}
                           className="club-table__primary min-w-0 hover:underline"
                         >
                           {formatPlayerName(player)}
@@ -1113,7 +1102,7 @@ export function PlayersPageClient({
 
             {/* Mobile — card densa: identidad + meta/tel + etiquetas */}
             <ul className="flex flex-col gap-1.5 md:hidden">
-              {pageItems.map((player) => {
+              {pagePlayers.map((player) => {
                 const teamName = player.team?.name ?? "Sin equipo";
                 const metaParts: string[] = [];
                 if (player.clothing_size) metaParts.push(formatClothingSize(player.clothing_size));
@@ -1132,7 +1121,7 @@ export function PlayersPageClient({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline gap-1.5">
                           <Link
-                            href={playerDetailHref(player.id, filterState)}
+                            href={playerDetailHref(player.id, filterState, detailPaging)}
                             className="min-w-0 truncate text-sm font-semibold leading-tight tracking-tight text-foreground hover:underline"
                           >
                             {formatPlayerName(player)}
@@ -1181,70 +1170,23 @@ export function PlayersPageClient({
       {typeof document !== "undefined"
         ? canWrite && hasSelection
           ? createPortal(
-              <div className="clothing-sticky-bar md:hidden">
-                <div className="clothing-sticky-bar__inner gap-1.5 !py-2">
-                  <div className="flex items-center justify-between gap-2 px-0.5">
-                    <p className="text-sm font-semibold tabular-nums text-foreground">
-                      {selectedCount} seleccionado{selectedCount === 1 ? "" : "s"}
-                    </p>
-                    <button
-                      type="button"
-                      className="min-h-8 cursor-pointer touch-manipulation rounded-lg px-2 text-xs font-medium text-[var(--club-fg-muted)]"
-                      onClick={() => setSelected(new Set())}
-                    >
-                      Quitar selección
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {selectedActiveCount > 0 ? (
-                      <button
-                        type="button"
-                        className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] disabled:opacity-60"
-                        disabled={pending}
-                        onClick={() => setBulkActiveIntent({ is_active: false })}
-                      >
-                        Baja
-                      </button>
-                    ) : null}
-                    {selectedInactiveCount > 0 ? (
-                      <button
-                        type="button"
-                        className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] disabled:opacity-60"
-                        disabled={pending}
-                        onClick={() => setBulkActiveIntent({ is_active: true })}
-                      >
-                        Reactivar
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] disabled:opacity-60"
-                      disabled={pending}
-                      onClick={openBulkMove}
-                    >
-                      Mover
-                    </button>
-                    {canDelete ? (
-                      <button
-                        type="button"
-                        className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full border border-[color-mix(in_srgb,var(--club-danger)_35%,var(--club-border))] bg-[var(--club-surface-2)] px-2.5 text-[11px] font-semibold text-[var(--club-danger)] transition-colors hover:bg-[var(--club-surface-hover)] disabled:opacity-60"
-                        disabled={pending}
-                        onClick={() => setBulkDeleteOpen(true)}
-                      >
-                        Eliminar
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="ml-auto inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full px-2.5 text-[11px] font-semibold text-brand transition-colors hover:bg-[var(--club-brand-soft)] disabled:opacity-60"
-                      disabled={pending}
-                      onClick={() => setMoreActionsOpen(true)}
-                    >
-                      Más acciones
-                    </button>
-                  </div>
-                </div>
-              </div>,
+              <PlayersBulkBar
+                variant="mobile"
+                selectedCount={selectedCount}
+                selectedActiveCount={selectedActiveCount}
+                selectedInactiveCount={selectedInactiveCount}
+                pending={pending}
+                canDelete={canDelete}
+                bulkMarkMode={bulkMarkMode}
+                onBulkMarkModeChange={setBulkMarkMode}
+                onClearSelection={() => setSelected(new Set())}
+                onDeactivate={() => setBulkActiveIntent({ is_active: false })}
+                onReactivate={() => setBulkActiveIntent({ is_active: true })}
+                onMove={openBulkMove}
+                onDelete={() => setBulkDeleteOpen(true)}
+                onRequestBulk={requestBulk}
+                onMoreActions={() => setMoreActionsOpen(true)}
+              />,
               document.body,
             )
           : createPortal(
@@ -1437,9 +1379,10 @@ export function PlayersPageClient({
       <PlayersWhatsAppSheet
         open={whatsappOpen}
         onClose={() => setWhatsappOpen(false)}
-        players={players}
+        players={whatsappPlayers}
         teams={teams}
         canWrite={canWrite}
+        loading={whatsappLoading}
       />
     </DashboardPage>
   );

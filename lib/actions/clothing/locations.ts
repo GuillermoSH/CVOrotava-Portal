@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { invalidateClothingInventory } from "@/lib/cache/invalidate";
 import { requireClothingWriteAccess } from "@/lib/clothing/auth";
 import { getClothingDb } from "@/lib/clothing/repository/client";
 import {
@@ -25,8 +26,8 @@ export type ActionResult =
   | { ok: false; error: string };
 
 function revalidateLocations() {
+  invalidateClothingInventory();
   revalidatePath("/admin/ropa/almacen/ubicaciones", "layout");
-  revalidatePath("/admin/ropa/almacen");
 }
 
 export async function createStorageLocation(input: unknown): Promise<ActionResult> {

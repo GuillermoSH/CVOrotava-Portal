@@ -3,22 +3,48 @@ import "server-only";
 import { revalidatePath, updateTag } from "next/cache";
 
 import { appRoutes } from "@/lib/constants";
-import { clothingProductsTag, playerTag, rosterSeasonTag } from "@/lib/cache/tags";
+import {
+  clothingInventoryTag,
+  clothingOrdersTag,
+  clothingProductsTag,
+  paymentConceptsTag,
+  playerTag,
+  rosterSeasonTag,
+} from "@/lib/cache/tags";
 
-const CLOTHING_PRODUCT_PATHS = [
-  "/admin/ropa",
-  "/admin/ropa/prendas",
-  "/admin/ropa/pedidos",
-  "/admin/ropa/pedidos/nuevo",
-  "/admin/ropa/almacen",
-] as const;
-
-/** Catálogo de prendas (use cache) + rutas que lo consumen. */
+/** Catálogo de prendas (use cache). Rutas no cacheadas siguen con path. */
 export function invalidateClothingProducts() {
   updateTag(clothingProductsTag());
-  for (const path of CLOTHING_PRODUCT_PATHS) {
-    revalidatePath(path, "layout");
+  // Snapshots de inventario/pedidos incrustan datos de prenda.
+  updateTag(clothingInventoryTag());
+  updateTag(clothingOrdersTag());
+  revalidatePath("/admin/ropa/prendas", "layout");
+  revalidatePath("/admin/ropa/pedidos/nuevo");
+}
+
+/** Lotes de almacén (use cache) + rutas que aún no van por tag. */
+export function invalidateClothingInventory(playerId?: string) {
+  updateTag(clothingInventoryTag());
+  revalidatePath("/admin/ropa/almacen", "layout");
+  revalidatePath("/admin/ropa/entregas", "layout");
+  revalidatePath("/admin/ropa");
+  if (playerId) {
+    revalidatePath(appRoutes.players.detail(playerId));
   }
+}
+
+/** Pedidos de ropa (use cache). */
+export function invalidateClothingOrders() {
+  updateTag(clothingOrdersTag());
+  revalidatePath("/admin/ropa/pedidos", "layout");
+  revalidatePath("/admin/ropa");
+}
+
+/** Conceptos de pago (use cache). */
+export function invalidatePaymentConcepts() {
+  updateTag(paymentConceptsTag());
+  revalidatePath(appRoutes.payments.concepts);
+  revalidatePath(appRoutes.payments.list);
 }
 
 /** Plantilla / entregas; tags preparados para caché futura por temporada. */

@@ -10,6 +10,7 @@ import { DashboardPage } from "@/components/layout/DashboardPage";
 import { appRoutes } from "@/lib/constants";
 import type {
   ClothingInventoryLotWithDetails,
+  ClothingInventoryStatus,
   ClothingProduct,
   ClothingStorageLocationNode,
 } from "@/lib/types/db";
@@ -19,11 +20,19 @@ export function InventoryWarehouseView({
   products,
   storageTree,
   initialQuery = "",
+  initialStatus = "all",
+  initialMissingJersey = false,
+  sourceOrderId = null,
+  sourceOrderLabel = null,
 }: {
   lots: ClothingInventoryLotWithDetails[];
   products: ClothingProduct[];
   storageTree: ClothingStorageLocationNode[];
   initialQuery?: string;
+  initialStatus?: ClothingInventoryStatus | "all";
+  initialMissingJersey?: boolean;
+  sourceOrderId?: string | null;
+  sourceOrderLabel?: string | null;
 }) {
   const [manualOpen, setManualOpen] = useState(false);
 
@@ -69,6 +78,10 @@ export function InventoryWarehouseView({
         storageTree={storageTree}
         onManualOpenChange={setManualOpen}
         initialQuery={initialQuery}
+        initialStatus={initialStatus}
+        initialMissingJersey={initialMissingJersey}
+        sourceOrderId={sourceOrderId}
+        sourceOrderLabel={sourceOrderLabel}
       />
 
       <ManualInventorySheet

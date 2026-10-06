@@ -467,7 +467,7 @@ export function ProductsPageClient({
             </div>
 
             <div className="hidden md:block">
-              <div className="glass-panel overflow-hidden">
+              <div className="ropa-panel overflow-hidden">
                 <Table>
                 <TableHeader>
                   <TableRow>

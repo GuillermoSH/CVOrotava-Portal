@@ -220,6 +220,7 @@ export async function setPlayerActiveAction(input: unknown): Promise<ActionResul
 
     await setPlayerActive(db, parsed.data.id, parsed.data.is_active);
     invalidateRoster(existing.season);
+    refresh();
     return { ok: true, id: parsed.data.id };
   } catch (e) {
     return {
@@ -243,6 +244,7 @@ export async function updatePlayerChecklistFieldAction(input: unknown): Promise<
 
     await updatePlayerChecklistField(db, parsed.data.id, parsed.data.field, parsed.data.value);
     invalidateRoster(existing.season);
+    refresh();
     return { ok: true, id: parsed.data.id };
   } catch (e) {
     return {
@@ -268,6 +270,7 @@ export async function bulkUpdatePlayerChecklistAction(input: unknown): Promise<A
       parsed.data.value,
     );
     invalidateRoster(getCurrentSeason());
+    refresh();
     return { ok: true, updated };
   } catch (e) {
     return {
@@ -292,6 +295,7 @@ export async function bulkSetPlayersActiveAction(input: unknown): Promise<Action
       parsed.data.is_active,
     );
     invalidateRoster(getCurrentSeason());
+    refresh();
     return { ok: true, updated };
   } catch (e) {
     return {
@@ -330,6 +334,7 @@ export async function bulkSetPlayersTeamAction(input: unknown): Promise<ActionRe
 
     const updated = await bulkSetPlayersTeam(db, player_ids, team_id);
     invalidateRoster(rosterSeason);
+    refresh();
     return { ok: true, updated };
   } catch (e) {
     return {
@@ -360,6 +365,7 @@ export async function deletePlayersAction(input: unknown): Promise<ActionResult>
     }
 
     invalidateRoster(getCurrentSeason());
+    refresh();
     return { ok: true, updated: deleted };
   } catch (e) {
     return {
@@ -380,6 +386,7 @@ export async function createTeamAction(input: unknown): Promise<ActionResult> {
     const db = await getRosterDb();
     const team = await createTeam(db, parsed.data);
     invalidateRoster(parsed.data.season);
+    refresh();
     return { ok: true, id: team.id };
   } catch (e) {
     return {

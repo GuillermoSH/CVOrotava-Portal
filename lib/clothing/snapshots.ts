@@ -1,9 +1,14 @@
 import "server-only";
 
+import { getCachedInventorySnapshot } from "@/lib/clothing/cached-inventory";
+import { getCachedOrdersSnapshot } from "@/lib/clothing/cached-orders";
+import {
+  getCachedActiveProductsSnapshot,
+  getCachedAllProductsSnapshot,
+} from "@/lib/clothing/cached-products";
 import { computePossessionFromMovements, filterPossessionBySeason } from "@/lib/clothing/possession";
 import { getClothingDb } from "@/lib/clothing/repository/client";
 import {
-  buildLocationPath,
   buildStorageTreeFromFlat,
   productMapFromList,
 } from "@/lib/clothing/repository/helpers";
@@ -18,15 +23,10 @@ import {
   listOrderStatusEvents,
 } from "@/lib/clothing/repository/orders";
 import { listActivePlayers } from "@/lib/clothing/repository/players";
-import {
-  getCachedActiveProductsSnapshot,
-  getCachedAllProductsSnapshot,
-} from "@/lib/clothing/cached-products";
-import { listActiveProducts, listProducts } from "@/lib/clothing/repository/products";
+import { listProducts } from "@/lib/clothing/repository/products";
 import type {
   ClothingDeliveryHistoryItem,
   ClothingInventoryLotWithDetails,
-  ClothingOrderLineWithProduct,
   ClothingOrderWithLines,
   ClothingOrderWithLinesAndEvents,
   ClothingPossessionItem,
@@ -35,36 +35,8 @@ import type {
   PlayerWithTeam,
 } from "@/lib/types/db";
 
-function enrichOrderLines(
-  lines: Awaited<ReturnType<typeof listOrdersWithLines>>["lines"],
-  productMap: Map<string, ClothingProduct>,
-): ClothingOrderLineWithProduct[] {
-  return lines
-    .map((line) => {
-      const product = productMap.get(line.product_id);
-      if (!product) return null;
-      return { ...line, product };
-    })
-    .filter((line): line is ClothingOrderLineWithProduct => line !== null);
-}
-
 export async function enrichOrders(): Promise<ClothingOrderWithLines[]> {
-  const db = await getClothingDb();
-  const [{ orders, lines }, products] = await Promise.all([
-    listOrdersWithLines(db),
-    listProducts(db),
-  ]);
-  const productMap = productMapFromList(products);
-
-  return orders
-    .map((order) => ({
-      ...order,
-      lines: enrichOrderLines(
-        lines.filter((l) => l.order_id === order.id),
-        productMap,
-      ),
-    }))
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  return getCachedOrdersSnapshot();
 }
 
 export async function getOrderById(
@@ -80,26 +52,7 @@ export async function getOrderById(
 }
 
 export async function enrichInventory(): Promise<ClothingInventoryLotWithDetails[]> {
-  const db = await getClothingDb();
-  const [lots, products, locations] = await Promise.all([
-    listInventoryLots(db),
-    listProducts(db),
-    listLocations(db),
-  ]);
-  const productMap = productMapFromList(products);
-
-  return lots
-    .map((lot) => {
-      const product = productMap.get(lot.product_id);
-      if (!product) return null;
-      return {
-        ...lot,
-        product,
-        location_path: buildLocationPath(lot.storage_location_id, locations),
-      };
-    })
-    .filter((lot): lot is ClothingInventoryLotWithDetails => lot !== null)
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  return getCachedInventorySnapshot();
 }
 
 export async function enrichDeliveryHistory(): Promise<ClothingDeliveryHistoryItem[]> {
@@ -200,21 +153,36 @@ export type ClothingHubKpis = {
   pendingStorageLots: number;
   storedUnits: number;
   pendingStorageUnits: number;
+  featuredOpenOrder: {
+    id: string;
+    reference: string;
+    supplier_name: string;
+    status: ClothingOrderWithLines["status"];
+  } | null;
 };
 
 export async function getClothingHubKpis(): Promise<ClothingHubKpis> {
   const db = await getClothingDb();
   const [{ orders }, lots] = await Promise.all([listOrdersWithLines(db), listInventoryLots(db)]);
 
-  const openOrders = orders.filter((o) => o.status !== "closed").length;
+  const open = orders.filter((o) => o.status !== "closed");
+  const featured = open[0] ?? null;
   const pendingLots = lots.filter((l) => l.status === "pending_storage");
   const storedLots = lots.filter((l) => l.status === "stored");
 
   return {
-    openOrders,
+    openOrders: open.length,
     pendingStorageLots: pendingLots.length,
     storedUnits: storedLots.reduce((sum, l) => sum + l.quantity, 0),
     pendingStorageUnits: pendingLots.reduce((sum, l) => sum + l.quantity, 0),
+    featuredOpenOrder: featured
+      ? {
+          id: featured.id,
+          reference: featured.reference,
+          supplier_name: featured.supplier_name,
+          status: featured.status,
+        }
+      : null,
   };
 }
 

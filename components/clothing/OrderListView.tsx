@@ -42,18 +42,16 @@ function OrdersEmptyState({
   const isFiltered = statusFilter !== "open" || searching;
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
-      <div className="flex size-11 items-center justify-center rounded-full bg-[var(--club-brand-soft)] text-brand">
-        <Shirt className="size-5" aria-hidden />
-      </div>
-      <p className="mt-4 font-medium text-foreground">
+    <div className="ropa-empty">
+      <Shirt className="ropa-empty__icon" aria-hidden />
+      <p className="ropa-empty__title">
         {searching
           ? "Ningún pedido coincide"
           : isFiltered
             ? "Ningún pedido con este filtro"
             : "No hay pedidos abiertos"}
       </p>
-      <p className="mt-1.5 max-w-xs text-sm leading-relaxed text-muted-foreground">
+      <p className="ropa-empty__body">
         {searching
           ? "Prueba otra referencia, proveedor o prenda."
           : isFiltered

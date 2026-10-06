@@ -6,7 +6,28 @@ alwaysApply: false
 
 # Optimizaciones — backlog
 
-Ideas recogidas tras la migración Next 16 (`feature/migration-v16`). **No implementar** hasta que se pida explícitamente.
+Ideas recogidas tras la migración Next 16 (`feature/migration-v16`). La mayor parte del roadmap ya está implementada (ver Status abajo). Lo marcado **partial** / virtualización kanban queda para iteraciones futuras.
+
+## Status (roadmap post-Next 16)
+
+| # | Item | Estado |
+|---|---|---|
+| 1 | Paginación/filtros en servidor | **done** — `listPlayersPage` + URL `page`/`pageSize`/`sort` |
+| 2 | Select ligero lista vs ficha | **done** — `PLAYER_LIST_SELECT` vs `PLAYER_DETAIL_SELECT` |
+| 3 | Fotos URL firmada / cache HTTP | **done** — Cache-Control privado en preview inline; PNG download sin cache |
+| 4 | Optimistic UI checklist | **done** — estado local + `refresh()` en actions; sin `router.refresh` en checklist |
+| 5 | `next/dynamic` sheets pesados | **done** — Federación, Excel, WhatsApp, crop foto |
+| 6 | Partir PlayersPageClient | **partial** — `PlayersBulkBar` + dynamic sheets |
+| 7 | Deps pesadas acotadas | **done** — `@dnd-kit` solo vía Kanban lazy |
+| 8 | Más pilotos `'use cache'` | **done** — conceptos pago, inventario, pedidos |
+| 9 | Invalidación más fina | **partial** — tags nuevos; paths donde hace falta |
+| 10 | `refresh()` en más actions | **done** |
+| 11 | Matcher proxy más estrecho | **done** |
+| 12 | Sesión por request (`React.cache`) | **done** |
+| 13 | Snapshots inventario/pedidos | **done** |
+| 14 | Kanban virtualizar / lazy dnd | **partial** — lazy dnd; virtualización deferred |
+| 15 | Arreglar `pnpm lint` ESLint 9 | **done** — lint OK (warnings menores) |
+| 16 | Índices Supabase | **done** — `players(season, team_id)` + `(season, is_active)` |
 
 ## Prioridad alta (jugadores / datos)
 

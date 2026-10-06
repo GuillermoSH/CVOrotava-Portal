@@ -1,44 +1,37 @@
 import {
   serializePlayerListSearchParams,
   type PlayerFilterState,
-  type PlayerSortDir,
 } from "@/lib/roster/player-filters";
 
 const KEY_PREFIX = "cvo.playersListScroll:";
 
 export type PlayerListScrollState = {
   scrollTop: number;
-  page: number;
-  pageSize: number;
-  sortDir: PlayerSortDir;
 };
 
 function storageKey(filterState: PlayerFilterState): string {
   return `${KEY_PREFIX}${serializePlayerListSearchParams(filterState).toString()}`;
 }
 
-/** Lee la posición de scroll/página guardada para una combinación de filtros. */
+/** Lee la posición de scroll guardada para una combinación de filtros. */
 export function readPlayerListScroll(filterState: PlayerFilterState): PlayerListScrollState | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(storageKey(filterState));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<PlayerListScrollState>;
-    if (
-      typeof parsed.scrollTop !== "number" ||
-      typeof parsed.page !== "number" ||
-      typeof parsed.pageSize !== "number" ||
-      (parsed.sortDir !== "asc" && parsed.sortDir !== "desc")
-    ) {
-      return null;
-    }
-    return parsed as PlayerListScrollState;
+    const parsed = JSON.parse(raw) as Partial<PlayerListScrollState> & {
+      page?: number;
+      pageSize?: number;
+      sortDir?: string;
+    };
+    if (typeof parsed.scrollTop !== "number") return null;
+    return { scrollTop: parsed.scrollTop };
   } catch {
     return null;
   }
 }
 
-/** Guarda la posición de scroll/página para una combinación de filtros. */
+/** Guarda la posición de scroll para una combinación de filtros. */
 export function writePlayerListScroll(
   filterState: PlayerFilterState,
   state: PlayerListScrollState,

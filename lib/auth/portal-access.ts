@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { isUserRole } from "@/lib/auth/roles";
@@ -15,8 +16,10 @@ const ROLE_PRIORITY: readonly UserRole[] = ["admin", "manager", "coach", "parent
  * renderizar un layout protegido. Distingue el motivo de la denegación en
  * el redirect — sin esto, un rol ausente por RLS/datos incorrectos rebota
  * a /login en silencio y es indistinguible de "nunca hubo sesión".
+ *
+ * `cache()` deduplica layout + página (+ snapshots) en el mismo request.
  */
-export async function requirePortalRole(): Promise<UserRole> {
+export const requirePortalRole = cache(async (): Promise<UserRole> => {
   if (isDevAuthBypassEnabled()) {
     return getDevBypassRole();
   }
@@ -48,7 +51,7 @@ export async function requirePortalRole(): Promise<UserRole> {
   }
 
   return role;
-}
+});
 
 export function roleHomeRoute(role: UserRole): string {
   return role === "parent" ? appRoutes.parents : appRoutes.admin;

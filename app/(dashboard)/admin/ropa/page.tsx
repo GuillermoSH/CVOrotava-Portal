@@ -10,19 +10,26 @@ export default async function ClothingHubPage() {
 
   return (
     <>
-      <section className="flex flex-col gap-3">
-        <h2 className="section-title">Buscar</h2>
-        <ClothingHubSearch />
-      </section>
+      <p className="ropa-board-header__meta -mt-1">
+        <span className="ropa-digit">{kpis.storedUnits}</span>
+        <span> uds en caja</span>
+        <span className="ropa-board-header__dot" aria-hidden>
+          ·
+        </span>
+        <span className="ropa-digit">{kpis.openOrders}</span>
+        <span> pedidos abiertos</span>
+      </p>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="section-title">Indicadores</h2>
-        <ClothingHubCards kpis={kpis} />
-      </section>
+      <ClothingHubCards kpis={kpis} />
 
-      <section className="flex flex-col gap-3">
-        <h2 className="section-title">Operaciones</h2>
-        <ClothingHubQuickLinks />
+      <ClothingHubSearch />
+
+      <section className="flex flex-col gap-2">
+        <h2 className="ropa-section-heading">Operaciones</h2>
+        <ClothingHubQuickLinks
+          featuredOrderId={kpis.featuredOpenOrder?.id}
+          pendingStorageUnits={kpis.pendingStorageUnits}
+        />
       </section>
     </>
   );

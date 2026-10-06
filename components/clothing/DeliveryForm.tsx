@@ -206,9 +206,9 @@ export function DeliveryForm({
 
   if (players.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
-        <p className="font-medium text-foreground">No hay jugadores en la temporada</p>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <div className="ropa-empty">
+        <p className="ropa-empty__title">No hay jugadores en la temporada</p>
+        <p className="ropa-empty__body">
           La entrega se registra a un jugador del roster. Cuando haya plantilla, vuelve aquí.
         </p>
       </div>
@@ -217,9 +217,9 @@ export function DeliveryForm({
 
   if (pools.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
-        <p className="font-medium text-foreground">No hay stock para entregar</p>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <div className="ropa-empty">
+        <p className="ropa-empty__title">No hay stock para entregar</p>
+        <p className="ropa-empty__body">
           Añade o ubica prendas en el inventario antes de registrar una entrega.
         </p>
         <Link href={appRoutes.clothing.warehouse} className="btn-primary mt-5 inline-flex min-h-11">
@@ -233,7 +233,7 @@ export function DeliveryForm({
     <>
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
         <section className="flex flex-col gap-5">
-          <h2 className="section-title">Jugador</h2>
+          <h2 className="ropa-section-heading">Jugador</h2>
           <PlayerPicker players={players} value={playerId} onChange={setPlayerId} />
           {player?.clothing_size ? (
             <p className="text-sm text-muted-foreground">
@@ -292,7 +292,7 @@ export function DeliveryForm({
         <section className="flex flex-col gap-5 border-t border-[var(--club-border)] pt-8">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="section-title">Prendas</h2>
+              <h2 className="ropa-section-heading">Prendas</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {lines.length === 0
                   ? "Aún no hay prendas"

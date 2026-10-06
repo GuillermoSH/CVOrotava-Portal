@@ -36,14 +36,14 @@ export async function GET(
 
   const source = Buffer.from(await data.arrayBuffer());
 
-  // Preview inline: WebP ligero. Descarga: PNG (federación / usos que no abren WebP).
+  // Preview inline: WebP ligero con cache privada corta. Descarga: PNG (federación).
   if (inline) {
     return new NextResponse(source, {
       status: 200,
       headers: {
         "Content-Type": data.type || "image/webp",
         "Content-Disposition": `inline; filename="${playerPhotoDownloadFilename(player).replace(/\.png$/i, ".webp")}"`,
-        "Cache-Control": "private, no-store",
+        "Cache-Control": "private, max-age=3600, stale-while-revalidate=86400",
         "Content-Length": String(source.byteLength),
       },
     });
