@@ -25,6 +25,7 @@ export type ChecklistFilter =
   | "missing_papers"
   | "missing_docs"
   | "missing_photo"
+  | "no_photo_consent"
   | "missing_license"
   | "license_blocked"
   | "missing_matricula"
@@ -36,6 +37,7 @@ export const CHECKLIST_FILTER_LABELS: Record<ChecklistFilter, string> = {
   missing_docs: "Falta docs",
   missing_papers: "Falta papeles",
   missing_photo: "Falta foto",
+  no_photo_consent: "No autoriza fotos",
   missing_license: "Falta licencia",
   license_blocked: "Licencia bloqueada (papeles/foto)",
   missing_matricula: "Sin matrícula",
@@ -48,6 +50,7 @@ export const CHECKLIST_FILTER_ORDER: ChecklistFilter[] = [
   "missing_docs",
   "missing_papers",
   "missing_photo",
+  "no_photo_consent",
   "missing_license",
   "license_blocked",
   "missing_matricula",
@@ -105,6 +108,8 @@ export function matchesChecklistFilter(
       return !player.docs_delivered_to_family;
     case "missing_photo":
       return !player.photo_taken;
+    case "no_photo_consent":
+      return !player.photo_consent;
     case "missing_license":
       return !player.license_completed;
     case "license_blocked":

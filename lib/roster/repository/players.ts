@@ -31,7 +31,7 @@ const PLAYER_DETAIL_SELECT =
 
 /** Listado admin — sin medical/nationality/photo_path/etc. */
 const PLAYER_LIST_SELECT =
-  "id, full_name, first_name, last_name, birth_date, team_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, in_whatsapp_group, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, team:teams(id, name, category, gender, season)";
+  "id, full_name, first_name, last_name, birth_date, team_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, team:teams(id, name, category, gender, season)";
 
 export type ListPlayersPageFilters = {
   query?: string;
@@ -65,6 +65,7 @@ const CHECKLIST_SQL_FILTERS: Partial<
   missing_papers: { column: "registration_papers_received", value: false },
   missing_docs: { column: "docs_delivered_to_family", value: false },
   missing_photo: { column: "photo_taken", value: false },
+  no_photo_consent: { column: "photo_consent", value: false },
   missing_license: { column: "license_completed", value: false },
   missing_whatsapp: { column: "in_whatsapp_group", value: false },
   complete: { complete: true },
