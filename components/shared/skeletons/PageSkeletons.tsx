@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 
 import { ClothingHubQuickLinks } from "@/components/clothing/ClothingHubQuickLinks";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
-import { WarehouseBoxMark } from "@/components/clothing/WarehouseBoxMark";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/club/Card";
 import {
   Table,
@@ -115,26 +114,25 @@ function AdminMetricCard({
 
 function CrateBone({ lines = 2 }: { lines?: number }) {
   return (
-    <div className={cn("warehouse-crate", lines > 0 && "warehouse-crate--inventory")}>
-      <div className="warehouse-crate__figure">
-        <WarehouseBoxMark size={lines > 0 ? "sm" : "md"} />
-      </div>
-      <div className="warehouse-crate__body">
-        <div className="warehouse-crate__identity">
-          <Bone className="h-4 w-14 rounded-md" />
-          <Bone className="h-3 w-24 rounded-md" />
+    <div className={cn("ropa-bin", lines === 0 && "ropa-bin--empty")}>
+      <div className="ropa-bin__head">
+        <div className="ropa-bin__id">
+          <Bone className="h-3 w-14 rounded-md" />
+          <Bone className="mt-2 h-4 w-28 rounded-md" />
         </div>
-        {lines > 0 ? (
-          <div className="warehouse-crate__lines">
-            {Array.from({ length: lines }, (_, index) => (
-              <div key={index} className="warehouse-crate__line">
-                <Bone className="h-3.5 w-[55%] rounded-md" />
-                <Bone className="h-3 w-10 rounded-md" />
-              </div>
-            ))}
-          </div>
-        ) : null}
+        <Bone className="h-7 w-8 rounded-md" />
       </div>
+      {lines > 0 ? (
+        <div className="ropa-bin__body">
+          {Array.from({ length: lines }, (_, index) => (
+            <div key={index} className="ropa-bin__row">
+              <Bone className="h-3.5 w-[55%] rounded-md" />
+              <Bone className="h-3 w-10 rounded-md" />
+              <Bone className="h-3.5 w-6 rounded-md" />
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -197,8 +195,8 @@ function HubBody() {
           <KpiTile title="En almacén" helper="unidades" href={appRoutes.clothing.warehouse} wide />
         </div>
       </section>
-      <section className="flex flex-col gap-3">
-        <h2 className="section-title">Operaciones</h2>
+      <section className="flex flex-col gap-2.5">
+        <h2 className="ropa-section-label">Accesos rápidos</h2>
         <ClothingHubQuickLinks />
       </section>
     </>
@@ -313,21 +311,23 @@ function WarehouseBody() {
       </div>
       <SearchBone />
       <FilterChipRow labels={["Todos", INVENTORY_STATUS_LABELS.pending_storage, INVENTORY_STATUS_LABELS.stored]} />
-      <section className="warehouse-pending">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <WarehouseBoxMark ghost size="icon" />
-          Por ubicar
-        </h2>
-        <ul className="mt-3 flex flex-col gap-1.5">
+      <section className="ropa-queue">
+        <header className="ropa-queue__head">
+          <div>
+            <h2 className="ropa-queue__title">Por ubicar</h2>
+            <p className="ropa-queue__meta">Cargando lotes…</p>
+          </div>
+        </header>
+        <ul className="ropa-queue__list">
           {Array.from({ length: 3 }, (_, index) => (
-            <li key={index} className="flex items-center justify-between gap-3 rounded-lg px-1 py-1.5">
+            <li key={index} className="ropa-queue__item">
               <Bone className="h-4 w-[48%] rounded-md" />
-              <Bone className="h-4 w-10 rounded-md" />
+              <Bone className="h-8 w-16 rounded-md" />
             </li>
           ))}
         </ul>
       </section>
-      <div className="warehouse-board">
+      <div className="ropa-rack__grid">
         <CrateBone />
         <CrateBone lines={3} />
         <CrateBone lines={1} />

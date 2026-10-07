@@ -44,7 +44,7 @@ export function OrderLineReceivedEditor({
       type="number"
       inputMode="numeric"
       min={0}
-      max={line.quantity_ordered}
+      max={9999}
       defaultValue={line.quantity_received}
       disabled={pending}
       aria-label={`Unidades recibidas de ${formatProductShort(line.product)}, talla ${formatClothingSize(line.size)}`}

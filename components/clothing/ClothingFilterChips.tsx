@@ -19,7 +19,7 @@ export function ClothingFilterChips<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={cn("clothing-filter-chips", className)}
+      className={cn("ropa-filter-chips clothing-filter-chips", className)}
     >
       {options.map((opt) => (
         <button
@@ -29,21 +29,13 @@ export function ClothingFilterChips<T extends string>({
           aria-selected={value === opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            "clothing-filter-chip inline-flex items-center",
-            value === opt.value && "clothing-filter-chip--active",
+            "ropa-filter-chip clothing-filter-chip inline-flex items-center",
+            value === opt.value && "ropa-filter-chip--active clothing-filter-chip--active",
           )}
         >
           <span>{opt.label}</span>
           {opt.count !== undefined ? (
-            <span
-              className={cn(
-                "ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
-                value === opt.value
-                  ? "bg-brand/15 text-brand"
-                  : "bg-[var(--club-surface-2)] text-muted-foreground",
-              )}
-              aria-hidden
-            >
+            <span className="ropa-filter-chip__count ropa-digit" aria-hidden>
               {opt.count}
             </span>
           ) : null}

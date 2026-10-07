@@ -1,7 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
+import { invalidateClothingInventory } from "@/lib/cache/invalidate";
 import { requireClothingWriteAccess } from "@/lib/clothing/auth";
 import { getClothingDb } from "@/lib/clothing/repository/client";
 import {
@@ -28,26 +27,13 @@ import {
   returnInventorySchema,
   writeOffInventorySchema,
 } from "@/lib/clothing/schemas";
-import { appRoutes } from "@/lib/constants";
 
 export type ActionResult =
   | { ok: true; id?: string }
   | { ok: false; error: string };
 
-const CLOTHING_PATHS = [
-  "/admin/ropa",
-  "/admin/ropa/almacen",
-  "/admin/ropa/entregas",
-  "/admin/ropa/almacen/entregas",
-];
-
 function revalidateClothing(playerId?: string) {
-  for (const path of CLOTHING_PATHS) {
-    revalidatePath(path, "layout");
-  }
-  if (playerId) {
-    revalidatePath(appRoutes.players.detail(playerId));
-  }
+  invalidateClothingInventory(playerId);
 }
 
 export async function assignInventoryToLocation(input: unknown): Promise<ActionResult> {

@@ -14,14 +14,18 @@ export function PlayersWhatsAppSheet({
   players,
   teams,
   canWrite = false,
+  loading = false,
 }: {
   open: boolean;
   onClose: () => void;
   players: PlayerListItem[];
   teams: Team[];
   canWrite?: boolean;
+  /** True while the full roster is fetched for WhatsApp. */
+  loading?: boolean;
 }) {
   const filters = useWhatsAppFilters(players, teams);
+  const showLoading = open && loading && players.length === 0;
 
   return (
     <ClothingBottomSheet
@@ -33,26 +37,32 @@ export function PlayersWhatsAppSheet({
       secondaryAction={{ label: "Cerrar", onClick: onClose }}
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4">
-        <div className="shrink-0">
-          <WhatsAppFilterFields
-            category={filters.category}
-            onCategoryChange={filters.setCategory}
-            teamId={filters.teamId}
-            onTeamIdChange={filters.setTeamId}
-            onlyMissingWhatsapp={filters.onlyMissingWhatsapp}
-            onOnlyMissingChange={filters.setOnlyMissingWhatsapp}
-            categoryOptions={filters.categoryOptions}
-            teamOptions={filters.teamOptions}
-          />
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
-          <WhatsAppEntryList
-            key={`${filters.category}:${filters.teamId}:${filters.onlyMissingWhatsapp}`}
-            entries={filters.entries}
-            category={filters.category}
-            canWrite={canWrite}
-          />
-        </div>
+        {showLoading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Cargando jugadores…</p>
+        ) : (
+          <>
+            <div className="shrink-0">
+              <WhatsAppFilterFields
+                category={filters.category}
+                onCategoryChange={filters.setCategory}
+                teamId={filters.teamId}
+                onTeamIdChange={filters.setTeamId}
+                onlyMissingWhatsapp={filters.onlyMissingWhatsapp}
+                onOnlyMissingChange={filters.setOnlyMissingWhatsapp}
+                categoryOptions={filters.categoryOptions}
+                teamOptions={filters.teamOptions}
+              />
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+              <WhatsAppEntryList
+                key={`${filters.category}:${filters.teamId}:${filters.onlyMissingWhatsapp}`}
+                entries={filters.entries}
+                category={filters.category}
+                canWrite={canWrite}
+              />
+            </div>
+          </>
+        )}
       </div>
     </ClothingBottomSheet>
   );

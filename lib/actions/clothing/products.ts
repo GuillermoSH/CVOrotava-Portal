@@ -1,7 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
+import { invalidateClothingProducts } from "@/lib/cache/invalidate";
 import { requireClothingWriteAccess } from "@/lib/clothing/auth";
 import { getClothingDb } from "@/lib/clothing/repository/client";
 import { productUsedInStockMovements } from "@/lib/clothing/repository/inventory";
@@ -19,20 +18,6 @@ import { createProductSchema, updateProductSchema } from "@/lib/clothing/schemas
 export type ActionResult =
   | { ok: true; id?: string }
   | { ok: false; error: string };
-
-const CLOTHING_PRODUCT_PATHS = [
-  "/admin/ropa",
-  "/admin/ropa/prendas",
-  "/admin/ropa/pedidos",
-  "/admin/ropa/pedidos/nuevo",
-  "/admin/ropa/almacen",
-];
-
-function revalidateProducts() {
-  for (const path of CLOTHING_PRODUCT_PATHS) {
-    revalidatePath(path, "layout");
-  }
-}
 
 const DUPLICATE_ERROR =
   "Ya existe una prenda con esa marca, modelo, color y categoría en la temporada";
@@ -61,7 +46,7 @@ export async function createClothingProduct(input: unknown): Promise<ActionResul
       notes,
       is_shop_item,
     });
-    revalidateProducts();
+    invalidateClothingProducts();
     return { ok: true, id: product.id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
@@ -98,7 +83,7 @@ export async function updateClothingProduct(input: unknown): Promise<ActionResul
       is_shop_item,
       is_active,
     });
-    revalidateProducts();
+    invalidateClothingProducts();
     return { ok: true, id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
@@ -127,7 +112,7 @@ export async function setClothingProductActive(
       is_active: isActive,
     });
 
-    revalidateProducts();
+    invalidateClothingProducts();
     return { ok: true, id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
@@ -164,7 +149,7 @@ export async function deleteClothingProduct(id: string): Promise<ActionResult> {
     if (!product) return { ok: false, error: "Prenda no encontrada" };
 
     await deleteProduct(db, id);
-    revalidateProducts();
+    invalidateClothingProducts();
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };

@@ -1,7 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
+import { invalidateRoster } from "@/lib/cache/invalidate";
 import { requireRosterWriteAccess } from "@/lib/roster/auth";
 import { parsePlayerImportFile, playerImportFilename, type PlayerImportIssue } from "@/lib/roster/player-import";
 import { buildPlayerImportWorkbook } from "@/lib/roster/player-import-template";
@@ -17,11 +16,6 @@ export type PlayerTemplateResult =
 export type PlayerImportResult =
   | { ok: true; created: number; issues: PlayerImportIssue[] }
   | { ok: false; error: string; issues?: PlayerImportIssue[] };
-
-function revalidateRoster() {
-  revalidatePath("/admin/jugadores", "layout");
-  revalidatePath("/admin/ropa/entregas");
-}
 
 function friendlyImportError(message: string): string {
   if (/players_dni_season_unique/i.test(message)) {
@@ -88,7 +82,7 @@ export async function importPlayersAction(formData: FormData): Promise<PlayerImp
       })),
     ];
 
-    if (result.created > 0) revalidateRoster();
+    if (result.created > 0) invalidateRoster(season);
 
     if (result.created === 0) {
       return {

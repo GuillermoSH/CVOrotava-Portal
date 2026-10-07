@@ -1,11 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Input } from "@/components/club/Input";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
-import { OrderKanbanBoard } from "@/components/clothing/OrderKanbanBoard";
 import { OrderListView } from "@/components/clothing/OrderListView";
 import {
   OrdersViewToggle,
@@ -15,6 +15,11 @@ import { DashboardPage } from "@/components/layout/DashboardPage";
 import { orderMatchesQuery } from "@/lib/clothing/formatOrderLines";
 import { appRoutes } from "@/lib/constants";
 import type { ClothingOrderStatus, ClothingOrderWithLines } from "@/lib/types/db";
+
+const OrderKanbanBoard = dynamic(
+  () => import("@/components/clothing/OrderKanbanBoard").then((m) => m.OrderKanbanBoard),
+  { ssr: false, loading: () => null },
+);
 
 export function OrdersPageClient({
   orders,
@@ -43,14 +48,14 @@ export function OrdersPageClient({
         </div>
       }
     >
-      <div className="mb-3">
+      <div className="ropa-search mb-3">
         <Input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar referencia, proveedor o prenda"
           aria-label="Buscar pedidos"
-          className="min-h-11"
+          className="min-h-11 border-0 bg-transparent shadow-none focus-visible:ring-0"
         />
       </div>
 

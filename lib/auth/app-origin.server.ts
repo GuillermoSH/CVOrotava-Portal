@@ -6,7 +6,6 @@ import {
   getConfiguredSiteOrigin,
   normalizeOrigin,
   resolveOriginFromHost,
-  toAbsoluteAppUrl,
 } from "@/lib/auth/app-origin";
 
 export { toAbsoluteAppUrl } from "@/lib/auth/app-origin";

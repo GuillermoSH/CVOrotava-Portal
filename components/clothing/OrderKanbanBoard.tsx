@@ -17,7 +17,6 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { appToast } from "@/lib/toast";
 
-import { Badge } from "@/components/club/Badge";
 import {
   ClothingBottomSheet,
 } from "@/components/clothing/ClothingBottomSheet";
@@ -40,32 +39,24 @@ function OrderCard({
   isDragging?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-lg border border-[var(--club-border)] bg-[var(--club-surface)] p-3 shadow-sm",
-        isDragging && "opacity-70 shadow-md",
-      )}
-    >
+    <div className={cn("ropa-kanban-card", isDragging && "ropa-kanban-card--dragging")}>
       <Link
         href={appRoutes.clothing.orderDetail(order.id)}
-        className="block font-medium text-foreground hover:text-brand"
+        className="ropa-kanban-card__ref"
         onClick={(e) => e.stopPropagation()}
       >
         {order.reference}
       </Link>
-      <p className="mt-1 text-xs text-muted-foreground">{order.supplier_name}</p>
-      <div className="mt-2 flex flex-wrap gap-1">
-        {order.lines.slice(0, 3).map((line) => (
-          <Badge key={line.id} variant="secondary" className="text-[10px]">
-            {formatOrderLineSummary(line)}
-          </Badge>
-        ))}
-        {order.lines.length > 3 ? (
-          <Badge variant="secondary" className="text-[10px]">
-            +{order.lines.length - 3}
-          </Badge>
-        ) : null}
-      </div>
+      <p className="ropa-kanban-card__supplier">{order.supplier_name}</p>
+      {order.lines.length > 0 ? (
+        <p className="ropa-kanban-card__lines">
+          {order.lines
+            .slice(0, 2)
+            .map((line) => formatOrderLineSummary(line))
+            .join(" · ")}
+          {order.lines.length > 2 ? ` · +${order.lines.length - 2}` : ""}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -103,18 +94,13 @@ function KanbanColumn({
   return (
     <div
       ref={setNodeRef}
-      className={cn(
-        "flex min-w-[240px] flex-1 flex-col rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)]/40 transition-colors",
-        isOver && "border-[var(--club-brand)] bg-[var(--club-brand-soft)]/20",
-      )}
+      className={cn("ropa-kanban-col", isOver && "ropa-kanban-col--over")}
     >
-      <div className="border-b border-[var(--club-border)] px-3 py-2.5">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {ORDER_STATUS_LABELS[status]}
-        </h3>
-        <p className="text-lg font-semibold tabular-nums text-foreground">{columnOrders.length}</p>
+      <div className="ropa-kanban-col__head">
+        <h3 className="ropa-kanban-col__title">{ORDER_STATUS_LABELS[status]}</h3>
+        <p className="ropa-digit ropa-digit--md">{columnOrders.length}</p>
       </div>
-      <div className="flex min-h-[120px] flex-col gap-2 p-2">
+      <div className="ropa-kanban-col__body">
         {columnOrders.map((order) => (
           <DraggableOrderCard key={order.id} order={order} />
         ))}
@@ -205,7 +191,7 @@ export function OrderKanbanBoard({
     <>
       <div className="hidden md:block">
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="ropa-kanban">
             {CLOTHING_KANBAN_STATUSES.map((status) => (
               <KanbanColumn key={status} status={status} orders={openOrders} />
             ))}

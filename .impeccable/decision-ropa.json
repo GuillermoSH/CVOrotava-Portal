@@ -1,0 +1,159 @@
+{
+  "title": "Mundo visual — Ropa admin",
+  "question": "El roll asignó Marcador de set (tablero de voleibol). ¿Lo mantenemos, tomamos una alternativa o re-roll?",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Marcador de set",
+      "kicker": "THE ROLL",
+      "lineage": "tablero electrónico de voleibol / hoja de sets en banquillo",
+      "thesis": "El flujo de ropa se lee como un partido: el set activo (siguiente paso) brilla; el resto queda en marcador neutro.",
+      "palette": ["#D01E1E", "#12121A", "#F0F0F4", "#E8E8EC", "#047857"],
+      "materials": ["panel de marcador mate", "dígitos tabulares", "banda de set activa"],
+      "viewport": "Hub: cabecera Ropa + banda Ahora con el pedido/set activo a escala dominante; debajo grid denso de atajos operativos sin tarjetas KPI genéricas.",
+      "risk": "Si el marcador se vuelve gamificación, pierde seriedad de almacén.",
+      "raised": [
+        { "from": "boarding-pass-gate-board", "raise": "El paso actual se queda iluminado in-situ hasta que se note; no desaparece y reaparece en otra columna." },
+        { "from": "orienteering-map", "raise": "Solo la pierna operativa activa usa el rojo club; terreno (listas, stock) permanece en neutros densos." },
+        { "from": "saville-fac", "raise": "Un solo ítem decodificado a color pleno; el resto del catálogo/pedido queda en tinta secundaria." },
+        { "from": "ikeda-datamatics", "raise": "Conteos X/Y y tallas en figuras tabulares densas, tipografía de trabajo única." }
+      ],
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          { "label": "Ropa + Ahora set", "x": 0, "y": 0, "w": 12, "h": 3, "accent": true },
+          { "label": "Buscar", "x": 0, "y": 3, "w": 12, "h": 1 },
+          { "label": "Operaciones densas", "x": 0, "y": 4, "w": 12, "h": 6 }
+        ]
+      }
+    },
+    {
+      "id": "model-pick",
+      "label": "Albarán de recepción",
+      "kicker": "IMPECCABLE'S PICK",
+      "lineage": "albarán / packing slip de almacén",
+      "thesis": "Cada pantalla es un documento de recepción: líneas, tallas, checks X/Y.",
+      "palette": ["#12121A", "#F0F0F4", "#D01E1E", "#E8E8EC"],
+      "materials": ["papel de albarán", "reglas de tabla", "casillas de check"],
+      "viewport": "Hub como índice de documentos abiertos; el albarán destacado es el pedido en recepción.",
+      "risk": "Es el destino familiar de esta categoría; puede sentirse solo un admin limpio.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          { "label": "Cabecera documento", "x": 0, "y": 0, "w": 12, "h": 2, "accent": true },
+          { "label": "Tabla líneas", "x": 0, "y": 2, "w": 12, "h": 8 }
+        ]
+      }
+    },
+    {
+      "id": "challenger-gate-board",
+      "label": "Tarjeta de embarque + panel de puertas",
+      "verdict": "competitive",
+      "lineage": "boarding pass + airport gate board",
+      "thesis": "Pedidos como vuelos: la puerta (estado) se reordena en vivo; el pase muestra el siguiente check.",
+      "palette": ["#12121A", "#F0F0F4", "#D01E1E", "#3F3F50"],
+      "materials": ["panel alto contraste", "bloque escaneable mono", "filas de vuelo"],
+      "viewport": "Lista de pedidos como panel de salidas; el activo lleva segmento de pase con acción.",
+      "case": "Gana claridad de cambio de estado; pierde identificación (aeropuerto ≠ club).",
+      "risk": "Metáfora de viaje puede distraer en planta.",
+      "hero": "https://impeccable.style/worlds/cards/vernacular-ephemera-boarding-pass-and-gate-board-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/vernacular-ephemera-boarding-pass-and-gate-board.webp",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          { "label": "Pase activo", "x": 0, "y": 0, "w": 12, "h": 3, "accent": true },
+          { "label": "Panel puertas", "x": 0, "y": 3, "w": 12, "h": 7 }
+        ]
+      }
+    },
+    {
+      "id": "challenger-orienteering",
+      "label": "Mapa de orientación",
+      "verdict": "competitive",
+      "lineage": "ISO orienteering map + purple course",
+      "thesis": "Terreno neutro (stock) + curso rojo club solo en la pierna activa del pedido.",
+      "palette": ["#F0F0F4", "#12121A", "#D01E1E", "#047857", "#3b82f6"],
+      "materials": ["tintas ISO", "leyenda de símbolos", "capa de curso"],
+      "viewport": "Hub como mapa: controles numerados (operaciones); curso al pedido abierto.",
+      "case": "Fuerte en siguiente control; débil en identificación de almacén indoor.",
+      "risk": "Colores ISO chocan con tokens club si se literalizan.",
+      "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-orienteering-map-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/notation-diagram-systems-orienteering-map.webp",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          { "label": "Leyenda", "x": 0, "y": 0, "w": 3, "h": 10 },
+          { "label": "Mapa + curso", "x": 3, "y": 0, "w": 9, "h": 10, "accent": true }
+        ]
+      }
+    },
+    {
+      "id": "challenger-emigre",
+      "label": "Specimen bitmap Emigre",
+      "verdict": "declined",
+      "lineage": "Emigre bitmap type specimen",
+      "palette": ["#F5F0E6", "#111111", "#FF2D55"],
+      "materials": ["píxeles gruesos", "halftone"],
+      "case": "Pierde audiencia y claridad operativa.",
+      "kept": "Repetición tipográfica a varias escalas (no píxeles).",
+      "hero": "https://impeccable.style/worlds/cards/emigre-bitmap-specimen-hero.webp"
+    },
+    {
+      "id": "challenger-character-catalog",
+      "label": "Catálogo de personajes",
+      "verdict": "declined",
+      "lineage": "character goods catalog",
+      "palette": ["#FFE4F0", "#FFFFFF", "#FF6B9D"],
+      "materials": ["pasteles", "mascots"],
+      "case": "Pierde seriedad de almacén y claridad de tarea.",
+      "kept": "Roster en celdas enteras (cajas/prendas como unidades).",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-character-goods-catalog-hero.webp"
+    },
+    {
+      "id": "challenger-saville",
+      "label": "Catálogo FAC Saville",
+      "verdict": "declined",
+      "lineage": "Factory Records / Saville sleeve",
+      "palette": ["#0D0D0F", "#F0F0F5", "#E62222"],
+      "materials": ["mate negro", "bloques de código de color"],
+      "case": "Demasiado cifrado para planta; pierde claridad.",
+      "kept": "Un ítem activo a color pleno; resto quieto.",
+      "hero": "https://impeccable.style/worlds/cards/brand-identity-canon-saville-catalog-sleeve-hero.webp"
+    },
+    {
+      "id": "challenger-ikeda",
+      "label": "Campo data-sublime",
+      "verdict": "declined",
+      "lineage": "Ryoji Ikeda datamatics",
+      "palette": ["#0D0D0F", "#F0F0F5"],
+      "materials": ["barras hairline", "mono denso"],
+      "case": "B/N puro y strobing chocan con marca club y uso en planta.",
+      "kept": "Densidad tabular de cifras X/Y.",
+      "hero": "https://impeccable.style/worlds/cards/ikeda-datamatics-hero.webp"
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "buildPath": { "value": "code", "toggle": false },
+  "canon": true,
+  "canonCard": {
+    "label": "Estándar de categoría",
+    "thesis": "Admin de inventario SaaS limpio: KPIs, cards, sidebar.",
+    "palette": ["#FFFFFF", "#111827", "#2563EB"],
+    "materials": ["card grid", "soft shadow"],
+    "viewport": "Dashboard genérico de stock con tres KPI cards.",
+    "risk": "Indistinguible del competidor; el brief lo rechaza.",
+    "wireframe": {
+      "cols": 12,
+      "rows": 10,
+      "regions": [
+        { "label": "KPI cards", "x": 0, "y": 0, "w": 12, "h": 3 },
+        { "label": "Tabla stock", "x": 0, "y": 3, "w": 12, "h": 7 }
+      ]
+    }
+  },
+  "steer": true
+}

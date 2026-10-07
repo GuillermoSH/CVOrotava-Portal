@@ -25,16 +25,23 @@ const transitionLabels: Partial<Record<ClothingOrderStatus, string>> = {
   closed: "Cerrar pedido",
 };
 
+type ConfirmKind = "serigraphy_missing" | "inventory" | null;
+
 export function OrderStatusActions({
   orderId,
   status,
+  missingUnits = 0,
+  missingSizes = 0,
 }: {
   orderId: string;
   status: ClothingOrderStatus;
+  missingUnits?: number;
+  missingSizes?: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [confirmKind, setConfirmKind] = useState<ConfirmKind>(null);
   const [confirmNext, setConfirmNext] = useState<ClothingOrderStatus | null>(null);
   const nextStatuses = ORDER_STATUS_TRANSITIONS[status];
 
@@ -48,13 +55,20 @@ export function OrderStatusActions({
       appToast.success(`Estado actualizado: ${ORDER_STATUS_LABELS[next]}`);
       setSheetOpen(false);
       setConfirmNext(null);
+      setConfirmKind(null);
       router.refresh();
     });
   }
 
   function handleTransition(next: ClothingOrderStatus) {
+    if (next === "at_serigraphy" && missingUnits > 0) {
+      setConfirmNext(next);
+      setConfirmKind("serigraphy_missing");
+      return;
+    }
     if (next === "returned_from_serigraphy") {
       setConfirmNext(next);
+      setConfirmKind("inventory");
       return;
     }
     runTransition(next);
@@ -71,6 +85,17 @@ export function OrderStatusActions({
   const primaryNext = nextStatuses[0];
   const primaryLabel = transitionLabels[primaryNext] ?? ORDER_STATUS_LABELS[primaryNext];
   const hasMultiple = nextStatuses.length > 1;
+
+  const confirmTitle =
+    confirmKind === "serigraphy_missing"
+      ? "Recepción incompleta"
+      : "Generar inventario";
+  const confirmDescription =
+    confirmKind === "serigraphy_missing"
+      ? `Faltan ${missingUnits} uds en ${missingSizes} talla${missingSizes === 1 ? "" : "s"}. ¿Enviar igual a serigrafía?`
+      : "Se crearán lotes pendientes de ubicar en almacén.";
+  const confirmPrimaryLabel =
+    confirmKind === "serigraphy_missing" ? "Enviar igual" : "Continuar";
 
   return (
     <>
@@ -121,12 +146,15 @@ export function OrderStatusActions({
       </ClothingBottomSheet>
 
       <ClothingBottomSheet
-        open={confirmNext !== null}
-        onClose={() => setConfirmNext(null)}
-        title="Generar inventario"
-        description="Se crearán lotes pendientes de ubicar en almacén."
+        open={confirmKind !== null && confirmNext !== null}
+        onClose={() => {
+          setConfirmKind(null);
+          setConfirmNext(null);
+        }}
+        title={confirmTitle}
+        description={confirmDescription}
         primaryAction={{
-          label: "Continuar",
+          label: confirmPrimaryLabel,
           pending,
           onClick: () => {
             if (confirmNext) runTransition(confirmNext);
@@ -134,7 +162,10 @@ export function OrderStatusActions({
         }}
         secondaryAction={{
           label: "Cancelar",
-          onClick: () => setConfirmNext(null),
+          onClick: () => {
+            setConfirmKind(null);
+            setConfirmNext(null);
+          },
         }}
       />
     </>

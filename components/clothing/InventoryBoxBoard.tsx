@@ -1,13 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/club/Button";
 import { Tooltip, TooltipGroup } from "@/components/club/Tooltip";
-import { WarehouseBoxMark, WarehouseCabinetMark } from "@/components/clothing/WarehouseBoxMark";
-import { WarehouseCrate } from "@/components/clothing/WarehouseCrate";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { competitionNeedsJersey, formatJerseyNumber } from "@/lib/clothing/formatJersey";
 import { formatProductShort } from "@/lib/clothing/formatProduct";
@@ -17,24 +15,134 @@ import {
   groupLotsByBox,
 } from "@/lib/clothing/storageBoxes";
 import { appRoutes } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import type {
   ClothingInventoryLotWithDetails,
   ClothingStorageLocationNode,
 } from "@/lib/types/db";
 
-function LotMeta({ lot }: { lot: ClothingInventoryLotWithDetails }) {
-  const missingJersey = competitionNeedsJersey(lot.product, lot.jersey_number);
+function lotSubtitle(lot: ClothingInventoryLotWithDetails) {
+  const parts = [formatClothingSize(lot.size)];
+  if (lot.jersey_number != null) parts.push(formatJerseyNumber(lot.jersey_number));
+  if (competitionNeedsJersey(lot.product, lot.jersey_number)) parts.push("Falta #");
+  return parts.join(" · ");
+}
+
+function BinLotRow({
+  lot,
+  onAssignJerseys,
+}: {
+  lot: ClothingInventoryLotWithDetails;
+  onAssignJerseys: (lot: ClothingInventoryLotWithDetails) => void;
+}) {
+  const needsJersey = lot.jersey_number == null;
+  const className = cn(
+    "ropa-bin__row",
+    needsJersey && "ropa-bin__row--action",
+    competitionNeedsJersey(lot.product, lot.jersey_number) && "ropa-bin__row--warn",
+  );
+
+  const body = (
+    <>
+      <span className="ropa-bin__row-name">{formatProductShort(lot.product)}</span>
+      <span className="ropa-bin__row-meta">{lotSubtitle(lot)}</span>
+      <span className="ropa-bin__row-qty ropa-digit ropa-digit--sm">{lot.quantity}</span>
+    </>
+  );
+
+  if (needsJersey) {
+    return (
+      <button
+        type="button"
+        className={className}
+        aria-label={`Asignar dorsal a ${formatProductShort(lot.product)}`}
+        onClick={() => onAssignJerseys(lot)}
+      >
+        {body}
+      </button>
+    );
+  }
+
+  return <div className={className}>{body}</div>;
+}
+
+function InventoryBin({
+  box,
+  lots,
+  onWriteOff,
+  onAssignJerseys,
+}: {
+  box: ClothingStorageLocationNode;
+  lots: ClothingInventoryLotWithDetails[];
+  onWriteOff: (storageLocationId: string | null, locationLabel: string) => void;
+  onAssignJerseys: (lot: ClothingInventoryLotWithDetails) => void;
+}) {
+  const units = lots.reduce((sum, lot) => sum + lot.quantity, 0);
+  const empty = lots.length === 0;
+
   return (
-    <span className="warehouse-crate__line-meta">
-      {formatClothingSize(lot.size)}
-      {lot.jersey_number != null ? ` · ${formatJerseyNumber(lot.jersey_number)}` : null}
-      {missingJersey ? (
-        <>
-          {" · "}
-          <span className="text-destructive">Falta #</span>
-        </>
+    <article className={cn("ropa-bin", empty && "ropa-bin--empty")}>
+      <header className="ropa-bin__head">
+        <div className="ropa-bin__id">
+          <p className="ropa-bin__code">{box.code}</p>
+          <h3 className="ropa-bin__name">{box.label}</h3>
+        </div>
+        <div className="ropa-bin__head-end">
+          {empty ? (
+            <span className="ropa-bin__empty-tag">Vacía</span>
+          ) : (
+            <p className="ropa-bin__score" aria-label={`${units} unidades`}>
+              <span className="ropa-digit ropa-digit--md">{units}</span>
+              <span className="ropa-bin__score-label">ud</span>
+            </p>
+          )}
+          {!empty ? (
+            <TooltipGroup>
+              <Tooltip label={`Eliminar stock de ${box.code}`}>
+                <button
+                  type="button"
+                  className="ropa-bin__icon-btn"
+                  aria-label={`Eliminar stock de ${box.code}`}
+                  onClick={() => onWriteOff(box.id, `${box.code} · ${box.label}`)}
+                >
+                  <Trash2 className="size-3.5" aria-hidden />
+                </button>
+              </Tooltip>
+            </TooltipGroup>
+          ) : null}
+        </div>
+      </header>
+
+      {!empty ? (
+        <div className="ropa-bin__body" role="list">
+          {lots.map((lot) => (
+            <div key={lot.id} role="listitem">
+              <BinLotRow lot={lot} onAssignJerseys={onAssignJerseys} />
+            </div>
+          ))}
+        </div>
       ) : null}
-    </span>
+    </article>
+  );
+}
+
+function RackSection({
+  title,
+  code,
+  children,
+}: {
+  title: string;
+  code?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="ropa-rack">
+      <header className="ropa-rack__head">
+        <h2 className="ropa-rack__title">{title}</h2>
+        {code ? <span className="ropa-rack__code">{code}</span> : null}
+      </header>
+      <div className="ropa-rack__grid">{children}</div>
+    </section>
   );
 }
 
@@ -67,126 +175,70 @@ export function InventoryBoxBoard({
     return map;
   }, [groups]);
 
-  function crateFor(box: ClothingStorageLocationNode) {
-    const group = groupById.get(box.id);
-    const boxLots = group?.lots ?? [];
+  function binFor(box: ClothingStorageLocationNode) {
+    const boxLots = groupById.get(box.id)?.lots ?? [];
     if (hideEmptyBoxes && boxLots.length === 0) return null;
     return (
-      <WarehouseCrate
+      <InventoryBin
         key={box.id}
-        variant="inventory"
-        code={box.code}
-        label={box.label}
-        emptyLabel={boxLots.length === 0 ? "Vacía" : undefined}
-        actions={
-          boxLots.length > 0 ? (
-            <TooltipGroup>
-              <Tooltip label={`Eliminar stock de ${box.code}`}>
-                <button
-                  type="button"
-                  className="warehouse-crate__action warehouse-crate__action--danger"
-                  aria-label={`Eliminar stock de ${box.code}`}
-                  onClick={() => onWriteOff(box.id, `${box.code} · ${box.label}`)}
-                >
-                  <Trash2 className="size-3.5" aria-hidden />
-                </button>
-              </Tooltip>
-            </TooltipGroup>
-          ) : null
-        }
-      >
-        {boxLots.length > 0 ? (
-          <div className="warehouse-crate__lines">
-            {boxLots.map((lot) => {
-              const line = (
-                <>
-                  <span className="warehouse-crate__line-name">{formatProductShort(lot.product)}</span>
-                  <LotMeta lot={lot} />
-                  <span className="warehouse-crate__line-meta">{lot.quantity}</span>
-                </>
-              );
-              if (lot.jersey_number != null) {
-                return (
-                  <div key={lot.id} className="warehouse-crate__line">
-                    {line}
-                  </div>
-                );
-              }
-              return (
-                <button
-                  key={lot.id}
-                  type="button"
-                  className="warehouse-crate__line warehouse-crate__line--action"
-                  aria-label={`Asignar dorsal a ${formatProductShort(lot.product)}`}
-                  onClick={() => onAssignJerseys(lot)}
-                >
-                  {line}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-      </WarehouseCrate>
+        box={box}
+        lots={boxLots}
+        onWriteOff={onWriteOff}
+        onAssignJerseys={onAssignJerseys}
+      />
     );
   }
 
-  const looseCrates = board.loose.map((box) => crateFor(box)).filter(Boolean);
+  const looseBins = board.loose.map((box) => binFor(box)).filter(Boolean);
   const cabinetSections = board.cabinets
     .map(({ cabinet, boxes }) => {
-      const crates = boxes.map((box) => crateFor(box)).filter(Boolean);
-      if (hideEmptyBoxes && crates.length === 0) return null;
-      return { cabinet, crates, empty: boxes.length === 0 };
+      const bins = boxes.map((box) => binFor(box)).filter(Boolean);
+      if (hideEmptyBoxes && bins.length === 0) return null;
+      return { cabinet, bins, empty: boxes.length === 0 };
     })
     .filter((section) => section !== null);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="ropa-store">
       {showPending ? (
-        <section className="warehouse-pending">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <WarehouseBoxMark ghost size="icon" />
-              Por ubicar
-            </h2>
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">
-                {pending.length === 1 ? "1 lote" : `${pending.length} lotes`}
+        <section className={cn("ropa-queue", pending.length > 0 && "ropa-queue--active")}>
+          <header className="ropa-queue__head">
+            <div>
+              <h2 className="ropa-queue__title">Por ubicar</h2>
+              <p className="ropa-queue__meta">
+                {pending.length === 0
+                  ? "Nada pendiente"
+                  : pending.length === 1
+                    ? "1 lote sin caja"
+                    : `${pending.length} lotes sin caja`}
               </p>
-              {pending.length > 0 ? (
-                <button
-                  type="button"
-                  className="text-xs font-medium text-destructive"
-                  onClick={() => onWriteOff(null, "Por ubicar")}
-                >
-                  Eliminar stock
-                </button>
-              ) : null}
             </div>
-          </div>
+            {pending.length > 0 ? (
+              <button
+                type="button"
+                className="ropa-queue__danger"
+                onClick={() => onWriteOff(null, "Por ubicar")}
+              >
+                Eliminar stock
+              </button>
+            ) : null}
+          </header>
+
           {pending.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay stock pendiente de caja.</p>
+            <p className="ropa-queue__empty">Todo el stock tiene ubicación.</p>
           ) : (
-            <ul className="flex flex-col gap-1.5">
+            <ul className="ropa-queue__list">
               {pending.map((lot) => (
-                <li
-                  key={lot.id}
-                  className="flex items-center justify-between gap-3 rounded-md px-1 py-1.5"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {formatProductShort(lot.product)}
-                    </p>
-                    <p className="text-xs tabular-nums text-muted-foreground">
-                      {formatClothingSize(lot.size)}
-                      {lot.jersey_number != null
-                        ? ` · ${formatJerseyNumber(lot.jersey_number)}`
-                        : null}
-                      {competitionNeedsJersey(lot.product, lot.jersey_number) ? " · Falta #" : null}
+                <li key={lot.id} className="ropa-queue__item">
+                  <div className="ropa-queue__item-main">
+                    <p className="ropa-queue__item-name">{formatProductShort(lot.product)}</p>
+                    <p className="ropa-queue__item-meta">
+                      {lotSubtitle(lot)}
                       {" · "}
-                      {lot.quantity} uds.
+                      <span className="ropa-digit ropa-digit--sm">{lot.quantity}</span> ud
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="ropa-queue__item-actions">
                     {lot.jersey_number == null ? (
                       <Button
                         type="button"
@@ -217,41 +269,36 @@ export function InventoryBoxBoard({
 
       {showBoxes ? (
         boxCount === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Aún no hay cajas.{" "}
-            <Link href={appRoutes.clothing.locations} className="font-medium text-brand">
-              Crea la primera
-            </Link>{" "}
-            para colocar el stock.
-          </p>
+          <div className="ropa-empty">
+            <p className="ropa-empty__title">Sin cajas todavía</p>
+            <p className="ropa-empty__body">
+              Crea ubicaciones para colocar el stock y encontrarlo al entregar.
+            </p>
+            <Link href={appRoutes.clothing.locations} className="btn-primary mt-5 inline-flex min-h-11 md:min-h-8">
+              Ir a cajas
+            </Link>
+          </div>
         ) : hasCabinets ? (
-          <div className="flex flex-col gap-7">
-            {looseCrates.length > 0 ? (
-              <section className="warehouse-bay">
-                <h2 className="warehouse-bay__title">
-                  <WarehouseBoxMark size="icon" />
-                  Cajas sueltas
-                </h2>
-                <div className="warehouse-board">{looseCrates}</div>
-              </section>
+          <div className="ropa-store__racks">
+            {looseBins.length > 0 ? (
+              <RackSection title="Cajas sueltas">{looseBins}</RackSection>
             ) : null}
             {cabinetSections.map((section) => (
-              <section key={section.cabinet.id} className="warehouse-bay">
-                <h2 className="warehouse-bay__title">
-                  <WarehouseCabinetMark />
-                  {section.cabinet.label}
-                  <span className="ml-2 font-normal text-muted-foreground">{section.cabinet.code}</span>
-                </h2>
-                {section.empty && section.crates.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin cajas en este armario.</p>
+              <RackSection
+                key={section.cabinet.id}
+                title={section.cabinet.label}
+                code={section.cabinet.code}
+              >
+                {section.empty && section.bins.length === 0 ? (
+                  <p className="ropa-rack__empty">Sin cajas en este armario.</p>
                 ) : (
-                  <div className="warehouse-board">{section.crates}</div>
+                  section.bins
                 )}
-              </section>
+              </RackSection>
             ))}
           </div>
         ) : (
-          <div className="warehouse-board">{looseCrates}</div>
+          <div className="ropa-rack__grid">{looseBins}</div>
         )
       ) : null}
     </div>

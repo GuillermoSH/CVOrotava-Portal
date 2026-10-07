@@ -25,7 +25,7 @@ export type DashboardRouteChrome = {
   title: string;
   subtitle?: string;
   back?: { href: string; label: string };
-  sticky?: boolean | "tall";
+  sticky?: boolean | "tall" | "bulk";
   skeleton: DashboardSkeletonKind;
   action?: { href: string; label: string };
 };
@@ -54,7 +54,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     return {
       title: "Jugadores",
       subtitle: "Equipo principal, trámites y contacto familiar.",
-      sticky: "tall",
+      sticky: "bulk",
       skeleton: "players",
       action: { href: appRoutes.players.new, label: "Nuevo jugador" },
     };
@@ -90,8 +90,8 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
 
   if (pathname === appRoutes.clothing.hub) {
     return {
-      title: "Gestión de ropa",
-      subtitle: "Pedidos a proveedor, serigrafía e inventario en almacén. Operaciones internas de dirección.",
+      title: "Ropa",
+      subtitle: "Pedido activo, almacén y entregas.",
       sticky: true,
       skeleton: "hub",
     };
@@ -100,8 +100,8 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
   if (pathname === appRoutes.clothing.deliveries || pathname === "/admin/ropa/almacen/entregas") {
     return {
       title: "Entregas",
-      subtitle: "Registra una entrega al jugador y consulta el historial con filtros.",
-      back: { href: appRoutes.clothing.hub, label: "Gestión de ropa" },
+      subtitle: "Registra entrega al jugador y consulta historial.",
+      back: { href: appRoutes.clothing.hub, label: "Ropa" },
       sticky: "tall",
       skeleton: "deliveries",
     };
@@ -110,18 +110,17 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
   if (pathname === appRoutes.clothing.products) {
     return {
       title: "Prendas",
-      subtitle: "Catálogo interno de piezas del club. Las activas aparecen al crear pedidos.",
-      back: { href: appRoutes.clothing.hub, label: "Gestión de ropa" },
+      subtitle: "Catálogo del club. Activas = disponibles en pedidos.",
+      back: { href: appRoutes.clothing.hub, label: "Ropa" },
       skeleton: "products",
     };
   }
 
   if (pathname === appRoutes.clothing.warehouse) {
     return {
-      title: "Inventario",
-      subtitle:
-        "Stock por caja. Busca por prenda, talla o dorsal. Las entregas se registran desde Gestión de ropa.",
-      back: { href: appRoutes.clothing.hub, label: "Gestión de ropa" },
+      title: "Almacén",
+      subtitle: "Stock por caja. Busca prenda, talla o dorsal.",
+      back: { href: appRoutes.clothing.hub, label: "Ropa" },
       sticky: true,
       skeleton: "warehouse",
     };
@@ -129,10 +128,9 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
 
   if (pathname === appRoutes.clothing.locations) {
     return {
-      title: "Cajas de almacén",
-      subtitle:
-        "Identifica cada caja con un código. El armario es opcional: sirve para agruparlas cuando las tengas juntas.",
-      back: { href: appRoutes.clothing.warehouse, label: "Inventario" },
+      title: "Cajas",
+      subtitle: "Códigos de caja; armario opcional para agrupar.",
+      back: { href: appRoutes.clothing.warehouse, label: "Almacén" },
       skeleton: "locations",
     };
   }
@@ -140,7 +138,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
   if (pathname === appRoutes.clothing.newOrder) {
     return {
       title: "Nuevo pedido",
-      subtitle: "Crea un borrador con líneas de prenda, talla y cantidad.",
+      subtitle: "Borrador con prenda, talla y cantidad.",
       back: { href: appRoutes.clothing.orders, label: "Pedidos" },
       sticky: true,
       skeleton: "order-form",
@@ -149,8 +147,8 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
 
   if (pathname === appRoutes.clothing.orders) {
     return {
-      title: "Pedidos a proveedor",
-      subtitle: "Flujo desde borrador hasta serigrafía. En escritorio puedes alternar kanban o lista.",
+      title: "Pedidos",
+      subtitle: "De borrador a serigrafía. Lista o kanban en escritorio.",
       sticky: true,
       skeleton: "orders",
       action: { href: appRoutes.clothing.newOrder, label: "Nuevo pedido" },
@@ -186,6 +184,9 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
 }
 
 export function getDashboardFrameClassName(chrome: DashboardRouteChrome | null) {
+  if (chrome?.sticky === "bulk") {
+    return "clothing-page-with-sticky clothing-page-with-sticky--bulk flex flex-col gap-4";
+  }
   if (chrome?.sticky === "tall") {
     return "clothing-page-with-sticky clothing-page-with-sticky--tall flex flex-col gap-4";
   }

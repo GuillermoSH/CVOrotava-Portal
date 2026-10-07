@@ -1,19 +1,20 @@
 import type { ClothingOrderStatus } from "@/lib/types/db";
-import { Badge } from "@/components/club/Badge";
 import { ORDER_STATUS_LABELS } from "@/lib/clothing/constants";
+import { cn } from "@/lib/utils";
 
-const variantMap: Record<
-  ClothingOrderStatus,
-  "secondary" | "info" | "warning" | "success" | "default"
-> = {
-  draft: "secondary",
-  ordered: "info",
-  received: "info",
-  at_serigraphy: "warning",
-  returned_from_serigraphy: "warning",
-  closed: "success",
+const toneMap: Record<ClothingOrderStatus, string> = {
+  draft: "ropa-status--idle",
+  ordered: "ropa-status--live",
+  received: "ropa-status--live",
+  at_serigraphy: "ropa-status--warn",
+  returned_from_serigraphy: "ropa-status--warn",
+  closed: "ropa-status--ok",
 };
 
 export function OrderStatusBadge({ status }: { status: ClothingOrderStatus }) {
-  return <Badge variant={variantMap[status]}>{ORDER_STATUS_LABELS[status]}</Badge>;
+  return (
+    <span className={cn("ropa-status", toneMap[status])}>
+      {ORDER_STATUS_LABELS[status]}
+    </span>
+  );
 }

@@ -3,10 +3,13 @@ import { CriticalDebtorsCard } from "@/components/dashboard/CriticalDebtorsCard"
 import { MonthlyPaymentsCard } from "@/components/dashboard/MonthlyPaymentsCard";
 import { PaymentsSummaryCard } from "@/components/dashboard/PaymentsSummaryCard";
 import { RecentPaymentsCard } from "@/components/dashboard/RecentPaymentsCard";
+import { RuntimePage } from "@/components/shared/RuntimePage";
+import { requirePortalRole } from "@/lib/auth/portal-access";
 import { getClothingHubKpis } from "@/lib/clothing/snapshots";
 import { adminKpis, criticalDebtors, recentPayments } from "@/lib/mocks/admin";
 
-export default async function AdminDashboardPage() {
+async function AdminDashboardContent() {
+  await requirePortalRole();
   const emailConfigured = Boolean(process.env.RESEND_API_KEY);
   const clothingKpis = await getClothingHubKpis();
   const clothingTotal = clothingKpis.storedUnits + clothingKpis.pendingStorageUnits;
@@ -44,5 +47,13 @@ export default async function AdminDashboardPage() {
         <RecentPaymentsCard payments={recentPayments} />
       </section>
     </>
+  );
+}
+
+export default function AdminDashboardPage() {
+  return (
+    <RuntimePage kind="admin">
+      <AdminDashboardContent />
+    </RuntimePage>
   );
 }

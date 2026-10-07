@@ -8,6 +8,7 @@ import { AccountProfileMenu } from "@/components/layout/AccountProfileMenu";
 import { Logo } from "@/components/shared/Logo";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { signOut } from "@/lib/actions/auth";
+import { CLUB_NAME } from "@/lib/brand/club";
 import { appRoutes } from "@/lib/constants";
 import { markDashboardNavigating } from "@/lib/layout/navigation-pending";
 import { cn } from "@/lib/utils";
@@ -44,7 +45,7 @@ export function MobileNavTop({
         <Link
           href={homeHref}
           className="shrink-0 rounded-lg p-0.5 transition-colors hover:bg-[var(--club-surface)]"
-          aria-label="Inicio — Club Voleibol Orotava"
+          aria-label={`Inicio — ${CLUB_NAME}`}
         >
           <Logo className="size-7 sm:size-8" />
         </Link>

@@ -12,6 +12,7 @@ import { SidebarNav } from "@/components/layout/SidebarNav";
 import { SidebarUser } from "@/components/layout/SidebarUser";
 import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/club/Button";
+import { CLUB_NAME } from "@/lib/brand/club";
 import { readSidebarCollapsed, writeSidebarCollapsed } from "@/lib/layout/shell-storage";
 import { cn } from "@/lib/utils";
 
@@ -58,9 +59,9 @@ export function DashboardShell({
               <Link
                 href={homeHref}
                 className="flex rounded-lg p-1 transition-colors hover:bg-[var(--club-surface)]"
-                aria-label="Inicio — Club Voleibol Orotava"
+                aria-label={`Inicio — ${CLUB_NAME}`}
               >
-                <Logo className="size-9 shrink-0" />
+                <Logo className="size-11 shrink-0" px={48} />
               </Link>
               <Button
                 type="button"
@@ -76,21 +77,19 @@ export function DashboardShell({
             </div>
           ) : (
             <div className="flex shrink-0 flex-col gap-1">
-              <div className="flex items-center gap-2 px-2 pb-1">
+              <div className="relative flex items-center justify-center px-2 pb-2 pt-0.5">
                 <Link
                   href={homeHref}
-                  className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 transition-colors hover:bg-[var(--club-surface)]"
+                  className="flex rounded-lg p-1 transition-colors hover:bg-[var(--club-surface)]"
+                  aria-label={`Inicio — ${CLUB_NAME}`}
                 >
-                  <Logo className="size-9 shrink-0" />
-                  <span className="truncate text-base font-semibold tracking-[-0.02em] text-foreground">
-                    CVOrotava
-                  </span>
+                  <Logo className="size-12 shrink-0" px={56} />
                 </Link>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-xs"
-                  className="shrink-0"
+                  className="absolute right-1 top-1/2 shrink-0 -translate-y-1/2"
                   onClick={toggleSidebar}
                   aria-expanded
                   aria-label="Contraer menú lateral"

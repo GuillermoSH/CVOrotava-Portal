@@ -1,0 +1,855 @@
+/* === ROPA BOARD (marcador de set) === */
+.ropa-board {
+  --ropa-panel: var(--club-surface-2);
+  --ropa-ink: var(--club-fg);
+  --ropa-muted: var(--club-fg-muted);
+  --ropa-line: var(--club-border);
+  --ropa-lit-bg: var(--club-brand);
+  --ropa-lit-fg: var(--primary-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.ropa-board ::selection {
+  background: color-mix(in srgb, var(--club-brand) 28%, transparent);
+  color: var(--club-fg);
+}
+
+.ropa-digit {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-feature-settings: "tnum" 1;
+}
+
+.ropa-digit--sm { font-size: 0.9375rem; line-height: 1.2; }
+.ropa-digit--md { font-size: 1.375rem; line-height: 1.1; }
+.ropa-digit--lg { font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1; }
+
+.ropa-board-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-board-header__dot {
+  margin-inline: 0.15rem;
+  opacity: 0.55;
+}
+
+.ropa-section-heading {
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ropa-ink);
+}
+
+.ropa-section-label {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ropa-muted);
+}
+
+.ropa-board-nav {
+  margin: -0.25rem 0 0;
+}
+
+.ropa-board-nav__list {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  margin: 0;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.ropa-board-nav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--ropa-muted);
+  white-space: nowrap;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.ropa-board-nav__link:hover {
+  color: var(--ropa-ink);
+  background: color-mix(in srgb, var(--club-fg) 4%, transparent);
+}
+
+.ropa-board-nav__link--active {
+  color: var(--ropa-ink);
+  background: var(--club-surface-2);
+  box-shadow: inset 0 -2px 0 var(--club-brand);
+}
+
+.ropa-board-nav__link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-brand) 45%, transparent);
+}
+
+.ropa-set-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ropa-line);
+  background: var(--ropa-panel);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.ropa-set-band--lit {
+  border-color: color-mix(in srgb, var(--club-brand) 55%, var(--ropa-line));
+  background: var(--ropa-lit-bg);
+  color: var(--ropa-lit-fg);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--club-brand) 22%, transparent);
+}
+
+.ropa-set-band--lit .ropa-set-band__label,
+.ropa-set-band--lit .ropa-set-band__body,
+.ropa-set-band--lit .ropa-set-band__score-helper,
+.ropa-set-band--lit .ropa-set-band__status-meta {
+  color: color-mix(in srgb, var(--ropa-lit-fg) 78%, transparent);
+}
+
+.ropa-set-band--lit .ropa-set-band__cta {
+  color: var(--ropa-lit-fg);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.ropa-set-band__main {
+  display: flex;
+  min-width: min(100%, 14rem);
+  flex: 1 1 12rem;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ropa-set-band__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ropa-muted);
+}
+
+.ropa-set-band__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.ropa-set-band__body {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--ropa-muted);
+}
+
+.ropa-set-band__cta {
+  margin-top: 0.35rem;
+  width: fit-content;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--club-brand);
+}
+
+@media (min-width: 768px) {
+  .ropa-set-band__cta { min-height: 0; }
+}
+
+.ropa-set-band__score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.15rem;
+}
+
+.ropa-set-band__score-helper {
+  font-size: 0.6875rem;
+  font-weight: 550;
+  color: var(--ropa-muted);
+}
+
+.ropa-set-band__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.ropa-set-band__status-meta {
+  font-size: 0.75rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-ops-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ropa-ops-lane {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ropa-line);
+  background: var(--club-surface);
+  color: var(--ropa-ink);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ropa-ops-lane:hover {
+  border-color: var(--club-border-hover);
+  background: var(--club-surface-hover);
+}
+
+.ropa-ops-lane:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-brand) 40%, transparent);
+}
+
+.ropa-ops-lane--accent {
+  border-color: color-mix(in srgb, var(--club-brand) 40%, var(--ropa-line));
+  background: color-mix(in srgb, var(--club-brand) 7%, var(--club-surface));
+}
+
+.ropa-ops-lane__icon {
+  display: inline-flex;
+  color: var(--club-brand);
+}
+
+.ropa-ops-lane__text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ropa-ops-lane__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.ropa-ops-lane__meta {
+  font-size: 0.75rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-ops-lane__score {
+  font-size: 1.25rem;
+}
+
+.ropa-ops-lane__chev {
+  font-size: 1rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ropa-line);
+  background: var(--ropa-panel);
+}
+
+.ropa-search__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ropa-muted);
+}
+
+.ropa-search__field {
+  position: relative;
+}
+
+.ropa-search__icon {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  width: 1rem;
+  height: 1rem;
+  transform: translateY(-50%);
+  color: var(--ropa-muted);
+  pointer-events: none;
+}
+
+.ropa-search__targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ropa-search__target {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ropa-line);
+  background: var(--club-surface);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--ropa-ink);
+}
+
+.ropa-search__target:hover {
+  border-color: var(--club-border-hover);
+}
+
+.ropa-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ropa-line);
+  border-radius: var(--radius-md);
+  background: var(--club-surface);
+  overflow: hidden;
+}
+
+.ropa-panel__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--ropa-panel);
+  border-bottom: 1px solid var(--ropa-line);
+}
+
+.ropa-panel__meta {
+  font-size: 0.75rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-panel__notes {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: var(--ropa-muted);
+  border-bottom: 1px solid var(--ropa-line);
+}
+
+.ropa-panel__block {
+  padding: 1rem;
+  border-bottom: 1px solid var(--ropa-line);
+}
+
+.ropa-panel__block:last-child {
+  border-bottom: 0;
+}
+
+.ropa-panel__block--flush {
+  padding: 0.85rem;
+}
+
+.ropa-score-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+@media (min-width: 640px) {
+  .ropa-score-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ropa-score-strip--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .ropa-score-strip--compact {
+    grid-template-columns: 1fr 1fr 1.4fr;
+  }
+}
+
+.ropa-score-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ropa-line);
+  background: var(--ropa-panel);
+}
+
+.ropa-score-cell--wide {
+  justify-content: center;
+}
+
+.ropa-score-cell__label {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ropa-muted);
+}
+
+.ropa-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-xs);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.ropa-status--idle {
+  color: var(--ropa-muted);
+  background: var(--ropa-panel);
+  border-color: var(--ropa-line);
+}
+
+.ropa-status--live {
+  color: var(--club-info-strong);
+  background: var(--club-info-muted);
+}
+
+.ropa-status--warn {
+  color: var(--club-warning-strong);
+  background: var(--club-warning-muted);
+}
+
+.ropa-status--ok {
+  color: var(--club-success);
+  background: var(--club-success-muted);
+}
+
+.ropa-order-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ropa-line);
+  background: var(--club-surface);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ropa-order-row:hover {
+  border-color: var(--club-border-hover);
+  background: var(--club-surface-hover);
+}
+
+.ropa-order-row__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ropa-order-row__ref {
+  font-size: 0.975rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ropa-ink);
+}
+
+.ropa-order-row__supplier,
+.ropa-order-row__lines,
+.ropa-order-row__date {
+  font-size: 0.8125rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-order-row__lines {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ropa-sets__track {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ropa-sets__set {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.45rem 0.35rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ropa-line);
+  background: var(--ropa-panel);
+  text-align: center;
+}
+
+.ropa-sets__set--past {
+  border-color: color-mix(in srgb, var(--club-brand) 35%, var(--ropa-line));
+}
+
+.ropa-sets__set--current {
+  border-color: var(--club-brand);
+  background: var(--club-brand);
+  color: var(--ropa-lit-fg);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--club-brand) 25%, transparent);
+}
+
+.ropa-sets__set--current .ropa-sets__date {
+  color: color-mix(in srgb, var(--ropa-lit-fg) 75%, transparent);
+}
+
+.ropa-sets__num {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.ropa-sets__name {
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .ropa-sets__name { font-size: 0.7rem; }
+}
+
+.ropa-sets__date {
+  font-size: 0.625rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-sets-mobile__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ropa-sets-mobile__item {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ropa-line);
+  background: var(--ropa-panel);
+}
+
+.ropa-sets-mobile__item--past {
+  border-color: color-mix(in srgb, var(--club-brand) 30%, var(--ropa-line));
+}
+
+.ropa-sets-mobile__item--current {
+  border-color: var(--club-brand);
+  background: var(--club-brand);
+  color: var(--ropa-lit-fg);
+}
+
+.ropa-sets-mobile__item--current .ropa-sets-mobile__date {
+  color: color-mix(in srgb, var(--ropa-lit-fg) 75%, transparent);
+}
+
+.ropa-sets-mobile__num {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.ropa-sets-mobile__name {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ropa-sets-mobile__date {
+  font-size: 0.75rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-verify-group {
+  border: 1px solid var(--ropa-line);
+  border-radius: var(--radius-md);
+  background: var(--club-surface);
+  overflow: hidden;
+}
+
+.ropa-verify-group--complete {
+  border-color: var(--club-success-border);
+}
+
+.ropa-verify-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.95rem;
+  background: var(--ropa-panel);
+  border-bottom: 1px solid var(--ropa-line);
+}
+
+.ropa-verify-group__title {
+  font-size: 0.975rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.ropa-verify-group__summary {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 550;
+}
+
+.ropa-verify-group__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--club-success);
+}
+
+.ropa-verify-sizes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ropa-verify-size {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.65rem 0.95rem;
+  border-top: 1px solid var(--ropa-line);
+}
+
+.ropa-verify-size:first-child { border-top: 0; }
+
+.ropa-verify-size__label {
+  min-width: 4.5rem;
+}
+
+.ropa-verify-size__score {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.ropa-verify-size__denom {
+  font-size: 0.875rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-kanban {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+}
+
+.ropa-kanban-col {
+  display: flex;
+  min-width: 13.5rem;
+  flex: 1;
+  flex-direction: column;
+  border: 1px solid var(--ropa-line);
+  border-radius: var(--radius-md);
+  background: var(--ropa-panel);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ropa-kanban-col--over {
+  border-color: var(--club-brand);
+  background: color-mix(in srgb, var(--club-brand) 8%, var(--ropa-panel));
+}
+
+.ropa-kanban-col__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--ropa-line);
+}
+
+.ropa-kanban-col__title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ropa-muted);
+}
+
+.ropa-kanban-col__body {
+  display: flex;
+  min-height: 7.5rem;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.45rem;
+}
+
+.ropa-kanban-card {
+  padding: 0.65rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ropa-line);
+  background: var(--club-surface);
+}
+
+.ropa-kanban-card--dragging {
+  opacity: 0.75;
+  box-shadow: var(--club-shadow-card);
+}
+
+.ropa-kanban-card__ref {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--ropa-ink);
+}
+
+.ropa-kanban-card__ref:hover { color: var(--club-brand); }
+
+.ropa-kanban-card__supplier,
+.ropa-kanban-card__lines {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--ropa-muted);
+}
+
+.ropa-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem;
+  border: 1px solid var(--ropa-line);
+  border-radius: var(--radius-sm);
+  background: var(--ropa-panel);
+}
+
+.ropa-view-toggle__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border-radius: calc(var(--radius-sm) - 1px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ropa-muted);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.ropa-view-toggle__btn--on {
+  background: var(--club-brand);
+  color: var(--ropa-lit-fg);
+}
+
+.ropa-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ropa-filter-chip {
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ropa-line);
+  background: var(--club-surface);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: var(--ropa-muted);
+}
+
+.ropa-filter-chip--active {
+  border-color: var(--club-brand);
+  background: var(--club-brand);
+  color: var(--ropa-lit-fg);
+}
+
+.ropa-filter-chip__count {
+  margin-left: 0.35rem;
+  min-width: 1.15rem;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.ropa-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 2.25rem 1.25rem;
+  text-align: center;
+  border: 1px dashed var(--ropa-line);
+  border-radius: var(--radius-md);
+  background: var(--ropa-panel);
+}
+
+.ropa-empty__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-bottom: 0.35rem;
+  color: var(--club-brand);
+}
+
+.ropa-empty__title {
+  font-size: 0.975rem;
+  font-weight: 650;
+  color: var(--ropa-ink);
+}
+
+.ropa-empty__body {
+  max-width: 20rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--ropa-muted);
+}
+
+.ropa-board .clothing-hub-tile,
+.ropa-board .clothing-list-card {
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}

@@ -1,14 +1,5 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
 /** @type {import("eslint").Linter.Config[]} */
 const eslintConfig = [
@@ -22,7 +13,13 @@ const eslintConfig = [
       "pnpm-lock.yaml",
     ],
   },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextCoreWebVitals,
+  ...nextTypescript,
+  {
+    // Regla nueva de react-hooks 7: 24 efectos existentes (flags de montado, reset al abrir)
+    // pendientes de refactor. Se mantiene como aviso hasta migrarlos.
+    rules: { "react-hooks/set-state-in-effect": "warn" },
+  },
 ];
 
 export default eslintConfig;

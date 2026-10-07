@@ -1,0 +1,12 @@
+---
+description: Documentar errores/lecciones en Notion Errores conocidos
+alwaysApply: true
+---
+
+# Notion — Errores conocidos
+
+Cuando se descubra o corrija un bug no trivial (auth, RLS, Cache Components, pagos, RLS, claves, etc.):
+
+1. Añadir o actualizar entrada en Notion **Errores conocidos** (bajo CVOrotava Team Manager): síntoma, causa, fix, regla futura, fecha, estado.
+2. No dejar la lección solo en el chat o en un plan local.
+3. Si el fix es incompleto, estado `Aún abierto` o `Mitigado` y enlace a tarea pendiente.

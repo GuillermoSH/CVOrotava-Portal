@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { LoginScreen } from "@/components/auth/LoginScreen";
@@ -13,7 +14,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   credenciales: "Correo o contraseña incorrectos.",
 };
 
-export default async function LoginPage({
+async function LoginPageContent({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
@@ -27,4 +28,16 @@ export default async function LoginPage({
   const errorMessage = error ? (ERROR_MESSAGES[error] ?? null) : null;
 
   return <LoginScreen errorMessage={errorMessage} />;
+}
+
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  return (
+    <Suspense fallback={<LoginScreen errorMessage={null} />}>
+      <LoginPageContent searchParams={searchParams} />
+    </Suspense>
+  );
 }

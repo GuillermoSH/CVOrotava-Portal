@@ -25,6 +25,7 @@ export type ChecklistFilter =
   | "missing_papers"
   | "missing_docs"
   | "missing_photo"
+  | "no_photo_consent"
   | "missing_license"
   | "license_blocked"
   | "missing_matricula"
@@ -36,6 +37,7 @@ export const CHECKLIST_FILTER_LABELS: Record<ChecklistFilter, string> = {
   missing_docs: "Falta docs",
   missing_papers: "Falta papeles",
   missing_photo: "Falta foto",
+  no_photo_consent: "No autoriza fotos",
   missing_license: "Falta licencia",
   license_blocked: "Licencia bloqueada (papeles/foto)",
   missing_matricula: "Sin matrícula",
@@ -48,6 +50,7 @@ export const CHECKLIST_FILTER_ORDER: ChecklistFilter[] = [
   "missing_docs",
   "missing_papers",
   "missing_photo",
+  "no_photo_consent",
   "missing_license",
   "license_blocked",
   "missing_matricula",
@@ -74,6 +77,20 @@ export type PlayerFilterState = {
   statusFilter: "active" | "all";
 };
 
+export type PlayerSortDir = "asc" | "desc";
+
+/** Paginación / orden en URL (además de filtros). */
+export type PlayerListPagingState = {
+  page: number;
+  pageSize: number;
+  sortDir: PlayerSortDir;
+};
+
+export const PLAYER_LIST_PAGE_SIZES = [25, 50, 100, 0] as const;
+export type PlayerListPageSize = (typeof PLAYER_LIST_PAGE_SIZES)[number];
+
+export type PlayerListUrlState = PlayerFilterState & PlayerListPagingState;
+
 export function matchesChecklistFilter(
   player: PlayerListItem,
   filter: ChecklistFilter,
@@ -91,6 +108,8 @@ export function matchesChecklistFilter(
       return !player.docs_delivered_to_family;
     case "missing_photo":
       return !player.photo_taken;
+    case "no_photo_consent":
+      return !player.photo_consent;
     case "missing_license":
       return !player.license_completed;
     case "license_blocked":
@@ -150,8 +169,6 @@ export function applyPlayerFacets(
     return matchesQuery(player, query);
   });
 }
-
-export type PlayerSortDir = "asc" | "desc";
 
 function compareText(a: string, b: string): number {
   return a.localeCompare(b, "es", { sensitivity: "base", numeric: true });
@@ -310,7 +327,10 @@ function firstParam(
   return value?.trim() || undefined;
 }
 
-export function serializePlayerListSearchParams(state: PlayerFilterState): URLSearchParams {
+export function serializePlayerListSearchParams(
+  state: PlayerFilterState,
+  paging?: Partial<PlayerListPagingState> | null,
+): URLSearchParams {
   const params = new URLSearchParams();
   const q = state.query.trim();
   if (q) params.set("q", q);
@@ -324,7 +344,34 @@ export function serializePlayerListSearchParams(state: PlayerFilterState): URLSe
   }
 
   if (state.statusFilter === "all") params.set("status", "all");
+
+  if (paging) {
+    const page = paging.page ?? 1;
+    const pageSize = paging.pageSize ?? 50;
+    const sortDir = paging.sortDir ?? "asc";
+    if (page > 1) params.set("page", String(page));
+    if (pageSize !== 50) params.set("pageSize", String(pageSize));
+    if (sortDir === "desc") params.set("sort", "desc");
+  }
+
   return params;
+}
+
+function parsePagingParams(
+  params: URLSearchParams | Record<string, string | string[] | undefined>,
+): PlayerListPagingState {
+  const pageRaw = Number(firstParam(params, "page") ?? "1");
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+
+  const pageSizeRaw = Number(firstParam(params, "pageSize") ?? "50");
+  const pageSize = (PLAYER_LIST_PAGE_SIZES as readonly number[]).includes(pageSizeRaw)
+    ? (pageSizeRaw as PlayerListPageSize)
+    : 50;
+
+  const sortRaw = firstParam(params, "sort");
+  const sortDir: PlayerSortDir = sortRaw === "desc" ? "desc" : "asc";
+
+  return { page, pageSize, sortDir };
 }
 
 export function parsePlayerListSearchParams(
@@ -389,16 +436,66 @@ export function parsePlayerListSearchParams(
   };
 }
 
-export function playersListHref(state?: PlayerFilterState | null): string {
+export function parsePlayerListUrlState(
+  params: URLSearchParams | Record<string, string | string[] | undefined>,
+  teams: Team[] = [],
+): PlayerListUrlState {
+  return {
+    ...parsePlayerListSearchParams(params, teams),
+    ...parsePagingParams(params),
+  };
+}
+
+/** Facetas URL → filtros del repositorio. */
+export function playerFilterStateToListFilters(
+  state: PlayerFilterState,
+): {
+  query: string;
+  statusFilter: "active" | "all";
+  category?: string;
+  gender?: string;
+  teamId?: string;
+  unassigned?: boolean;
+  checklist?: ChecklistFilter;
+} {
+  const category = state.facets.find((f) => f.key === "category")?.value;
+  const gender = state.facets.find((f) => f.key === "gender")?.value;
+  const teamId = state.facets.find((f) => f.key === "team")?.value;
+  const unassigned = state.facets.find((f) => f.key === "unassigned")?.value === "true";
+  const checklistRaw = state.facets.find((f) => f.key === "checklist")?.value;
+  const checklist =
+    checklistRaw && checklistRaw in CHECKLIST_FILTER_LABELS
+      ? (checklistRaw as ChecklistFilter)
+      : undefined;
+
+  return {
+    query: state.query,
+    statusFilter: state.statusFilter,
+    category,
+    gender,
+    teamId: unassigned ? undefined : teamId,
+    unassigned: unassigned || undefined,
+    checklist,
+  };
+}
+
+export function playersListHref(
+  state?: PlayerFilterState | null,
+  paging?: Partial<PlayerListPagingState> | null,
+): string {
   if (!state) return appRoutes.players.list;
-  const qs = serializePlayerListSearchParams(state).toString();
+  const qs = serializePlayerListSearchParams(state, paging).toString();
   return qs ? `${appRoutes.players.list}?${qs}` : appRoutes.players.list;
 }
 
-export function playerDetailHref(id: string, state?: PlayerFilterState | null): string {
+export function playerDetailHref(
+  id: string,
+  state?: PlayerFilterState | null,
+  paging?: Partial<PlayerListPagingState> | null,
+): string {
   const base = appRoutes.players.detail(id);
   if (!state) return base;
-  const qs = serializePlayerListSearchParams(state).toString();
+  const qs = serializePlayerListSearchParams(state, paging).toString();
   return qs ? `${base}?${qs}` : base;
 }
 

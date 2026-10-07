@@ -1,7 +1,13 @@
 import "server-only";
 
 import { getRosterDb } from "@/lib/roster/repository/client";
-import { getPlayerById, listPlayersWithPrimaryPhone } from "@/lib/roster/repository/players";
+import {
+  countInactivePlayers,
+  getPlayerById,
+  listPlayersPage,
+  listPlayersWithPrimaryPhone,
+  type ListPlayersPageInput,
+} from "@/lib/roster/repository/players";
 import { listTeams } from "@/lib/roster/repository/teams";
 import { getCurrentSeason } from "@/lib/season";
 import type { PlayerListItem, PlayerWithDetails, Team } from "@/lib/types/db";
@@ -17,6 +23,35 @@ export async function getRosterSnapshot(season: string = getCurrentSeason()): Pr
     listTeams(db, season),
   ]);
   return { players, teams, season };
+}
+
+export async function getPlayersListSnapshot(
+  input: ListPlayersPageInput = {},
+): Promise<{
+  players: PlayerListItem[];
+  teams: Team[];
+  season: string;
+  total: number;
+  page: number;
+  pageSize: number;
+  inactiveCount: number;
+}> {
+  const season = input.season ?? getCurrentSeason();
+  const db = await getRosterDb();
+  const [pageResult, teams, inactiveCount] = await Promise.all([
+    listPlayersPage(db, { ...input, season }),
+    listTeams(db, season),
+    countInactivePlayers(db, season),
+  ]);
+  return {
+    players: pageResult.players,
+    teams,
+    season,
+    total: pageResult.total,
+    page: pageResult.page,
+    pageSize: pageResult.pageSize,
+    inactiveCount,
+  };
 }
 
 export async function getPlayerDetailsSnapshot(

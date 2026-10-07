@@ -1,12 +1,12 @@
 "use client";
 
 import { Camera, Download, ImagePlus, Loader2, Trash2, UserRound, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/club/Button";
-import { PlayerPhotoCropSheet } from "@/components/roster/PlayerPhotoCropSheet";
 import {
   confirmPlayerPhoto,
   createPlayerPhotoUploadUrl,
@@ -20,6 +20,11 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+
+const PlayerPhotoCropSheet = dynamic(
+  () => import("@/components/roster/PlayerPhotoCropSheet").then((m) => m.PlayerPhotoCropSheet),
+  { ssr: false, loading: () => null },
+);
 
 type PlayerPhotoSectionProps = {
   playerId: string;

@@ -1,36 +1,45 @@
 import { notFound } from "next/navigation";
 
+import { OrderCockpit } from "@/components/clothing/OrderCockpit";
 import { OrderLinesSection } from "@/components/clothing/OrderLinesSection";
-import { OrderStatusActions } from "@/components/clothing/OrderStatusActions";
+import { OrderReceivingVerificationPanel } from "@/components/clothing/OrderReceivingVerificationPanel";
 import { OrderStatusBadge } from "@/components/clothing/OrderStatusBadge";
 import { OrderStatusStepper } from "@/components/clothing/OrderStatusStepper";
 import { DashboardPage } from "@/components/layout/DashboardPage";
+import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
-import { getOrderById } from "@/lib/clothing/snapshots";
+import { enrichInventory, getOrderById } from "@/lib/clothing/snapshots";
 
-export default async function ClothingOrderDetailPage({
+async function ClothingOrderDetailContent({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   await requireClothingReadAccess();
   const { id } = await params;
-  const order = await getOrderById(id);
+  const [order, allLots] = await Promise.all([getOrderById(id), enrichInventory()]);
   if (!order) notFound();
+
+  const orderLots = allLots.filter((lot) => lot.source_order_id === order.id);
+  const showVerification =
+    order.status === "ordered" ||
+    order.status === "received" ||
+    order.status === "at_serigraphy" ||
+    order.status === "returned_from_serigraphy" ||
+    order.status === "closed";
+  const verificationEditable =
+    order.status === "ordered" || order.status === "received";
 
   return (
     <DashboardPage
       title={order.reference}
       subtitle={`${order.supplier_name} · Temporada ${order.season}`}
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-5 md:gap-6"
     >
-      <div className="glass-panel gap-0 !p-0">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-4 sm:px-5 sm:py-5">
+      <section className="ropa-panel">
+        <div className="ropa-panel__bar">
           <OrderStatusBadge status={order.status} />
-          <time
-            dateTime={order.updated_at}
-            className="text-xs text-muted-foreground sm:text-sm"
-          >
+          <time dateTime={order.updated_at} className="ropa-panel__meta">
             Actualizado{" "}
             {new Date(order.updated_at).toLocaleString("es-ES", {
               day: "numeric",
@@ -42,30 +51,52 @@ export default async function ClothingOrderDetailPage({
         </div>
 
         {order.notes ? (
-          <p className="border-t border-[var(--club-border)] px-4 py-3 text-sm text-muted-foreground sm:px-5">
-            {order.notes}
-          </p>
+          <p className="ropa-panel__notes">{order.notes}</p>
         ) : null}
 
-        <div className="border-t border-[var(--club-border)] px-4 py-4 sm:px-5 sm:py-5">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Progreso
-          </p>
+        <div className="ropa-panel__block">
+          <h2 className="ropa-section-label">Sets</h2>
           <OrderStatusStepper
             currentStatus={order.status}
             statusEvents={order.status_events}
           />
         </div>
 
-        <div className="border-t border-[var(--club-border)] px-4 py-4 sm:px-5 sm:py-5">
-          <OrderStatusActions orderId={order.id} status={order.status} />
+        <div className="ropa-panel__block ropa-panel__block--flush">
+          <OrderCockpit
+            orderId={order.id}
+            status={order.status}
+            lines={order.lines}
+            orderLots={orderLots}
+          />
         </div>
-      </div>
+      </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="section-title md:hidden">Líneas del pedido</h2>
-        <OrderLinesSection lines={order.lines} />
+        {showVerification ? (
+          <OrderReceivingVerificationPanel
+            lines={order.lines}
+            editable={verificationEditable}
+          />
+        ) : (
+          <>
+            <h2 className="ropa-section-heading md:hidden">Líneas del pedido</h2>
+            <OrderLinesSection lines={order.lines} />
+          </>
+        )}
       </section>
     </DashboardPage>
+  );
+}
+
+export default function ClothingOrderDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <RuntimePage kind="order-detail">
+      <ClothingOrderDetailContent params={params} />
+    </RuntimePage>
   );
 }

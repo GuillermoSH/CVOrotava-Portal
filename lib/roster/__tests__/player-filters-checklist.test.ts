@@ -74,6 +74,18 @@ describe("matchesChecklistFilter — license_blocked", () => {
   });
 });
 
+describe("matchesChecklistFilter — no_photo_consent", () => {
+  it("matches a player who does not authorize public photos", () => {
+    const player = buildPlayer({ photo_consent: false });
+    expect(matchesChecklistFilter(player, "no_photo_consent")).toBe(true);
+  });
+
+  it("does not match a player who authorizes public photos", () => {
+    const player = buildPlayer({ photo_consent: true });
+    expect(matchesChecklistFilter(player, "no_photo_consent")).toBe(false);
+  });
+});
+
 describe("matchesChecklistFilter — missing_matricula", () => {
   it("matches a player absent from the paid-matrícula set", () => {
     const player = buildPlayer({ id: "p1" });

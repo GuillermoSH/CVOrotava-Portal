@@ -38,15 +38,15 @@ function InventoryEmptyState({
   const isFiltered = statusFilter !== "all" || searching;
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
-      <p className="font-medium text-foreground">
+    <div className="ropa-empty">
+      <p className="ropa-empty__title">
         {searching
           ? "Ningún lote coincide"
           : isFiltered
             ? "Ningún lote con este filtro"
             : "Inventario vacío"}
       </p>
-      <p className="mt-1.5 max-w-xs text-sm leading-relaxed text-muted-foreground">
+      <p className="ropa-empty__body">
         {searching
           ? "Prueba otro nombre, talla o dorsal."
           : isFiltered
@@ -72,15 +72,24 @@ export function InventoryPageClient({
   storageTree,
   onManualOpenChange,
   initialQuery = "",
+  initialStatus = "all",
+  initialMissingJersey = false,
+  sourceOrderId = null,
+  sourceOrderLabel = null,
 }: {
   lots: ClothingInventoryLotWithDetails[];
   storageTree: ClothingStorageLocationNode[];
   onManualOpenChange: (open: boolean) => void;
   initialQuery?: string;
+  initialStatus?: ClothingInventoryStatus | "all";
+  initialMissingJersey?: boolean;
+  sourceOrderId?: string | null;
+  sourceOrderLabel?: string | null;
 }) {
-  const [statusFilter, setStatusFilter] = useState<ClothingInventoryStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<ClothingInventoryStatus | "all">(initialStatus);
   const [seasonFilter, setSeasonFilter] = useState<string>("all");
-  const [missingJerseyOnly, setMissingJerseyOnly] = useState(false);
+  const [missingJerseyOnly, setMissingJerseyOnly] = useState(initialMissingJersey);
+  const [orderFilter, setOrderFilter] = useState<string | null>(sourceOrderId);
   const [query, setQuery] = useState(initialQuery);
   const [assignLot, setAssignLot] = useState<ClothingInventoryLotWithDetails | null>(null);
   const [jerseyLot, setJerseyLot] = useState<ClothingInventoryLotWithDetails | null>(null);
@@ -101,18 +110,23 @@ export function InventoryPageClient({
     ];
   }, [lots]);
 
-  const searching = query.trim().length > 0 || missingJerseyOnly || seasonFilter !== "all";
+  const searching =
+    query.trim().length > 0 ||
+    missingJerseyOnly ||
+    seasonFilter !== "all" ||
+    orderFilter != null;
 
   const visibleLots = useMemo(
     () =>
       lots.filter((lot) => {
+        if (orderFilter && lot.source_order_id !== orderFilter) return false;
         if (seasonFilter !== "all" && lot.product.season !== seasonFilter) return false;
         if (missingJerseyOnly && !competitionNeedsJersey(lot.product, lot.jersey_number)) {
           return false;
         }
         return lotMatchesQuery(lot, query);
       }),
-    [lots, query, seasonFilter, missingJerseyOnly],
+    [lots, query, seasonFilter, missingJerseyOnly, orderFilter],
   );
 
   const pendingCount = visibleLots.filter((lot) => lot.status === "pending_storage").length;
@@ -147,14 +161,40 @@ export function InventoryPageClient({
   return (
     <>
       <div className="clothing-page-with-sticky flex flex-col gap-4">
-        <Input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar prenda, talla o #dorsal"
-          aria-label="Buscar en inventario"
-          className="min-h-11"
-        />
+        {orderFilter && sourceOrderLabel ? (
+          <div className="ropa-set-band ropa-set-band--lit !py-3">
+            <div className="ropa-set-band__main">
+              <p className="ropa-set-band__label">Filtro</p>
+              <p className="ropa-set-band__title text-base">
+                Pedido {sourceOrderLabel}
+                {statusFilter === "pending_storage" ? " · ubicar" : ""}
+                {missingJerseyOnly ? " · sin dorsal" : ""}
+              </p>
+              <button
+                type="button"
+                className="ropa-set-band__cta"
+                onClick={() => {
+                  setOrderFilter(null);
+                  setStatusFilter("all");
+                  setMissingJerseyOnly(false);
+                }}
+              >
+                Quitar filtro
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="ropa-search">
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar prenda, talla o #dorsal"
+            aria-label="Buscar en inventario"
+            className="min-h-11 border-0 bg-transparent shadow-none focus-visible:ring-0"
+          />
+        </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <FormSelect
@@ -185,6 +225,16 @@ export function InventoryPageClient({
           ariaLabel="Filtrar inventario por estado"
         />
 
+        {pendingCount > 0 && statusFilter !== "stored" ? (
+          <p className="text-sm text-muted-foreground">
+            {pendingCount === 1
+              ? "1 lote pendiente de ubicar"
+              : `${pendingCount} lotes pendientes de ubicar`}
+            {orderFilter ? " de este pedido" : ""}. Numera dorsales de competición antes de
+            colocar en caja si aplica.
+          </p>
+        ) : null}
+
         {filteredEmpty ? (
           <InventoryEmptyState
             statusFilter={statusFilter}
@@ -193,6 +243,7 @@ export function InventoryPageClient({
               setStatusFilter("all");
               setSeasonFilter("all");
               setMissingJerseyOnly(false);
+              setOrderFilter(null);
               setQuery("");
             }}
             onAddStock={() => onManualOpenChange(true)}

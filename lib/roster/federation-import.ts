@@ -56,6 +56,7 @@ export type FederationDiscardReason =
   | "dni_vacio"
   | "dni_duplicado_archivo"
   | "dni_duplicado_temporada"
+  | "identidad_duplicada_temporada"
   | "documento_extranjero"
   | "fila_invalida"
   | "sin_identidad";
@@ -67,6 +68,8 @@ export const FEDERATION_DISCARD_LABELS: Record<FederationDiscardReason, string> 
   dni_vacio: "Sin DNI/NIE",
   dni_duplicado_archivo: "DNI repetido en el archivo",
   dni_duplicado_temporada: "Ya existe en esta temporada",
+  identidad_duplicada_temporada:
+    "Ya existe en esta temporada (mismo nombre y fecha; el CSV no trae el mismo documento)",
   documento_extranjero: "Documento extranjero no validable",
   fila_invalida: "Fila CSV no válida",
   sin_identidad: "Faltan nombre, apellidos o fecha de nacimiento",
@@ -470,9 +473,13 @@ function looksLikeInvalidSpanishId(id: string): boolean {
  * Prioridad (columnas Federación):
  * 1. DNI/NIE válido en primaria o en «si no es NIF»
  * 2. Si primaria no es DNI/NIE válido y hay valor usable en fallback → fallback
- *    (evita quedarnos con un ID numérico interno y tirar el NIE/pasaporte real)
+ *    (evita quedarnos con un ID numérico de licencia/perfil y tirar el NIE/pasaporte)
  * 3. Patrón ES mal formado → dni_invalido
- * 4. Cualquier otro no vacío → identificador extranjero
+ * 4. Cualquier otro no vacío → identificador extranjero (cédula, pasaporte…)
+ *
+ * Nota CSV real: en extranjeros a menudo `Documento identidad` viene vacío y el
+ * número (NIE, cédula…) solo en «Número de documento (si no es NIF)». No es el
+ * «ID licencia» del export (columna aparte que no usamos como dni).
  */
 function resolveDocument(primary: string, fallback: string): {
   dni: string | null;
@@ -502,6 +509,35 @@ function resolveDocument(primary: string, fallback: string): {
   }
 
   return { dni: null, discard: "dni_vacio" };
+}
+
+/** Clave estable nombre+fecha para detectar la misma persona con distinto documento. */
+export function federationIdentityKey(
+  firstName: string,
+  lastName: string,
+  birthDate: string,
+): string {
+  return `${fold(firstName)}|${fold(lastName)}|${birthDate.trim()}`;
+}
+
+/**
+ * ¿El documento del CSV ya está en temporada?
+ * Incluye NIE truncado sin letra (`Y8872640`) vs NIE completo en portal (`Y8872640X`).
+ */
+export function federationDocumentAlreadyExists(
+  dni: string,
+  existingDnis: ReadonlySet<string>,
+): boolean {
+  if (existingDnis.has(dni)) return true;
+  if (/^[XYZ]\d{7}$/.test(dni)) {
+    for (const existing of existingDnis) {
+      if (existing.startsWith(dni) && /^[XYZ]\d{7}[A-Z]$/.test(existing)) return true;
+    }
+  }
+  if (/^[XYZ]\d{7}[A-Z]$/.test(dni)) {
+    if (existingDnis.has(dni.slice(0, 8))) return true;
+  }
+  return false;
 }
 
 function titleLabel(firstName: string, lastName: string, row: number): string {
@@ -600,6 +636,11 @@ export type ParseFederationImportOptions = {
   seasonId?: string;
   /** DNIs ya existentes en la temporada (normalizados). */
   existingDnis?: ReadonlySet<string>;
+  /**
+   * Identidades ya en temporada (`federationIdentityKey`).
+   * Evita duplicar extranjeros cuando el CSV trae cédula/pasaporte y el portal el NIE.
+   */
+  existingIdentities?: ReadonlySet<string>;
   /** Equipos actuales de la temporada (para teamsToCreate). */
   teams?: Team[];
 };
@@ -655,7 +696,9 @@ function parseFederationImportCsvWithSeason(
   const toImport: FederationImportRowPreview[] = [];
   const discarded: FederationDiscardedRow[] = [];
   const seenDni = new Set<string>();
+  const seenIdentities = new Set<string>();
   const existingDnis = options.existingDnis ?? new Set<string>();
+  const existingIdentities = options.existingIdentities ?? new Set<string>();
 
   if (
     !columns.includes("Tipo licencia") ||
@@ -741,15 +784,29 @@ function parseFederationImportCsvWithSeason(
       return;
     }
 
-    if (seenDni.has(doc.dni)) {
+    if (seenDni.has(doc.dni) || federationDocumentAlreadyExists(doc.dni, seenDni)) {
       discarded.push(discard(row, label, "dni_duplicado_archivo", doc.dni));
       return;
     }
-    if (existingDnis.has(doc.dni)) {
+    if (federationDocumentAlreadyExists(doc.dni, existingDnis)) {
       discarded.push(discard(row, label, "dni_duplicado_temporada", doc.dni));
       return;
     }
+
+    const identityKey = federationIdentityKey(firstName, lastName, birthRaw);
+    if (seenIdentities.has(identityKey)) {
+      discarded.push(
+        discard(row, label, "dni_duplicado_archivo", `misma identidad que otra fila (${doc.dni})`),
+      );
+      return;
+    }
+    if (existingIdentities.has(identityKey)) {
+      discarded.push(discard(row, label, "identidad_duplicada_temporada", doc.dni));
+      return;
+    }
+
     seenDni.add(doc.dni);
+    seenIdentities.add(identityKey);
 
     const missingFields: string[] = [];
     const teamKey = buildFederationTeamKey(get(cells, "Categoría"), get(cells, "Sexo"));

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import type { ReactNode } from "react";
 
 import { Button } from "@/components/club/Button";
+import { MobileStickyActionBar } from "@/components/layout/MobileStickyActionBar";
 import { cn } from "@/lib/utils";
 
 type ActionBase = {
@@ -49,14 +49,6 @@ export function ClothingStickyActionBar({
    */
   layout?: "stack" | "row" | "split";
 }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-
   const leading = actions.filter((a) => (a.primacy ?? "leading") !== "primary");
   const primary = actions.filter((a) => a.primacy === "primary");
   const split = layout === "split";
@@ -70,9 +62,7 @@ export function ClothingStickyActionBar({
     const isPrimary = slot === "primary" || (slot === "row" && action.primacy === "primary");
     const baseClass = cn(
       "inline-flex items-center justify-center gap-1.5 text-sm",
-      iconOnly
-        ? "size-11 shrink-0 !px-0"
-        : "min-h-11",
+      iconOnly ? "size-11 shrink-0 !px-0" : "min-h-11",
       !iconOnly && slot === "leading" && "shrink-0 whitespace-nowrap px-3",
       !iconOnly && slot === "primary" && "min-w-0 flex-1 whitespace-nowrap",
       !iconOnly && slot === "row" && "min-w-0 flex-1 whitespace-nowrap",
@@ -124,8 +114,8 @@ export function ClothingStickyActionBar({
     );
   }
 
-  return createPortal(
-    <div className={cn("clothing-sticky-bar md:hidden", className)}>
+  return (
+    <MobileStickyActionBar className={className}>
       <div
         className={cn(
           "clothing-sticky-bar__inner",
@@ -147,7 +137,6 @@ export function ClothingStickyActionBar({
           actions.map((action, i) => renderAction(action, i, "row"))
         )}
       </div>
-    </div>,
-    document.body,
+    </MobileStickyActionBar>
   );
 }

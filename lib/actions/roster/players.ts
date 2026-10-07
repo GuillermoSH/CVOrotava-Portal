@@ -1,8 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 
+import { invalidateRoster } from "@/lib/cache/invalidate";
 import { contactsForPlayerAge } from "@/lib/roster/age";
+import { getCurrentSeason } from "@/lib/season";
 import { requireRosterAdminAccess, requireRosterWriteAccess } from "@/lib/roster/auth";
 import { getRosterDb } from "@/lib/roster/repository/client";
 import {
@@ -35,11 +37,6 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 export type ActionResult =
   | { ok: true; id?: string; updated?: number }
   | { ok: false; error: string };
-
-function revalidateRoster() {
-  revalidatePath("/admin/jugadores", "layout");
-  revalidatePath("/admin/ropa/entregas");
-}
 
 function friendlyDbError(message: string): string {
   if (/players_address_street_type_chk/i.test(message)) {
@@ -108,7 +105,8 @@ export async function createPlayerAction(input: unknown): Promise<ActionResult> 
       gender: resolvedGender,
       contacts,
     });
-    revalidateRoster();
+    invalidateRoster(parsed.data.season);
+    refresh();
     return { ok: true, id: player.id };
   } catch (e) {
     return {
@@ -146,7 +144,8 @@ export async function quickCreatePlayerAction(input: unknown): Promise<ActionRes
       gender: resolvedGender,
       season: parsed.data.season,
     });
-    revalidateRoster();
+    invalidateRoster(parsed.data.season);
+    refresh();
     return { ok: true, id: player.id };
   } catch (e) {
     return {
@@ -196,7 +195,8 @@ export async function updatePlayerAction(input: unknown): Promise<ActionResult> 
       gender: resolvedGender,
       contacts,
     });
-    revalidateRoster();
+    invalidateRoster(parsed.data.season);
+    refresh();
     return { ok: true, id: parsed.data.id };
   } catch (e) {
     return {
@@ -219,7 +219,8 @@ export async function setPlayerActiveAction(input: unknown): Promise<ActionResul
     if (!existing) return { ok: false, error: "Jugador no encontrado" };
 
     await setPlayerActive(db, parsed.data.id, parsed.data.is_active);
-    revalidateRoster();
+    invalidateRoster(existing.season);
+    refresh();
     return { ok: true, id: parsed.data.id };
   } catch (e) {
     return {
@@ -242,7 +243,8 @@ export async function updatePlayerChecklistFieldAction(input: unknown): Promise<
     if (!existing) return { ok: false, error: "Jugador no encontrado" };
 
     await updatePlayerChecklistField(db, parsed.data.id, parsed.data.field, parsed.data.value);
-    revalidateRoster();
+    invalidateRoster(existing.season);
+    refresh();
     return { ok: true, id: parsed.data.id };
   } catch (e) {
     return {
@@ -267,7 +269,8 @@ export async function bulkUpdatePlayerChecklistAction(input: unknown): Promise<A
       parsed.data.field,
       parsed.data.value,
     );
-    revalidateRoster();
+    invalidateRoster(getCurrentSeason());
+    refresh();
     return { ok: true, updated };
   } catch (e) {
     return {
@@ -291,7 +294,8 @@ export async function bulkSetPlayersActiveAction(input: unknown): Promise<Action
       parsed.data.player_ids,
       parsed.data.is_active,
     );
-    revalidateRoster();
+    invalidateRoster(getCurrentSeason());
+    refresh();
     return { ok: true, updated };
   } catch (e) {
     return {
@@ -311,10 +315,12 @@ export async function bulkSetPlayersTeamAction(input: unknown): Promise<ActionRe
 
     const db = await getRosterDb();
     const { player_ids, team_id } = parsed.data;
+    let rosterSeason = getCurrentSeason();
 
     if (team_id) {
       const team = await getTeamById(db, team_id);
       if (!team) return { ok: false, error: "Equipo no encontrado" };
+      rosterSeason = team.season;
 
       const { data: seasonRows, error: seasonError } = await db
         .from("players")
@@ -327,7 +333,8 @@ export async function bulkSetPlayersTeamAction(input: unknown): Promise<ActionRe
     }
 
     const updated = await bulkSetPlayersTeam(db, player_ids, team_id);
-    revalidateRoster();
+    invalidateRoster(rosterSeason);
+    refresh();
     return { ok: true, updated };
   } catch (e) {
     return {
@@ -357,7 +364,8 @@ export async function deletePlayersAction(input: unknown): Promise<ActionResult>
       }
     }
 
-    revalidateRoster();
+    invalidateRoster(getCurrentSeason());
+    refresh();
     return { ok: true, updated: deleted };
   } catch (e) {
     return {
@@ -377,7 +385,8 @@ export async function createTeamAction(input: unknown): Promise<ActionResult> {
 
     const db = await getRosterDb();
     const team = await createTeam(db, parsed.data);
-    revalidateRoster();
+    invalidateRoster(parsed.data.season);
+    refresh();
     return { ok: true, id: team.id };
   } catch (e) {
     return {

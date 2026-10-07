@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
 
-import { WarehouseBoxMark } from "@/components/clothing/WarehouseBoxMark";
 import { cn } from "@/lib/utils";
 
+/**
+ * Text-first location tile for pick/manage surfaces (no decorative box SVG).
+ * Inventory board uses `ropa-bin` in InventoryBoxBoard instead.
+ */
 export function WarehouseCrate({
   code,
   label,
@@ -13,6 +16,7 @@ export function WarehouseCrate({
   actions,
   children,
   emptyLabel,
+  unitCount,
   className,
 }: {
   code: string;
@@ -24,44 +28,50 @@ export function WarehouseCrate({
   actions?: ReactNode;
   children?: ReactNode;
   emptyLabel?: string;
+  unitCount?: number;
   className?: string;
 }) {
+  const isEmpty = !children;
   const classNames = cn(
-    "warehouse-crate",
-    variant === "inventory" && "warehouse-crate--inventory",
-    variant === "pick" && "warehouse-crate--pick",
-    onSelect && "warehouse-crate--interactive",
+    "ropa-loc",
+    variant === "pick" && "ropa-loc--pick",
+    variant === "inventory" && "ropa-loc--inventory",
+    onSelect && "ropa-loc--interactive",
+    isEmpty && "ropa-loc--empty",
+    selected && "ropa-loc--selected",
     className,
   );
 
   const meta =
-    [home, !children ? emptyLabel : undefined].filter(Boolean).join(" · ") || null;
+    [home, isEmpty ? emptyLabel : undefined].filter(Boolean).join(" · ") || null;
+  const showScore =
+    typeof unitCount === "number" && unitCount > 0 && variant !== "manage";
 
   const inner = (
     <>
-      <div className="warehouse-crate__figure">
-        <WarehouseBoxMark size={variant === "manage" ? "md" : "sm"} />
-      </div>
-      <div className="warehouse-crate__body">
-        <div className="warehouse-crate__identity">
-          <p className="warehouse-crate__code">{code}</p>
-          <p className="warehouse-crate__label">{label}</p>
+      <div className="ropa-loc__head">
+        <div className="ropa-loc__id">
+          <p className="ropa-loc__code">{code}</p>
+          <p className="ropa-loc__label">{label}</p>
+          {meta ? <p className="ropa-loc__meta">{meta}</p> : null}
         </div>
-        {meta ? <p className="warehouse-crate__meta">{meta}</p> : null}
-        {children}
+        <div className="ropa-loc__end">
+          {showScore ? (
+            <p className="ropa-loc__score">
+              <span className="ropa-digit ropa-digit--sm">{unitCount}</span>
+              <span className="ropa-loc__score-unit">ud</span>
+            </p>
+          ) : null}
+          {actions ? <div className="ropa-loc__actions">{actions}</div> : null}
+        </div>
       </div>
-      {actions ? <div className="warehouse-crate__actions-slot">{actions}</div> : null}
+      {children}
     </>
   );
 
   if (onSelect) {
     return (
-      <button
-        type="button"
-        aria-pressed={selected}
-        onClick={onSelect}
-        className={classNames}
-      >
+      <button type="button" aria-pressed={selected} onClick={onSelect} className={classNames}>
         {inner}
       </button>
     );

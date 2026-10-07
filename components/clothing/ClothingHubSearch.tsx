@@ -31,32 +31,25 @@ export function ClothingHubSearch() {
   );
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4">
-      <label htmlFor="clothing-hub-search" className="text-sm font-medium text-foreground">
-        Buscar en ropa
+    <div className="ropa-search">
+      <label htmlFor="clothing-hub-search" className="ropa-search__label">
+        Buscar
       </label>
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
+      <div className="ropa-search__field">
+        <Search className="ropa-search__icon" aria-hidden />
         <Input
           id="clothing-hub-search"
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Prenda, pedido, proveedor, dorsal…"
-          className="min-h-11 pl-9"
+          className="min-h-11 border-0 bg-transparent shadow-none focus-visible:ring-0"
         />
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="ropa-search__targets">
         {links.map((link) => (
-          <Link
-            key={link.label}
-            href={link.href}
-            className="btn-secondary inline-flex min-h-11 flex-1 items-center justify-center md:min-h-8 md:flex-none"
-          >
-            {q ? `Buscar en ${link.label}` : link.label}
+          <Link key={link.label} href={link.href} className="ropa-search__target">
+            {q ? `En ${link.label}` : link.label}
           </Link>
         ))}
       </div>

@@ -13,7 +13,8 @@
 
 ## Stack fijo
 
-- Next.js **15** App Router, TypeScript, ESLint.  
+- Next.js **16** App Router, TypeScript, ESLint; `cacheComponents` + invalidación con `updateTag` donde aplique.  
+- **Navegación Cache Components:** `cookies()` / `searchParams` / fetch sin cache **dentro de `<Suspense>`** (layouts auth) o `loading.tsx` del segmento. Preferir stream/cache a `export const instant = false` (solo opt-out temporal). Errores de este tipo → documentar en Notion *Errores conocidos*.  
 - Tailwind **v4** + componentes club en `components/club/` (Base UI solo en menús).  
 - **Supabase** (`@supabase/ssr` + `@supabase/supabase-js`).  
 - **pnpm** para dependencias.
@@ -46,7 +47,7 @@
 ## Convenciones
 
 - Imports con alias `@/`.  
-- Middleware raíz refresca sesión Supabase (`lib/supabase/middleware.ts`).  
+- `proxy.ts` raíz refresca sesión Supabase (`lib/supabase/proxy.ts`, runtime Node).  
 - Cliente browser: `lib/supabase/client.ts`. Servidor: `lib/supabase/server.ts`. Operaciones privilegiadas: `lib/supabase/service-role.ts` (solo servidor).
 
 ---

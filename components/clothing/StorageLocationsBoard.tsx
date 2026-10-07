@@ -16,7 +16,6 @@ import { FormInput } from "@/components/club/forms";
 import { Tooltip, TooltipGroup } from "@/components/club/Tooltip";
 import { ClothingBottomSheet, ClothingSheetOption } from "@/components/clothing/ClothingBottomSheet";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
-import { WarehouseBoxMark, WarehouseCabinetMark } from "@/components/clothing/WarehouseBoxMark";
 import { WarehouseCrate } from "@/components/clothing/WarehouseCrate";
 import {
   createStorageLocation,
@@ -411,7 +410,6 @@ function WarehouseBay({
     <section className="warehouse-bay">
       <div className="min-w-0">
         <p className="warehouse-bay__title">
-          {code ? <WarehouseCabinetMark /> : <WarehouseBoxMark size="icon" />}
           <span className="min-w-0 truncate">{title}</span>
           {code ? <span className="warehouse-bay__code">{code}</span> : null}
           {menu}
@@ -516,28 +514,20 @@ function CrateIconAction({
 
 function AddCrateButton({ onClick }: { onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="warehouse-crate warehouse-crate--add warehouse-crate--interactive"
-    >
-      <WarehouseBoxMark ghost size="sm" />
-      <p className="warehouse-crate__add-label">Añadir caja</p>
+    <button type="button" onClick={onClick} className="ropa-loc ropa-loc--add ropa-loc--interactive">
+      Añadir caja
     </button>
   );
 }
 
 function EmptyBoxesState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-5 rounded-[var(--radius-lg)] border border-dashed border-[var(--club-border)] px-6 py-12 text-center">
-      <WarehouseBoxMark size="lg" />
-      <div className="flex max-w-sm flex-col gap-1">
-        <p className="font-medium text-foreground">Empieza por una caja</p>
-        <p className="text-sm text-muted-foreground">
-          El código es lo que identificarás en el almacén. El armario puede esperar.
-        </p>
-      </div>
-      <Button type="button" className="min-h-11 w-full sm:w-auto" onClick={onAdd}>
+    <div className="ropa-empty">
+      <p className="ropa-empty__title">Empieza por una caja</p>
+      <p className="ropa-empty__body">
+        El código es lo que identificarás en el almacén. El armario puede esperar.
+      </p>
+      <Button type="button" className="mt-5 min-h-11 w-full sm:w-auto" onClick={onAdd}>
         <Plus className="size-4" aria-hidden />
         Nueva caja
       </Button>

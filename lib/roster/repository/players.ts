@@ -10,6 +10,12 @@ import {
   docsDeliveredInputToIso,
   type PlayerListToggleField,
 } from "@/lib/roster/onboarding";
+import {
+  matchesChecklistFilter,
+  type ChecklistFilter,
+  type PlayerFilterContext,
+  type PlayerSortDir,
+} from "@/lib/roster/player-filters";
 import type { RosterDb } from "@/lib/roster/repository/client";
 import { getCurrentSeason } from "@/lib/season";
 import type {
@@ -19,8 +25,64 @@ import type {
   PlayerWithTeam,
 } from "@/lib/types/db";
 
-const PLAYER_SELECT =
+/** Ficha completa — create/update/detalle. */
+const PLAYER_DETAIL_SELECT =
   "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, photo_path, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, pays_extended_monthly, created_at, updated_at, team:teams(id, name, category, gender, season)";
+
+/** Listado admin — sin medical/nationality/photo_path/etc. */
+const PLAYER_LIST_SELECT =
+  "id, full_name, first_name, last_name, birth_date, team_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, team:teams(id, name, category, gender, season)";
+
+export type ListPlayersPageFilters = {
+  query?: string;
+  statusFilter?: "active" | "all";
+  category?: string;
+  gender?: string;
+  teamId?: string;
+  unassigned?: boolean;
+  checklist?: ChecklistFilter;
+};
+
+export type ListPlayersPageInput = {
+  season?: string;
+  page?: number;
+  pageSize?: number;
+  sortDir?: PlayerSortDir;
+  filters?: ListPlayersPageFilters;
+  context?: PlayerFilterContext;
+};
+
+export type ListPlayersPageResult = {
+  players: PlayerListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+const CHECKLIST_SQL_FILTERS: Partial<
+  Record<ChecklistFilter, { column: string; value: boolean } | { complete: true } | { licenseBlocked: true }>
+> = {
+  missing_papers: { column: "registration_papers_received", value: false },
+  missing_docs: { column: "docs_delivered_to_family", value: false },
+  missing_photo: { column: "photo_taken", value: false },
+  no_photo_consent: { column: "photo_consent", value: false },
+  missing_license: { column: "license_completed", value: false },
+  missing_whatsapp: { column: "in_whatsapp_group", value: false },
+  complete: { complete: true },
+  license_blocked: { licenseBlocked: true },
+};
+
+function checklistNeedsPostFilter(checklist: ChecklistFilter | undefined): boolean {
+  return checklist === "incomplete_profile" || checklist === "missing_matricula";
+}
+
+function needsInMemoryPaging(filters: ListPlayersPageFilters): boolean {
+  return (
+    checklistNeedsPostFilter(filters.checklist) ||
+    filters.gender === "male" ||
+    filters.gender === "female"
+  );
+}
 
 export type PlayerContactInput = {
   full_name: string;
@@ -86,13 +148,98 @@ function primaryEmailFromContacts(
   return email || null;
 }
 
+async function attachPrimaryContacts(
+  db: RosterDb,
+  players: PlayerWithTeam[],
+): Promise<PlayerListItem[]> {
+  const contacts = await listContactsForPlayers(
+    db,
+    players.map((player) => player.id),
+  );
+  return players.map((player) => ({
+    ...player,
+    primary_phone: primaryPhoneFromContacts(contacts, player.id),
+    primary_email: primaryEmailFromContacts(contacts, player.id),
+  }));
+}
+
+function listSelect(filters: ListPlayersPageFilters): string {
+  const needsTeamInner = Boolean(filters.category) || filters.gender === "mixed";
+  const teamEmbed = needsTeamInner
+    ? "team:teams!inner(id, name, category, gender, season)"
+    : "team:teams(id, name, category, gender, season)";
+  return PLAYER_LIST_SELECT.replace(
+    "team:teams(id, name, category, gender, season)",
+    teamEmbed,
+  );
+}
+
+function applyListFilters(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  season: string,
+  filters: ListPlayersPageFilters,
+) {
+  let q = query.eq("season", season);
+
+  if (filters.statusFilter !== "all") {
+    q = q.eq("is_active", true);
+  }
+
+  if (filters.unassigned) {
+    q = q.is("team_id", null);
+  } else if (filters.teamId) {
+    q = q.eq("team_id", filters.teamId);
+  }
+
+  if (filters.category) {
+    q = q.eq("team.category", filters.category);
+  }
+
+  // male/female se refinan en memoria (effectivePlayerGender); mixed sí en SQL.
+  if (filters.gender === "mixed") {
+    q = q.eq("team.gender", "mixed");
+  }
+
+  const checklist = filters.checklist;
+  if (checklist && !checklistNeedsPostFilter(checklist)) {
+    const sqlFilter = CHECKLIST_SQL_FILTERS[checklist];
+    if (sqlFilter && "column" in sqlFilter) {
+      q = q.eq(sqlFilter.column, sqlFilter.value);
+    } else if (sqlFilter && "complete" in sqlFilter) {
+      q = q
+        .eq("docs_delivered_to_family", true)
+        .eq("registration_papers_received", true)
+        .eq("photo_taken", true)
+        .eq("license_completed", true);
+    } else if (sqlFilter && "licenseBlocked" in sqlFilter) {
+      q = q
+        .eq("license_completed", false)
+        .or("registration_papers_received.eq.false,photo_taken.eq.false");
+    }
+  }
+
+  const search = filters.query?.trim();
+  if (search) {
+    const escaped = search.replace(/[%_,.()]/g, " ").replace(/\s+/g, " ").trim();
+    if (escaped) {
+      const pattern = `%${escaped}%`;
+      q = q.or(
+        `first_name.ilike.${pattern},last_name.ilike.${pattern},full_name.ilike.${pattern},dni.ilike.${pattern}`,
+      );
+    }
+  }
+
+  return q;
+}
+
 export async function listPlayers(
   db: RosterDb,
   season: string = getCurrentSeason(),
 ): Promise<PlayerWithTeam[]> {
   const { data, error } = await db
     .from("players")
-    .select(PLAYER_SELECT)
+    .select(PLAYER_LIST_SELECT)
     .eq("season", season)
     .order("first_name", { ascending: true })
     .order("last_name", { ascending: true });
@@ -106,15 +253,106 @@ export async function listPlayersWithPrimaryPhone(
   season: string = getCurrentSeason(),
 ): Promise<PlayerListItem[]> {
   const players = await listPlayers(db, season);
-  const contacts = await listContactsForPlayers(
+  return attachPrimaryContacts(db, players);
+}
+
+/**
+ * Página de listado admin: select ligero + filtros/orden/rango en Supabase.
+ * Facetas `incomplete_profile` / `missing_matricula` se post-filtran en memoria.
+ */
+export async function listPlayersPage(
+  db: RosterDb,
+  input: ListPlayersPageInput = {},
+): Promise<ListPlayersPageResult> {
+  const season = input.season ?? getCurrentSeason();
+  const sortDir = input.sortDir ?? "asc";
+  const ascending = sortDir === "asc";
+  const filters: ListPlayersPageFilters = input.filters ?? {};
+  const pageSizeRaw = input.pageSize ?? 50;
+  const pageSize = pageSizeRaw === 0 ? 0 : Math.min(Math.max(pageSizeRaw, 1), 200);
+  const page = Math.max(input.page ?? 1, 1);
+  const inMemory = needsInMemoryPaging(filters) || pageSize === 0;
+  const select = listSelect(filters);
+
+  if (!inMemory) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error, count } = await applyListFilters(
+      db.from("players").select(select, { count: "exact" }),
+      season,
+      filters,
+    )
+      .order("first_name", { ascending })
+      .order("last_name", { ascending })
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) throw new Error(dbErrorMessage(error));
+    const rows = (data ?? []) as PlayerRow[];
+    const mapped = rows.map((row) => mapPlayerWithTeam(row));
+    const players = await attachPrimaryContacts(db, mapped);
+    return {
+      players,
+      total: count ?? players.length,
+      page,
+      pageSize,
+    };
+  }
+
+  // "Todos", género m/f, o facetas que requieren post-filtro.
+  const { data, error } = await applyListFilters(db.from("players").select(select), season, filters)
+    .order("first_name", { ascending })
+    .order("last_name", { ascending })
+    .order("id", { ascending: true });
+
+  if (error) throw new Error(dbErrorMessage(error));
+  const rows = (data ?? []) as PlayerRow[];
+  let players = await attachPrimaryContacts(
     db,
-    players.map((player) => player.id),
+    rows.map((row) => mapPlayerWithTeam(row)),
   );
-  return players.map((player) => ({
-    ...player,
-    primary_phone: primaryPhoneFromContacts(contacts, player.id),
-    primary_email: primaryEmailFromContacts(contacts, player.id),
-  }));
+
+  if (filters.checklist && checklistNeedsPostFilter(filters.checklist)) {
+    players = players.filter((player) =>
+      matchesChecklistFilter(player, filters.checklist!, input.context),
+    );
+  }
+
+  if (filters.gender === "male" || filters.gender === "female") {
+    const g = filters.gender;
+    players = players.filter((player) => {
+      const effective = player.gender ?? player.team?.gender ?? null;
+      return effective === g;
+    });
+  }
+
+  const total = players.length;
+  if (pageSize === 0) {
+    return { players, total, page: 1, pageSize: 0 };
+  }
+
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const start = (safePage - 1) * pageSize;
+  return {
+    players: players.slice(start, start + pageSize),
+    total,
+    page: safePage,
+    pageSize,
+  };
+}
+
+export async function countInactivePlayers(
+  db: RosterDb,
+  season: string = getCurrentSeason(),
+): Promise<number> {
+  const { count, error } = await db
+    .from("players")
+    .select("id", { count: "exact", head: true })
+    .eq("season", season)
+    .eq("is_active", false);
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return count ?? 0;
 }
 
 export async function listActivePlayers(
@@ -123,7 +361,7 @@ export async function listActivePlayers(
 ): Promise<PlayerWithTeam[]> {
   const { data, error } = await db
     .from("players")
-    .select(PLAYER_SELECT)
+    .select(PLAYER_DETAIL_SELECT)
     .eq("season", season)
     .eq("is_active", true)
     .order("first_name", { ascending: true })
@@ -169,7 +407,7 @@ export async function getPlayerById(
 ): Promise<PlayerWithDetails | null> {
   const { data, error } = await db
     .from("players")
-    .select(PLAYER_SELECT)
+    .select(PLAYER_DETAIL_SELECT)
     .eq("id", id)
     .maybeSingle();
 
