@@ -10,6 +10,7 @@ import { GoogleSignInButton } from "@/components/shared/GoogleSignInButton";
 import { Logo } from "@/components/shared/Logo";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { FormInput } from "@/components/club/forms";
+import { CLUB_NAME } from "@/lib/brand/club";
 import { appRoutes } from "@/lib/constants";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -66,8 +67,8 @@ export function LoginScreen({ errorMessage }: { errorMessage: string | null }) {
             )}
 
             <div className="text-center">
-              <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.03em] text-foreground sm:text-[2rem]">
-                C.V. Orotava
+              <h1 className="text-[1.5rem] font-semibold leading-tight tracking-[-0.03em] text-foreground sm:text-[1.75rem]">
+                {CLUB_NAME}
               </h1>
               <p className="mt-1.5 text-sm font-medium text-muted-foreground">
                 Portal del club
@@ -141,7 +142,7 @@ export function LoginScreen({ errorMessage }: { errorMessage: string | null }) {
           </Link>
 
           <p className="mt-10 text-center text-xs text-muted-foreground">
-            Acceso privado · La Orotava, Tenerife
+            Acceso privado · La Orotava · Puerto de la Cruz
           </p>
         </div>
 

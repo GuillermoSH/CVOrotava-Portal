@@ -6,10 +6,11 @@ import { OrderReceivingVerificationPanel } from "@/components/clothing/OrderRece
 import { OrderStatusBadge } from "@/components/clothing/OrderStatusBadge";
 import { OrderStatusStepper } from "@/components/clothing/OrderStatusStepper";
 import { DashboardPage } from "@/components/layout/DashboardPage";
+import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
 import { enrichInventory, getOrderById } from "@/lib/clothing/snapshots";
 
-export default async function ClothingOrderDetailPage({
+async function ClothingOrderDetailContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -85,5 +86,17 @@ export default async function ClothingOrderDetailPage({
         )}
       </section>
     </DashboardPage>
+  );
+}
+
+export default function ClothingOrderDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <RuntimePage kind="order-detail">
+      <ClothingOrderDetailContent params={params} />
+    </RuntimePage>
   );
 }

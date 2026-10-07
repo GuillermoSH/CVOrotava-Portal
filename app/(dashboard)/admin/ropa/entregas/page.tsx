@@ -1,6 +1,7 @@
 import { DeliveryForm } from "@/components/clothing/DeliveryForm";
 import { DeliveryHistory } from "@/components/clothing/DeliveryHistory";
 import { DashboardPage } from "@/components/layout/DashboardPage";
+import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requireClothingWriteAccess } from "@/lib/clothing/auth";
 import {
   buildStorageTree,
@@ -11,7 +12,7 @@ import {
   getRosterSnapshot,
 } from "@/lib/clothing/snapshots";
 
-export default async function ClothingDeliveriesPage() {
+async function ClothingDeliveriesContent() {
   await requireClothingWriteAccess();
   const [lots, storageTree, products, players, deliveries, possession] = await Promise.all([
     enrichInventory(),
@@ -39,5 +40,13 @@ export default async function ClothingDeliveriesPage() {
         storageTree={storageTree}
       />
     </DashboardPage>
+  );
+}
+
+export default function ClothingDeliveriesPage() {
+  return (
+    <RuntimePage kind="deliveries">
+      <ClothingDeliveriesContent />
+    </RuntimePage>
   );
 }

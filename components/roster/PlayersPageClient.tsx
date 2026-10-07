@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
 
 import { Badge } from "@/components/club/Badge";
 import { ConfirmDialog } from "@/components/club/ConfirmDialog";
@@ -15,6 +14,7 @@ import { SegmentedControl } from "@/components/club/SegmentedControl";
 import { Select } from "@/components/club/Select";
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { DashboardPage } from "@/components/layout/DashboardPage";
+import { MobileStickyActionBar } from "@/components/layout/MobileStickyActionBar";
 import { PlayersBulkBar } from "@/components/roster/PlayersBulkBar";
 import { QuickAddPlayerSheet } from "@/components/roster/QuickAddPlayerSheet";
 import { WhatsAppGlyph } from "@/components/shared/WhatsAppGlyph";
@@ -1167,81 +1167,69 @@ export function PlayersPageClient({
         )}
       </div>
 
-      {typeof document !== "undefined"
-        ? canWrite && hasSelection
-          ? createPortal(
-              <PlayersBulkBar
-                variant="mobile"
-                selectedCount={selectedCount}
-                selectedActiveCount={selectedActiveCount}
-                selectedInactiveCount={selectedInactiveCount}
-                pending={pending}
-                canDelete={canDelete}
-                bulkMarkMode={bulkMarkMode}
-                onBulkMarkModeChange={setBulkMarkMode}
-                onClearSelection={() => setSelected(new Set())}
-                onDeactivate={() => setBulkActiveIntent({ is_active: false })}
-                onReactivate={() => setBulkActiveIntent({ is_active: true })}
-                onMove={openBulkMove}
-                onDelete={() => setBulkDeleteOpen(true)}
-                onRequestBulk={requestBulk}
-                onMoreActions={() => setMoreActionsOpen(true)}
-              />,
-              document.body,
-            )
-          : createPortal(
-              <div className="clothing-sticky-bar md:hidden">
-                <div className="clothing-sticky-bar__inner clothing-sticky-bar__inner--dense">
-                  <div className="flex items-stretch gap-1.5">
-                    <button
-                      type="button"
-                      className="inline-flex size-9 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
-                      onClick={() => setWhatsappOpen(true)}
-                      aria-label="WhatsApp"
-                    >
-                      <WhatsAppGlyph className="size-4" />
-                    </button>
-                    {canWrite ? (
-                      <>
-                        <button
-                          type="button"
-                          className="inline-flex min-h-9 min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
-                          onClick={() => setImportOpen(true)}
-                        >
-                          Importar
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex min-h-9 min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
-                          onClick={() => setFederationImportOpen(true)}
-                        >
-                          Federación
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                  {canWrite ? (
-                    <div className="flex items-stretch gap-1.5">
-                      <button
-                        type="button"
-                        className="btn-secondary min-h-10 flex-1 text-sm"
-                        onClick={() => setQuickAddOpen(true)}
-                      >
-                        Alta rápida
-                      </button>
-                      <Link
-                        href={appRoutes.players.new}
-                        className="btn-primary min-h-10 flex-[2] text-sm"
-                      >
-                        Nuevo jugador
-                      </Link>
-                    </div>
-                  ) : null}
-                </div>
-              </div>,
-              document.body,
-            )
-        : null}
+      {canWrite && hasSelection ? (
+        <PlayersBulkBar
+          variant="mobile"
+          selectedCount={selectedCount}
+          selectedActiveCount={selectedActiveCount}
+          selectedInactiveCount={selectedInactiveCount}
+          pending={pending}
+          canDelete={canDelete}
+          bulkMarkMode={bulkMarkMode}
+          onBulkMarkModeChange={setBulkMarkMode}
+          onClearSelection={() => setSelected(new Set())}
+          onDeactivate={() => setBulkActiveIntent({ is_active: false })}
+          onReactivate={() => setBulkActiveIntent({ is_active: true })}
+          onMove={openBulkMove}
+          onDelete={() => setBulkDeleteOpen(true)}
+          onRequestBulk={requestBulk}
+          onMoreActions={() => setMoreActionsOpen(true)}
+        />
+      ) : canWrite ? (
+        <MobileStickyActionBar>
+          <div className="clothing-sticky-bar__inner clothing-sticky-bar__inner--dense">
+            <div className="flex items-stretch gap-1.5">
+              <button
+                type="button"
+                className="inline-flex size-9 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
+                onClick={() => setWhatsappOpen(true)}
+                aria-label="WhatsApp"
+              >
+                <WhatsAppGlyph className="size-4" />
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-9 min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
+                onClick={() => setImportOpen(true)}
+              >
+                Importar
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-9 min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
+                onClick={() => setFederationImportOpen(true)}
+              >
+                Federación
+              </button>
+            </div>
+            <div className="flex items-stretch gap-1.5">
+              <button
+                type="button"
+                className="btn-secondary min-h-10 flex-1 text-sm"
+                onClick={() => setQuickAddOpen(true)}
+              >
+                Alta rápida
+              </button>
+              <Link
+                href={appRoutes.players.new}
+                className="btn-primary min-h-10 flex-[2] text-sm"
+              >
+                Nuevo jugador
+              </Link>
+            </div>
+          </div>
+        </MobileStickyActionBar>
+      ) : null}
 
       <ConfirmDialog
         open={bulkIntent !== null}

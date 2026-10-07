@@ -10,16 +10,14 @@ Con `cacheComponents: true` (Next 16), cada **page** se valida sola. Un `instant
 
 ## Hacer
 
-- Auth en layout: componente async en `<Suspense>` que **solo hace gate/redirect y devuelve `null`** — **no** envuelva `{children}` tras el `await`.
-- Shell (`AppShell`) estático alrededor; `{children}` hermano del gate.
-- Datos de página: `loading.tsx` del segmento y/o `<Suspense>` en la page alrededor del contenido async.
+- Auth en layout: gate paralelo (`Ensure*Access` → `null` / redirect) **hermano** de `{children}`; `export const instant = false` en ese layout (opt-out documentado para segmentos con cookies).
+- Pages: `RuntimePage` (`components/shared/RuntimePage.tsx`) o `loading.tsx` — el `default` export sync envuelve el contenido async.
 - Datos compartidos de staff: `'use cache'` + `cacheTag` + `updateTag`.
 
 ## No hacer
 
-- `async function LayoutGate({ children }) { await cookies(); return <Shell>{children}</Shell>; }` — bloquea la navegación aunque haya Suspense.
-- Confiar solo en `export const instant = false` en el layout.
-- `await cookies()` / `await searchParams` / fetch sin cache **fuera** de Suspense/`loading.tsx`.
+- `async function LayoutGate({ children }) { await cookies(); return <Shell>{children}</Shell>; }` — bloquea aunque haya Suspense.
+- Page `export default async function` que hace `await cookies()` / fetch sin envolver en Suspense/`RuntimePage` (el error a veces se atribuye al layout).
 - Meter plantilla (menores) en `'use cache'` con JWT de usuario (RLS leak).
 
 ## Al fallar

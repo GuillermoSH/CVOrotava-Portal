@@ -1,11 +1,12 @@
 "use client";
 
-import { ClipboardPlus, PackageCheck, Shirt } from "lucide-react";
+import { Boxes, ClipboardList, PackageCheck, Plus, Shirt, Warehouse } from "lucide-react";
 
 import { ClothingOpsLanes } from "@/components/clothing/ClothingOpsLanes";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
-import { WarehouseBoxMark } from "@/components/clothing/WarehouseBoxMark";
 import { appRoutes } from "@/lib/constants";
+
+const iconClass = "size-4 shrink-0";
 
 export function ClothingHubQuickLinks({
   featuredOrderId,
@@ -28,39 +29,39 @@ export function ClothingHubQuickLinks({
       title: "Registrar entrega",
       meta: "A jugadores",
       accent: true,
-      icon: <PackageCheck className="size-4" aria-hidden />,
+      icon: <PackageCheck className={iconClass} />,
     },
     {
       href: warehouseHref,
       title: pendingStorageUnits > 0 ? "Ubicar stock" : "Almacén",
-      meta: pendingStorageUnits > 0 ? `${pendingStorageUnits} uds` : "Cajas y lotes",
+      meta: pendingStorageUnits > 0 ? `${pendingStorageUnits} uds pendientes` : "Cajas y lotes",
       score: pendingStorageUnits > 0 ? String(pendingStorageUnits) : undefined,
       accent: pendingStorageUnits > 0,
-      icon: <WarehouseBoxMark size="icon" />,
+      icon: <Warehouse className={iconClass} />,
     },
     {
       href: orderHref,
       title: featuredOrderId ? "Pedido abierto" : "Pedidos",
       meta: "Proveedor y serigrafía",
-      icon: <ClipboardPlus className="size-4" aria-hidden />,
+      icon: <ClipboardList className={iconClass} />,
     },
     {
       href: appRoutes.clothing.newOrder,
       title: "Nuevo pedido",
       meta: "Alta a proveedor",
-      icon: <ClipboardPlus className="size-4" aria-hidden />,
+      icon: <Plus className={iconClass} />,
     },
     {
       href: appRoutes.clothing.products,
       title: "Prendas",
       meta: "Catálogo",
-      icon: <Shirt className="size-4" aria-hidden />,
+      icon: <Shirt className={iconClass} />,
     },
     {
       href: appRoutes.clothing.locations,
       title: "Cajas",
       meta: "Ubicaciones",
-      icon: <WarehouseBoxMark size="icon" />,
+      icon: <Boxes className={iconClass} />,
     },
   ];
 

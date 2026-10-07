@@ -1,11 +1,9 @@
-import { Suspense } from "react";
-
 import { ClothingReservationsCard } from "@/components/dashboard/ClothingReservationsCard";
 import { CriticalDebtorsCard } from "@/components/dashboard/CriticalDebtorsCard";
 import { MonthlyPaymentsCard } from "@/components/dashboard/MonthlyPaymentsCard";
 import { PaymentsSummaryCard } from "@/components/dashboard/PaymentsSummaryCard";
 import { RecentPaymentsCard } from "@/components/dashboard/RecentPaymentsCard";
-import { DashboardBodySkeleton } from "@/components/shared/skeletons";
+import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requirePortalRole } from "@/lib/auth/portal-access";
 import { getClothingHubKpis } from "@/lib/clothing/snapshots";
 import { adminKpis, criticalDebtors, recentPayments } from "@/lib/mocks/admin";
@@ -54,8 +52,8 @@ async function AdminDashboardContent() {
 
 export default function AdminDashboardPage() {
   return (
-    <Suspense fallback={<DashboardBodySkeleton kind="admin" />}>
+    <RuntimePage kind="admin">
       <AdminDashboardContent />
-    </Suspense>
+    </RuntimePage>
   );
 }

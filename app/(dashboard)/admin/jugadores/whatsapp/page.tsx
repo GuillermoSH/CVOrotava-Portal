@@ -1,10 +1,11 @@
 import { PlayersWhatsAppPageClient } from "@/components/roster/PlayersWhatsAppPageClient";
+import { RuntimePage } from "@/components/shared/RuntimePage";
 import { appRoutes } from "@/lib/constants";
 import { requireRosterReadAccess } from "@/lib/roster/auth";
 import { getRosterSnapshot } from "@/lib/roster/snapshots";
 import { formatSeasonShort } from "@/lib/season";
 
-export default async function PlayersWhatsAppPage() {
+async function PlayersWhatsAppContent() {
   const role = await requireRosterReadAccess();
   const { players, teams, season } = await getRosterSnapshot();
   const canWrite = role === "admin" || role === "manager";
@@ -17,5 +18,13 @@ export default async function PlayersWhatsAppPage() {
       subtitle={`Plantilla ${formatSeasonShort(season)}. Copia teléfonos y confirma al añadirlos al grupo.`}
       backHref={appRoutes.players.list}
     />
+  );
+}
+
+export default function PlayersWhatsAppPage() {
+  return (
+    <RuntimePage kind="players">
+      <PlayersWhatsAppContent />
+    </RuntimePage>
   );
 }

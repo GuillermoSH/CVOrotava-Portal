@@ -1,3 +1,5 @@
+import { InventoryWarehouseView } from "@/components/clothing/InventoryWarehouseView";
+import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
 import {
   buildStorageTree,
@@ -7,14 +9,12 @@ import {
 } from "@/lib/clothing/snapshots";
 import type { ClothingInventoryStatus } from "@/lib/types/db";
 
-import { InventoryWarehouseView } from "@/components/clothing/InventoryWarehouseView";
-
 function parseStatus(value: string | undefined): ClothingInventoryStatus | "all" {
   if (value === "pending_storage" || value === "stored") return value;
   return "all";
 }
 
-export default async function ClothingWarehousePage({
+async function ClothingWarehouseContent({
   searchParams,
 }: {
   searchParams: Promise<{
@@ -49,5 +49,22 @@ export default async function ClothingWarehousePage({
       sourceOrderId={sourceOrderId}
       sourceOrderLabel={sourceOrderLabel}
     />
+  );
+}
+
+export default function ClothingWarehousePage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+    order?: string;
+    status?: string;
+    missingJersey?: string;
+  }>;
+}) {
+  return (
+    <RuntimePage kind="warehouse">
+      <ClothingWarehouseContent searchParams={searchParams} />
+    </RuntimePage>
   );
 }

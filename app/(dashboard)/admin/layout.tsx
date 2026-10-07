@@ -6,10 +6,12 @@ import { requirePortalRole } from "@/lib/auth/portal-access";
 import { appRoutes } from "@/lib/constants";
 
 /**
- * Gate de auth en paralelo (no envuelve `{children}`).
- * Si el async de cookies rodea a children, Next marca la navegación como blocking
- * aunque haya Suspense — ver Notion Errores conocidos #11.
+ * Auth layout: cookies en gate paralelo. `instant = false` opta el segmento
+ * del layout fuera de la validación (documentado Next 16); las pages streaman
+ * con `loading.tsx` / `RuntimePage`.
  */
+export const instant = false;
+
 async function EnsureAdminAccess() {
   const role = await requirePortalRole();
   if (role === "parent") {

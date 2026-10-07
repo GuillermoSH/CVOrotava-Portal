@@ -95,10 +95,19 @@ export function ClothingBottomSheet({
 
   function onDragPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (!isMobileSheet()) return;
-    event.preventDefault();
+    // Solo primario (mouse) / touch / pen — evita clicks secundarios y eventos sintéticos raros.
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
     dragStartY.current = event.clientY;
     setIsDragging(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
+
+    // setPointerCapture lanza NotFoundError si el pointerId ya no está activo
+    // (p. ej. eventos sintéticos de automatización / DevTools).
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* ignore */
+    }
   }
 
   function onDragPointerMove(event: React.PointerEvent<HTMLDivElement>) {
@@ -109,8 +118,12 @@ export function ClothingBottomSheet({
   function finishDrag(event: React.PointerEvent<HTMLDivElement>) {
     if (!isDragging) return;
     setIsDragging(false);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      /* ignore */
     }
 
     const sheetHeight = sheetRef.current?.offsetHeight ?? 320;

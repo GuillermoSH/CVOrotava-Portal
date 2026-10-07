@@ -1,6 +1,7 @@
 "use client";
 
 import { SegmentedControl } from "@/components/club/SegmentedControl";
+import { MobileStickyActionBar } from "@/components/layout/MobileStickyActionBar";
 import {
   PLAYER_CHECKLIST_LABELS,
   PLAYER_LIST_TOGGLE_FIELDS,
@@ -113,8 +114,8 @@ export function PlayersBulkBar({
   }
 
   return (
-    <div className="clothing-sticky-bar md:hidden">
-      <div className="clothing-sticky-bar__inner gap-1.5 !py-2">
+    <MobileStickyActionBar>
+      <div className="clothing-sticky-bar__inner clothing-sticky-bar__inner--bulk gap-1.5">
         <div className="flex items-center justify-between gap-2 px-0.5">
           <p className="text-sm font-semibold tabular-nums text-foreground">
             {selectedCount} seleccionado{selectedCount === 1 ? "" : "s"}
@@ -178,6 +179,6 @@ export function PlayersBulkBar({
           ) : null}
         </div>
       </div>
-    </div>
+    </MobileStickyActionBar>
   );
 }

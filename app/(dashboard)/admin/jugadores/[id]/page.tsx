@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PlayerClothingSection } from "@/components/clothing/PlayerClothingSection";
 import { DashboardPage } from "@/components/layout/DashboardPage";
 import { PlayerForm } from "@/components/roster/PlayerForm";
+import { RuntimePage } from "@/components/shared/RuntimePage";
 import {
   buildStorageTree,
   enrichInventory,
@@ -13,7 +14,7 @@ import { parsePlayerListSearchParams, playersListHref } from "@/lib/roster/playe
 import { getPlayerDetailsSnapshot } from "@/lib/roster/snapshots";
 import { formatPlayerName } from "@/lib/roster/constants";
 
-export default async function PlayerDetailPage({
+async function PlayerDetailContent({
   params,
   searchParams,
 }: {
@@ -58,5 +59,19 @@ export default async function PlayerDetailPage({
         />
       </div>
     </DashboardPage>
+  );
+}
+
+export default function PlayerDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  return (
+    <RuntimePage kind="player-form">
+      <PlayerDetailContent params={params} searchParams={searchParams} />
+    </RuntimePage>
   );
 }

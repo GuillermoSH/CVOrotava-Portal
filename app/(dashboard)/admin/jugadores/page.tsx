@@ -1,4 +1,5 @@
 import { PlayersPageClient } from "@/components/roster/PlayersPageClient";
+import { RuntimePage } from "@/components/shared/RuntimePage";
 import { getPaymentsDb } from "@/lib/payments/repository/client";
 import { listPlayerIdsWithPaidMatricula } from "@/lib/payments/repository/payments";
 import { requireRosterReadAccess } from "@/lib/roster/auth";
@@ -9,7 +10,7 @@ import {
 import { getPlayersListSnapshot, getTeamsSnapshot } from "@/lib/roster/snapshots";
 import { formatSeasonShort, getCurrentSeason } from "@/lib/season";
 
-export default async function PlayersPage({
+async function PlayersContent({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -19,7 +20,6 @@ export default async function PlayersPage({
   const canDelete = role === "admin";
   const season = getCurrentSeason();
   const params = await searchParams;
-  // Teams first so facet labels resolve; then page query with filters from URL.
   const teams = await getTeamsSnapshot(season);
   const urlState = parsePlayerListUrlState(params, teams);
   const listFilters = playerFilterStateToListFilters(urlState);
@@ -54,5 +54,17 @@ export default async function PlayersPage({
       subtitle={`Plantilla ${formatSeasonShort(season)}. Equipo principal, trámites y contacto familiar.`}
       matriculaPaidPlayerIds={matriculaPaidPlayerIds}
     />
+  );
+}
+
+export default function PlayersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  return (
+    <RuntimePage kind="players">
+      <PlayersContent searchParams={searchParams} />
+    </RuntimePage>
   );
 }

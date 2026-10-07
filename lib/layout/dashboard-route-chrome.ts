@@ -25,7 +25,7 @@ export type DashboardRouteChrome = {
   title: string;
   subtitle?: string;
   back?: { href: string; label: string };
-  sticky?: boolean | "tall";
+  sticky?: boolean | "tall" | "bulk";
   skeleton: DashboardSkeletonKind;
   action?: { href: string; label: string };
 };
@@ -54,7 +54,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     return {
       title: "Jugadores",
       subtitle: "Equipo principal, trámites y contacto familiar.",
-      sticky: "tall",
+      sticky: "bulk",
       skeleton: "players",
       action: { href: appRoutes.players.new, label: "Nuevo jugador" },
     };
@@ -91,7 +91,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
   if (pathname === appRoutes.clothing.hub) {
     return {
       title: "Ropa",
-      subtitle: "Marcador operativo: pedido activo, almacén y entregas.",
+      subtitle: "Pedido activo, almacén y entregas.",
       sticky: true,
       skeleton: "hub",
     };
@@ -184,6 +184,9 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
 }
 
 export function getDashboardFrameClassName(chrome: DashboardRouteChrome | null) {
+  if (chrome?.sticky === "bulk") {
+    return "clothing-page-with-sticky clothing-page-with-sticky--bulk flex flex-col gap-4";
+  }
   if (chrome?.sticky === "tall") {
     return "clothing-page-with-sticky clothing-page-with-sticky--tall flex flex-col gap-4";
   }

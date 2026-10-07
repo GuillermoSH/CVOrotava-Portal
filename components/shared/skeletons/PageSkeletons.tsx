@@ -195,8 +195,8 @@ function HubBody() {
           <KpiTile title="En almacén" helper="unidades" href={appRoutes.clothing.warehouse} wide />
         </div>
       </section>
-      <section className="flex flex-col gap-3">
-        <h2 className="section-title">Operaciones</h2>
+      <section className="flex flex-col gap-2.5">
+        <h2 className="ropa-section-label">Accesos rápidos</h2>
         <ClothingHubQuickLinks />
       </section>
     </>

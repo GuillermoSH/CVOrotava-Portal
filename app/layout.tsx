@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { AppProviders } from "@/components/shared/AppProviders";
+import { CLUB_NAME, CLUB_NAME_SHORT } from "@/lib/brand/club";
 
 import "./globals.css";
 
@@ -19,13 +20,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "CVOrotava — Portal",
-    template: "%s — CVOrotava",
+    default: `${CLUB_NAME_SHORT} — Portal`,
+    template: `%s — ${CLUB_NAME_SHORT}`,
   },
-  description:
-    "Portal del Club Voleibol Orotava: familias y dirección. Pagos (anotación) y reserva de ropa.",
+  description: `Portal de ${CLUB_NAME}: familias y dirección. Pagos (anotación) y reserva de ropa.`,
 };
-
 export default function RootLayout({
   children,
 }: Readonly<{

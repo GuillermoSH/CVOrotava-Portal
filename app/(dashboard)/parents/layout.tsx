@@ -5,6 +5,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { requirePortalRole } from "@/lib/auth/portal-access";
 import { appRoutes } from "@/lib/constants";
 
+export const instant = false;
+
 async function EnsureParentAccess() {
   const role = await requirePortalRole();
   if (role !== "parent") {
