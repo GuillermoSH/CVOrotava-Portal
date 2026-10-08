@@ -48,15 +48,15 @@ function isDraftGroup(value: unknown): value is ManualInventoryDraftGroup {
     return false;
   }
   if (!Array.isArray(group.jersey_numbers)) return false;
-  const jerseys: number[] = [];
+  let jerseyCount = 0;
   for (const item of group.jersey_numbers) {
     if (typeof item !== "number" || !Number.isInteger(item) || item < 0 || item > 99) {
       return false;
     }
-    jerseys.push(item);
+    jerseyCount += 1;
   }
-  if (new Set(jerseys).size !== jerseys.length) return false;
-  if (jerseys.length > group.quantity) return false;
+  // Same dorsal can repeat within a size (two #7 in M is valid stock).
+  if (jerseyCount > group.quantity) return false;
   return true;
 }
 

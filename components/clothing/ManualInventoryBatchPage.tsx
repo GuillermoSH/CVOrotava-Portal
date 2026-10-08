@@ -43,6 +43,21 @@ function newClientId() {
   return `group-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** Agrupa dorsales repetidos para chips (#7 ×2). Orden = primera aparición. */
+function aggregateJerseyCounts(jerseys: number[]): { jersey: number; count: number }[] {
+  const order: number[] = [];
+  const counts = new Map<number, number>();
+  for (const jersey of jerseys) {
+    if (!counts.has(jersey)) order.push(jersey);
+    counts.set(jersey, (counts.get(jersey) ?? 0) + 1);
+  }
+  return order.map((jersey) => ({ jersey, count: counts.get(jersey)! }));
+}
+
+function formatJerseyChip(jersey: number, count: number): string {
+  return count > 1 ? `#${jersey} ×${count}` : `#${jersey}`;
+}
+
 export function ManualInventoryBatchPage({
   products,
   storageTree,
@@ -222,22 +237,6 @@ export function ManualInventoryBatchPage({
       );
       return;
     }
-    if (group.jersey_numbers.includes(parsed)) {
-      appToast.error(
-        `Ya hay ${CLOTHING_SIZE_LABELS[group.size]} #${parsed} en este grupo`,
-      );
-      return;
-    }
-    const duplicateElsewhere = groups.some(
-      (item) =>
-        item.clientId !== clientId &&
-        item.size === group.size &&
-        item.jersey_numbers.includes(parsed),
-    );
-    if (duplicateElsewhere) {
-      appToast.error(`Ya hay ${CLOTHING_SIZE_LABELS[group.size]} #${parsed} en el borrador`);
-      return;
-    }
 
     setGroups((prev) =>
       prev.map((item) =>
@@ -249,16 +248,17 @@ export function ManualInventoryBatchPage({
     setJerseyDraftByGroup((prev) => ({ ...prev, [clientId]: "" }));
   }
 
+  /** Quita una unidad de ese dorsal (si había ×3 pasa a ×2). */
   function removeJerseyFromGroup(clientId: string, jersey: number) {
     setGroups((prev) =>
-      prev.map((group) =>
-        group.clientId === clientId
-          ? {
-              ...group,
-              jersey_numbers: group.jersey_numbers.filter((n) => n !== jersey),
-            }
-          : group,
-      ),
+      prev.map((group) => {
+        if (group.clientId !== clientId) return group;
+        const index = group.jersey_numbers.lastIndexOf(jersey);
+        if (index < 0) return group;
+        const next = [...group.jersey_numbers];
+        next.splice(index, 1);
+        return { ...group, jersey_numbers: next };
+      }),
     );
   }
 
@@ -338,7 +338,7 @@ export function ManualInventoryBatchPage({
       groups.map((group) => ({
         size: group.size,
         qty: group.quantity,
-        jerseys: [...group.jersey_numbers].sort((a, b) => a - b),
+        jerseys: aggregateJerseyCounts(group.jersey_numbers),
         withoutJersey: group.quantity - group.jersey_numbers.length,
       })),
     [groups],
@@ -350,7 +350,7 @@ export function ManualInventoryBatchPage({
         <>
           <section className="ropa-panel">
             <div className="ropa-panel__bar">
-              <h2 className="text-sm font-semibold text-foreground">Componer lote</h2>
+              <h2 className="ropa-panel__title">Componer lote</h2>
               <span className="ropa-panel__meta">
                 {units > 0 ? (
                   <>
@@ -362,74 +362,76 @@ export function ManualInventoryBatchPage({
               </span>
             </div>
 
-            <div className="ropa-panel__block flex flex-col gap-4">
-              <FormSelect
-                label="Temporada"
-                name="batch-season"
-                id="batch-season"
-                value={season}
-                onChange={(e) => handleSeasonChange(e.target.value)}
-                options={seasonOptions.map((opt) => ({
-                  value: opt.value,
-                  label: opt.label,
-                }))}
-              />
-
-              {seasonProducts.length === 0 ? (
-                <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--club-border)] px-3 py-3 text-sm text-muted-foreground">
-                  No hay prendas en {formatSeasonShort(season)}. Crea la prenda en Prendas o elige
-                  otra temporada.
-                </p>
-              ) : (
-                <ProductPicker
-                  products={seasonProducts}
-                  value={productId}
-                  onChange={handleProductChange}
-                  id="batch-product"
+            <div className="ropa-panel__block">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:gap-3">
+                <FormSelect
+                  label="Temporada"
+                  name="batch-season"
+                  id="batch-season"
+                  value={season}
+                  onChange={(e) => handleSeasonChange(e.target.value)}
+                  options={seasonOptions.map((opt) => ({
+                    value: opt.value,
+                    label: opt.label,
+                  }))}
+                  className="order-1 w-full shrink-0 md:order-2 md:w-[6.75rem]"
                 />
-              )}
+
+                <div className="order-2 min-w-0 flex-1 md:order-1">
+                  {seasonProducts.length === 0 ? (
+                    <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--club-border)] px-3 py-3 text-sm text-muted-foreground">
+                      No hay prendas en {formatSeasonShort(season)}. Crea la prenda en Prendas o
+                      elige otra temporada.
+                    </p>
+                  ) : (
+                    <ProductPicker
+                      products={seasonProducts}
+                      value={productId}
+                      onChange={handleProductChange}
+                      id="batch-product"
+                    />
+                  )}
+                </div>
+              </div>
             </div>
 
             {productId ? (
-              <div className="ropa-panel__block flex flex-col gap-4">
-                <p className="text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-muted-foreground">
-                  Cantidades por talla
-                </p>
-                {CLOTHING_SIZE_GROUPS.map((group) => (
-                  <div key={group.id}>
-                    <p className="mb-2 text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-muted-foreground">
-                      {group.label}
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                      {group.sizes.map((size) => (
-                        <label
-                          key={size}
-                          className="flex min-h-11 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--ropa-line)] bg-[var(--club-surface)] px-2.5 py-1.5"
-                        >
-                          <span className="w-10 shrink-0 text-sm font-semibold tabular-nums text-foreground">
-                            {CLOTHING_SIZE_LABELS[size]}
-                          </span>
-                          <input
-                            type="number"
-                            min={0}
-                            max={9999}
-                            inputMode="numeric"
-                            placeholder="0"
-                            aria-label={`Cantidad ${CLOTHING_SIZE_LABELS[size]}`}
-                            className="form-input min-h-9 flex-1 px-2 text-right tabular-nums"
-                            value={sizeQtys[size] ?? ""}
-                            onChange={(e) =>
-                              setSizeQtys((prev) => ({
-                                ...prev,
-                                [size]: e.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                      ))}
-                    </div>
+              <div className="ropa-panel__block flex flex-col gap-5">
+                <div>
+                  <p className="ropa-section-label">Cantidades por talla</p>
+                  <div className="mt-3.5 flex flex-col gap-3.5">
+                    {CLOTHING_SIZE_GROUPS.map((group) => (
+                      <div key={group.id} className="flex flex-col gap-1.5">
+                        <p className="ropa-group-label">{group.label}</p>
+                        <div className="ropa-size-qty-grid">
+                          {group.sizes.map((size) => (
+                            <label key={size} className="ropa-size-qty">
+                              <span className="ropa-size-qty__size">
+                                {CLOTHING_SIZE_LABELS[size]}
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={9999}
+                                inputMode="numeric"
+                                placeholder="0"
+                                aria-label={`Cantidad ${CLOTHING_SIZE_LABELS[size]}`}
+                                className="ropa-size-qty__input"
+                                value={sizeQtys[size] ?? ""}
+                                onChange={(e) =>
+                                  setSizeQtys((prev) => ({
+                                    ...prev,
+                                    [size]: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
                 <Button
                   type="button"
                   variant="secondary"
@@ -444,7 +446,7 @@ export function ManualInventoryBatchPage({
 
             <div className="ropa-panel__block">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-foreground">Borrador</h3>
+                <h3 className="ropa-section-heading">Borrador</h3>
                 {groups.length > 0 ? (
                   <button
                     type="button"
@@ -501,16 +503,20 @@ export function ManualInventoryBatchPage({
 
                             {/* Desktop: chips between size and dorsal controls */}
                             <div className="hidden min-w-0 flex-1 flex-wrap items-center gap-1.5 md:flex">
-                              {group.jersey_numbers.map((jersey) => (
+                              {aggregateJerseyCounts(group.jersey_numbers).map(({ jersey, count }) => (
                                 <button
                                   key={jersey}
                                   type="button"
                                   className="group/chip inline-flex h-9 shrink-0 items-center gap-1 rounded-full border border-[var(--ropa-line)] bg-[var(--ropa-panel)] pl-2.5 pr-1.5 text-sm font-semibold tabular-nums text-foreground transition-colors hover:border-[color-mix(in_srgb,var(--club-brand)_45%,var(--ropa-line))] hover:bg-[var(--club-brand-soft)] hover:text-[var(--club-brand-strong)] active:bg-[var(--club-brand-soft)]"
                                   onClick={() => removeJerseyFromGroup(group.clientId, jersey)}
-                                  aria-label={`Quitar dorsal ${jersey}`}
-                                  title="Quitar dorsal"
+                                  aria-label={
+                                    count > 1
+                                      ? `Quitar una unidad del dorsal ${jersey} (${count})`
+                                      : `Quitar dorsal ${jersey}`
+                                  }
+                                  title={count > 1 ? "Quitar una unidad" : "Quitar dorsal"}
                                 >
-                                  <span>#{jersey}</span>
+                                  <span>{formatJerseyChip(jersey, count)}</span>
                                   <span
                                     className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors group-hover/chip:bg-[color-mix(in_srgb,var(--club-brand)_18%,transparent)] group-hover/chip:text-[var(--club-brand-strong)]"
                                     aria-hidden
@@ -575,16 +581,20 @@ export function ManualInventoryBatchPage({
                           {/* Mobile: chips on second row */}
                           {group.jersey_numbers.length > 0 ? (
                             <div className="flex flex-wrap items-center gap-1.5 md:hidden">
-                              {group.jersey_numbers.map((jersey) => (
+                              {aggregateJerseyCounts(group.jersey_numbers).map(({ jersey, count }) => (
                                 <button
                                   key={jersey}
                                   type="button"
                                   className="group/chip inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-[var(--ropa-line)] bg-[var(--ropa-panel)] pl-3 pr-2 text-sm font-semibold tabular-nums text-foreground transition-colors active:bg-[var(--club-brand-soft)] active:text-[var(--club-brand-strong)]"
                                   onClick={() => removeJerseyFromGroup(group.clientId, jersey)}
-                                  aria-label={`Quitar dorsal ${jersey}`}
-                                  title="Quitar dorsal"
+                                  aria-label={
+                                    count > 1
+                                      ? `Quitar una unidad del dorsal ${jersey} (${count})`
+                                      : `Quitar dorsal ${jersey}`
+                                  }
+                                  title={count > 1 ? "Quitar una unidad" : "Quitar dorsal"}
                                 >
-                                  <span>#{jersey}</span>
+                                  <span>{formatJerseyChip(jersey, count)}</span>
                                   <span
                                     className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground"
                                     aria-hidden
@@ -610,7 +620,7 @@ export function ManualInventoryBatchPage({
             </Button>
             <Link
               href={appRoutes.clothing.warehouse}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               Volver a almacén
             </Link>
@@ -641,30 +651,26 @@ export function ManualInventoryBatchPage({
         <>
           <section className="ropa-panel">
             <div className="ropa-panel__bar">
-              <h2 className="text-sm font-semibold text-foreground">Confirmar carga</h2>
+              <h2 className="ropa-panel__title">Confirmar carga</h2>
               <span className="ropa-panel__meta">
                 <span className="ropa-digit ropa-digit--sm">{units}</span> uds
               </span>
             </div>
 
             <div className="ropa-panel__block">
-              <p className="text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-muted-foreground">
-                Prenda
-              </p>
-              <p className="mt-1 text-sm font-semibold text-foreground">
+              <p className="ropa-section-label">Prenda</p>
+              <p className="mt-1.5 text-base font-semibold tracking-tight text-foreground">
                 {selectedProduct
                   ? formatProductShort(selectedProduct)
                   : "Prenda seleccionada"}
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Temporada {formatSeasonShort(season)}
               </p>
             </div>
 
             <div className="ropa-panel__block">
-              <p className="mb-3 text-[0.6875rem] font-bold uppercase tracking-[0.06em] text-muted-foreground">
-                Resumen
-              </p>
+              <p className="ropa-section-label mb-3">Resumen</p>
               <ul className="flex flex-col gap-2">
                 {summaryRows.map((row) => (
                   <li
@@ -677,7 +683,10 @@ export function ManualInventoryBatchPage({
                     <span className="ropa-digit ropa-digit--sm">{row.qty}</span>
                     {row.jerseys.length > 0 ? (
                       <span className="w-full text-xs tabular-nums text-muted-foreground">
-                        Dorsales: {row.jerseys.map((n) => `#${n}`).join(", ")}
+                        Dorsales:{" "}
+                        {row.jerseys
+                          .map(({ jersey, count }) => formatJerseyChip(jersey, count))
+                          .join(", ")}
                         {row.withoutJersey > 0
                           ? ` · ${row.withoutJersey} sin dorsal`
                           : ""}
@@ -752,7 +761,7 @@ export function ManualInventoryBatchPage({
             </Button>
             <button
               type="button"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
               onClick={() => setStep("compose")}
               disabled={pending}
             >

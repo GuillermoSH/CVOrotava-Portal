@@ -731,13 +731,15 @@ html.dark {
 }
 
 /* ── Form controls ── */
+/* Field label: quieter than section titles / body so inputs carry the weight. */
 .form-label {
   display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 600;
   line-height: 1.25;
-  color: var(--club-fg);
-  margin-bottom: 0.375rem;
+  letter-spacing: 0.01em;
+  color: var(--club-fg-muted);
+  margin-bottom: 0.3rem;
 }
 
 .form-input {
@@ -864,6 +866,14 @@ textarea.form-input {
   background: color-mix(in srgb, var(--club-bg) 96%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+/* Toolbar desktop — acciones de página (primario + secundarios) */
+.clothing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
 }
 
 /* Barra de acciones móvil — fija encima del dock (portal en body) */
@@ -2414,6 +2424,82 @@ button.ropa-loc {
   color: var(--ropa-muted);
 }
 
+/* Secondary group under a section label (Adulto / Infantil), not a second title. */
+.ropa-group-label {
+  font-size: 0.75rem;
+  font-weight: 550;
+  line-height: 1.3;
+  color: var(--ropa-muted);
+}
+
+/* Compact size × qty chips (≤4 digits). Never nest .form-input — it forces width 100%. */
+.ropa-size-qty-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ropa-size-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 2.375rem;
+  padding: 0 0.3rem 0 0.5rem;
+  border: 1px solid var(--ropa-line);
+  border-radius: var(--radius-sm);
+  background: var(--club-surface);
+  cursor: text;
+}
+
+.ropa-size-qty__size {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ropa-ink);
+  white-space: nowrap;
+}
+
+.ropa-size-qty__input {
+  box-sizing: content-box;
+  width: 3.75ch;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0 0.15rem;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: var(--ropa-panel);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  color: var(--ropa-ink);
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.ropa-size-qty__input::-webkit-outer-spin-button,
+.ropa-size-qty__input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.ropa-size-qty__input::placeholder {
+  color: var(--ropa-muted);
+  font-weight: 500;
+}
+
+.ropa-size-qty:focus-within {
+  border-color: color-mix(in srgb, var(--club-brand) 45%, var(--ropa-line));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-brand) 18%, transparent);
+}
+
+.ropa-size-qty__input:focus {
+  background: color-mix(in srgb, var(--club-brand-soft) 55%, var(--ropa-panel));
+}
+
 .ropa-board-nav {
   margin: 0;
   width: 100%;
@@ -2766,8 +2852,19 @@ button.ropa-loc {
   border-bottom: 1px solid var(--ropa-line);
 }
 
+.ropa-panel__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--ropa-ink);
+}
+
 .ropa-panel__meta {
   font-size: 0.75rem;
+  font-weight: 450;
+  line-height: 1.3;
   color: var(--ropa-muted);
 }
 
