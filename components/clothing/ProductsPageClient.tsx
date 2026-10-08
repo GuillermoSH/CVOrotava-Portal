@@ -310,8 +310,7 @@ export function ProductsPageClient({
       <div className="clothing-page-with-sticky flex flex-col gap-5">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            {activeCount} activa{activeCount === 1 ? "" : "s"} · {visibleProducts.length} visibles
-            · {products.length} total
+            {`${activeCount} ${activeCount === 1 ? "activa" : "activas"} · ${visibleProducts.length} visibles · ${products.length} total`}
           </p>
           <div className="clothing-toolbar hidden md:flex">
             <Button type="button" onClick={openCreate}>
@@ -399,7 +398,7 @@ export function ProductsPageClient({
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-foreground">{formatProductShort(product)}</p>
                       {!product.is_active ? (
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-[11px]">
                           Inactiva
                         </Badge>
                       ) : null}

@@ -2379,6 +2379,11 @@ button.ropa-loc {
   font-variant-numeric: tabular-nums;
 }
 
+/* Rojo de marca oscuro (#e62222) queda en 4.3:1 con texto claro; se asienta hacia el fondo. */
+html.dark .ropa-board {
+  --ropa-lit-bg: color-mix(in srgb, var(--club-brand) 88%, var(--club-bg));
+}
+
 .ropa-board ::selection {
   background: color-mix(in srgb, var(--club-brand) 28%, transparent);
   color: var(--club-fg);
@@ -2619,7 +2624,7 @@ button.ropa-loc {
 .ropa-set-band--lit .ropa-set-band__body,
 .ropa-set-band--lit .ropa-set-band__score-helper,
 .ropa-set-band--lit .ropa-set-band__status-meta {
-  color: color-mix(in srgb, var(--ropa-lit-fg) 78%, transparent);
+  color: color-mix(in srgb, var(--ropa-lit-fg) 92%, transparent);
 }
 
 .ropa-set-band--lit .ropa-set-band__cta {

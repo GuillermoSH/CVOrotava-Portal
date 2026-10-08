@@ -52,9 +52,6 @@ export function InventoryWarehouseView({
           <Link href={appRoutes.clothing.addStock} className="btn-secondary inline-flex">
             Carga por lote
           </Link>
-          <Link href={appRoutes.clothing.deliveries} className="btn-secondary inline-flex">
-            Registrar entrega
-          </Link>
           <Link href={appRoutes.clothing.locations} className="btn-secondary inline-flex">
             Cajas
           </Link>

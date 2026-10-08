@@ -179,12 +179,12 @@ export function OrderListView({
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {order.lines.slice(0, 3).map((line) => (
-                            <Badge key={line.id} variant="secondary" className="text-[10px]">
+                            <Badge key={line.id} variant="secondary" className="text-[11px]">
                               {formatOrderLineSummary(line)}
                             </Badge>
                           ))}
                           {order.lines.length > 3 ? (
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-[11px]">
                               +{order.lines.length - 3}
                             </Badge>
                           ) : null}

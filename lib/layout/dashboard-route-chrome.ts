@@ -111,6 +111,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Prendas",
       subtitle: "Catálogo del club. Activas = disponibles en pedidos.",
       back: { href: appRoutes.clothing.hub, label: "Ropa" },
+      sticky: true,
       skeleton: "products",
     };
   }

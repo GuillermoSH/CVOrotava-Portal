@@ -91,7 +91,7 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
     <>
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
         <section className="flex flex-col gap-5">
-          <h2 className="section-title">Datos del pedido</h2>
+          <h2 className="ropa-section-heading">Datos del pedido</h2>
           <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
             <FormInput
               label="Proveedor"
@@ -136,7 +136,7 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
         <section className="flex flex-col gap-5 border-t border-[var(--club-border)] pt-8">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="section-title">Líneas del pedido</h2>
+              <h2 className="ropa-section-heading">Líneas del pedido</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {lines.length} {lines.length === 1 ? "línea" : "líneas"}
               </p>
