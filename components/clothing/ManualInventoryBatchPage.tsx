@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/club/Button";
 import { FormSelect, FormTextarea } from "@/components/club/forms";
+import { ClothingCategoryFold } from "@/components/clothing/ClothingCategoryFold";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { ProductPicker } from "@/components/clothing/ProductPicker";
 import { WarehouseCrate } from "@/components/clothing/WarehouseCrate";
@@ -85,6 +86,7 @@ export function ManualInventoryBatchPage({
   const [productId, setProductId] = useState("");
   const [groups, setGroups] = useState<ManualInventoryDraftGroup[]>([]);
   const [sizeQtys, setSizeQtys] = useState<Partial<Record<ClothingSize, string>>>({});
+  const [openSizeGroups, setOpenSizeGroups] = useState<Set<string>>(() => new Set(["adult"]));
   const [jerseyDraftByGroup, setJerseyDraftByGroup] = useState<Record<string, string>>({});
   const [assignBox, setAssignBox] = useState(false);
   const [boxId, setBoxId] = useState("");
@@ -400,36 +402,53 @@ export function ManualInventoryBatchPage({
                 <div>
                   <p className="ropa-section-label">Cantidades por talla</p>
                   <div className="mt-3.5 flex flex-col gap-3.5">
-                    {CLOTHING_SIZE_GROUPS.map((group) => (
-                      <div key={group.id} className="flex flex-col gap-1.5">
-                        <p className="ropa-group-label">{group.label}</p>
-                        <div className="ropa-size-qty-grid">
-                          {group.sizes.map((size) => (
-                            <label key={size} className="ropa-size-qty">
-                              <span className="ropa-size-qty__size">
-                                {CLOTHING_SIZE_LABELS[size]}
-                              </span>
-                              <input
-                                type="number"
-                                min={0}
-                                max={9999}
-                                inputMode="numeric"
-                                placeholder="0"
-                                aria-label={`Cantidad ${CLOTHING_SIZE_LABELS[size]}`}
-                                className="ropa-size-qty__input"
-                                value={sizeQtys[size] ?? ""}
-                                onChange={(e) =>
-                                  setSizeQtys((prev) => ({
-                                    ...prev,
-                                    [size]: e.target.value,
-                                  }))
-                                }
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                    {CLOTHING_SIZE_GROUPS.map((group) => {
+                      const filled = group.sizes.some((size) => sizeQtys[size]?.trim());
+                      const open = openSizeGroups.has(group.id) || filled;
+                      return (
+                        <ClothingCategoryFold
+                          key={group.id}
+                          id={`batch-sizes-${group.id}`}
+                          label={group.label}
+                          count={group.sizes.length}
+                          open={open}
+                          onToggle={() =>
+                            setOpenSizeGroups((prev) => {
+                              const next = new Set(prev);
+                              if (open) next.delete(group.id);
+                              else next.add(group.id);
+                              return next;
+                            })
+                          }
+                        >
+                          <div className="ropa-size-qty-grid">
+                            {group.sizes.map((size) => (
+                              <label key={size} className="ropa-size-qty">
+                                <span className="ropa-size-qty__size">
+                                  {CLOTHING_SIZE_LABELS[size]}
+                                </span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={9999}
+                                  inputMode="numeric"
+                                  placeholder="0"
+                                  aria-label={`Cantidad ${CLOTHING_SIZE_LABELS[size]}`}
+                                  className="ropa-size-qty__input"
+                                  value={sizeQtys[size] ?? ""}
+                                  onChange={(e) =>
+                                    setSizeQtys((prev) => ({
+                                      ...prev,
+                                      [size]: e.target.value,
+                                    }))
+                                  }
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </ClothingCategoryFold>
+                      );
+                    })}
                   </div>
                 </div>
                 <Button
