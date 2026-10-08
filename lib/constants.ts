@@ -44,6 +44,7 @@ export const appRoutes = {
     orderDetail: (id: string) => `/admin/ropa/pedidos/${id}`,
     products: "/admin/ropa/prendas",
     warehouse: "/admin/ropa/almacen",
+    addStock: "/admin/ropa/almacen/agregar",
     locations: "/admin/ropa/almacen/ubicaciones",
     deliveries: "/admin/ropa/entregas",
   },

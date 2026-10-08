@@ -1553,10 +1553,16 @@ html.dark .club-confirm-panel {
 }
 
 .clothing-sheet-group {
+  flex-shrink: 0;
   overflow: hidden;
   border: 1px solid var(--club-border);
   border-radius: var(--radius-lg);
   background: var(--club-drawer-field-bg);
+  transition: border-color 0.15s ease;
+}
+
+.clothing-sheet-group[data-open="true"] {
+  border-color: color-mix(in srgb, var(--club-brand) 32%, var(--club-border));
 }
 
 .clothing-sheet-fold {
@@ -1575,11 +1581,29 @@ html.dark .club-confirm-panel {
   letter-spacing: -0.02em;
   color: var(--club-fg);
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .clothing-sheet-fold:hover {
   background: color-mix(in srgb, var(--club-fg) 4%, transparent);
+}
+
+.clothing-sheet-group[data-open="true"] > .clothing-sheet-fold {
+  background: var(--club-brand-soft);
+  color: var(--club-brand-strong);
+}
+
+.clothing-sheet-group[data-open="true"] > .clothing-sheet-fold:hover {
+  background: color-mix(in srgb, var(--club-brand) 18%, transparent);
+}
+
+.clothing-sheet-group[data-open="true"] .clothing-sheet-fold__count {
+  background: color-mix(in srgb, var(--club-brand) 16%, transparent);
+  color: var(--club-brand-strong);
+}
+
+.clothing-sheet-group[data-open="true"] .clothing-sheet-fold__chevron {
+  color: var(--club-brand);
 }
 
 .clothing-sheet-fold:focus-visible,

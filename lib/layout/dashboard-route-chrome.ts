@@ -126,6 +126,16 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     };
   }
 
+  if (pathname === appRoutes.clothing.addStock) {
+    return {
+      title: "Carga por lote",
+      subtitle: "Componer tallas o dorsales de una prenda y confirmar.",
+      back: { href: appRoutes.clothing.warehouse, label: "Almacén" },
+      sticky: true,
+      skeleton: "warehouse",
+    };
+  }
+
   if (pathname === appRoutes.clothing.locations) {
     return {
       title: "Cajas",

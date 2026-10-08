@@ -119,6 +119,53 @@ export async function createManualInventoryLot(
   return mapLot(data);
 }
 
+export async function createManualInventoryBatch(
+  db: ClothingDb,
+  input: {
+    product_id: string;
+    storage_location_id?: string | null;
+    notes?: string | null;
+    lines: {
+      size: ClothingSize;
+      quantity: number;
+      jersey_number?: number | null;
+    }[];
+  },
+): Promise<ClothingInventoryLot[]> {
+  if (input.lines.length === 0) {
+    throw new Error("El lote debe tener al menos una línea");
+  }
+
+  const status = input.storage_location_id ? "stored" : "pending_storage";
+  const notes = input.notes?.trim() || null;
+  const storageLocationId = input.storage_location_id ?? null;
+
+  const rows = input.lines.map((line) => {
+    const jerseyNumber = line.jersey_number ?? null;
+    return {
+      product_id: input.product_id,
+      size: line.size,
+      quantity: jerseyNumber == null ? line.quantity : 1,
+      status,
+      storage_location_id: storageLocationId,
+      source_type: "manual" as const,
+      source_order_id: null,
+      source_line_id: null,
+      returned_from_serigraphy_at: null,
+      notes,
+      jersey_number: jerseyNumber,
+    };
+  });
+
+  const { data, error } = await db
+    .from("clothing_inventory_lots")
+    .insert(rows)
+    .select("*");
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return (data ?? []).map(mapLot);
+}
+
 export async function createInventoryLotsFromOrder(
   db: ClothingDb,
   orderId: string,

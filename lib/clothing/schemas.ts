@@ -61,6 +61,29 @@ export const createManualInventorySchema = z
     }
   });
 
+const manualInventoryBatchLineSchema = z
+  .object({
+    size: z.enum(CLOTHING_SIZES),
+    quantity: z.coerce.number().int().min(1).max(9999),
+    jersey_number: z.number().int().min(0).max(99).nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.jersey_number != null && value.quantity !== 1) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Una prenda con dorsal es una sola unidad",
+        path: ["quantity"],
+      });
+    }
+  });
+
+export const createManualInventoryBatchSchema = z.object({
+  product_id: z.string().uuid(),
+  storage_location_id: z.string().uuid().nullable().optional(),
+  notes: z.string().max(500).optional(),
+  lines: z.array(manualInventoryBatchLineSchema).min(1),
+});
+
 const stockOutLineSchema = z.object({
   product_id: z.string().uuid(),
   size: z.enum(CLOTHING_SIZES),
