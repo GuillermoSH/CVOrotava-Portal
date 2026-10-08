@@ -22,6 +22,7 @@ type PlayersBulkBarProps = {
   onReactivate: () => void;
   onMove: () => void;
   onDelete: () => void;
+  onExport?: () => void;
   onRequestBulk: (field: PlayerListToggleField, mark: boolean) => void;
   onMoreActions?: () => void;
 };
@@ -40,6 +41,7 @@ export function PlayersBulkBar({
   onReactivate,
   onMove,
   onDelete,
+  onExport,
   onRequestBulk,
   onMoreActions,
 }: PlayersBulkBarProps) {
@@ -75,6 +77,16 @@ export function PlayersBulkBar({
           >
             Mover a equipo
           </button>
+          {onExport ? (
+            <button
+              type="button"
+              className="btn-secondary min-h-9 text-xs"
+              disabled={pending}
+              onClick={onExport}
+            >
+              Exportar CSV
+            </button>
+          ) : null}
           {canDelete ? (
             <button
               type="button"
@@ -157,6 +169,16 @@ export function PlayersBulkBar({
           >
             Mover
           </button>
+          {onExport ? (
+            <button
+              type="button"
+              className="inline-flex min-h-8 cursor-pointer touch-manipulation items-center rounded-full border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)] disabled:opacity-60"
+              disabled={pending}
+              onClick={onExport}
+            >
+              CSV
+            </button>
+          ) : null}
           {canDelete ? (
             <button
               type="button"
