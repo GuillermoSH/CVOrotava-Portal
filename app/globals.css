@@ -82,7 +82,7 @@
   --shell-dock-offset: calc(
     var(--shell-dock-height) + max(0.25rem, env(safe-area-inset-bottom, 0px))
   );
-  /* Reserva scroll sobre la barra de acciones (una fila) */
+  /* Reserva de respaldo (SSR / antes de medir); la barra publica --clothing-sticky-bar-measured */
   --clothing-sticky-bar-height: 4.25rem;
   --clothing-sticky-bar-height-tall: 8.75rem;
   --clothing-sticky-bar-height-bulk: 10.5rem;
@@ -944,15 +944,15 @@ textarea.form-input {
 
 @media (max-width: 767px) {
   .clothing-page-with-sticky {
-    padding-bottom: calc(var(--clothing-sticky-bar-height) + 0.35rem);
+    padding-bottom: calc(var(--clothing-sticky-bar-measured, var(--clothing-sticky-bar-height)) + 0.35rem);
   }
 
   .clothing-page-with-sticky--tall {
-    padding-bottom: calc(var(--clothing-sticky-bar-height-tall) + 0.35rem);
+    padding-bottom: calc(var(--clothing-sticky-bar-measured, var(--clothing-sticky-bar-height-tall)) + 0.35rem);
   }
 
   .clothing-page-with-sticky--bulk {
-    padding-bottom: calc(var(--clothing-sticky-bar-height-bulk) + 0.35rem);
+    padding-bottom: calc(var(--clothing-sticky-bar-measured, var(--clothing-sticky-bar-height-bulk)) + 0.35rem);
   }
 }
 

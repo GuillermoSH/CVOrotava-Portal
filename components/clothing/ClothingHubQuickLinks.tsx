@@ -1,9 +1,8 @@
 "use client";
 
-import { Boxes, ClipboardList, PackageCheck, Plus, Shirt, Warehouse } from "lucide-react";
+import { ClipboardList, PackageCheck, Warehouse } from "lucide-react";
 
 import { ClothingOpsLanes } from "@/components/clothing/ClothingOpsLanes";
-import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { appRoutes } from "@/lib/constants";
 
 const iconClass = "size-4 shrink-0";
@@ -45,40 +44,7 @@ export function ClothingHubQuickLinks({
       meta: "Proveedor y serigrafía",
       icon: <ClipboardList className={iconClass} />,
     },
-    {
-      href: appRoutes.clothing.newOrder,
-      title: "Nuevo pedido",
-      meta: "Alta a proveedor",
-      icon: <Plus className={iconClass} />,
-    },
-    {
-      href: appRoutes.clothing.products,
-      title: "Prendas",
-      meta: "Catálogo",
-      icon: <Shirt className={iconClass} />,
-    },
-    {
-      href: appRoutes.clothing.locations,
-      title: "Cajas",
-      meta: "Ubicaciones",
-      icon: <Boxes className={iconClass} />,
-    },
   ];
 
-  return (
-    <>
-      <ClothingOpsLanes lanes={lanes} />
-      <ClothingStickyActionBar
-        actions={[
-          {
-            type: "link",
-            label: pendingStorageUnits > 0 ? "Ubicar stock" : "Almacén",
-            href: warehouseHref,
-            variant: "secondary",
-          },
-          { type: "link", label: "Registrar entrega", href: appRoutes.clothing.deliveries },
-        ]}
-      />
-    </>
-  );
+  return <ClothingOpsLanes lanes={lanes} />;
 }

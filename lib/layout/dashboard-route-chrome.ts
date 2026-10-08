@@ -92,7 +92,6 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     return {
       title: "Ropa",
       subtitle: "Pedido activo, almacén y entregas.",
-      sticky: true,
       skeleton: "hub",
     };
   }
