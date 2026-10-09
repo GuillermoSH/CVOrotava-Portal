@@ -119,7 +119,7 @@ export function PlayerClothingSection({
 
       <div className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="text-sm font-semibold text-foreground">En posesión</h3>
+          <h3 className="text-base font-semibold tracking-tight text-foreground">En posesión</h3>
           <p className="text-xs tabular-nums text-muted-foreground">
             {filteredPossession.length} prenda
             {filteredPossession.length === 1 ? "" : "s"}
@@ -180,7 +180,7 @@ export function PlayerClothingSection({
 
       <div className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="text-sm font-semibold text-foreground">Historial</h3>
+          <h3 className="text-base font-semibold tracking-tight text-foreground">Historial</h3>
           <p className="text-xs tabular-nums text-muted-foreground">
             {filteredHistory.length} registro
             {filteredHistory.length === 1 ? "" : "s"}

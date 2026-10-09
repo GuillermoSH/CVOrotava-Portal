@@ -88,6 +88,11 @@ const PlayersImportSheet = dynamic(
   { ssr: false, loading: () => null },
 );
 
+const PlayersExportSheet = dynamic(
+  () => import("@/components/roster/PlayersExportSheet").then((m) => m.PlayersExportSheet),
+  { ssr: false, loading: () => null },
+);
+
 const PlayersWhatsAppSheet = dynamic(
   () => import("@/components/roster/PlayersWhatsAppSheet").then((m) => m.PlayersWhatsAppSheet),
   { ssr: false, loading: () => null },
@@ -355,6 +360,10 @@ export function PlayersPageClient({
   );
   const [pagePlayers, setPagePlayers] = useState(players);
   const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportPreferredScope, setExportPreferredScope] = useState<
+    "selected" | "filtered" | "season" | undefined
+  >(undefined);
   const [federationImportOpen, setFederationImportOpen] = useState(false);
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [whatsappPlayers, setWhatsappPlayers] = useState<PlayerListItem[]>([]);
@@ -873,6 +882,16 @@ export function PlayersPageClient({
             <button type="button" className="btn-secondary" onClick={() => setWhatsappOpen(true)}>
               WhatsApp
             </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setExportPreferredScope(undefined);
+                setExportOpen(true);
+              }}
+            >
+              Exportar CSV
+            </button>
             <button type="button" className="btn-secondary" onClick={() => setImportOpen(true)}>
               Importar Excel
             </button>
@@ -1026,6 +1045,10 @@ export function PlayersPageClient({
                   onReactivate={() => setBulkActiveIntent({ is_active: true })}
                   onMove={openBulkMove}
                   onDelete={() => setBulkDeleteOpen(true)}
+                  onExport={() => {
+                    setExportPreferredScope("selected");
+                    setExportOpen(true);
+                  }}
                   onRequestBulk={requestBulk}
                 />
               ) : null}
@@ -1182,6 +1205,10 @@ export function PlayersPageClient({
           onReactivate={() => setBulkActiveIntent({ is_active: true })}
           onMove={openBulkMove}
           onDelete={() => setBulkDeleteOpen(true)}
+          onExport={() => {
+            setExportPreferredScope("selected");
+            setExportOpen(true);
+          }}
           onRequestBulk={requestBulk}
           onMoreActions={() => setMoreActionsOpen(true)}
         />
@@ -1196,6 +1223,16 @@ export function PlayersPageClient({
                 aria-label="WhatsApp"
               >
                 <WhatsAppGlyph className="size-4" />
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-9 min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-[var(--club-border)] bg-[var(--club-surface-2)] px-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--club-surface-hover)]"
+                onClick={() => {
+                  setExportPreferredScope(undefined);
+                  setExportOpen(true);
+                }}
+              >
+                CSV
               </button>
               <button
                 type="button"
@@ -1351,6 +1388,14 @@ export function PlayersPageClient({
 
       {canWrite ? (
         <>
+          <PlayersExportSheet
+            open={exportOpen}
+            onClose={() => setExportOpen(false)}
+            selectedIds={[...selected]}
+            filteredCount={total}
+            filters={filterState}
+            preferredScope={exportPreferredScope}
+          />
           <PlayersImportSheet open={importOpen} onClose={() => setImportOpen(false)} />
           <PlayersFederationImportSheet
             open={federationImportOpen}

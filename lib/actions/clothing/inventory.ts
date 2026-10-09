@@ -8,6 +8,7 @@ import {
   applyStockReturn,
   assignJerseyNumbers,
   assignLotToLocation,
+  createManualInventoryBatch,
   createManualInventoryLot,
   getLotById,
 } from "@/lib/clothing/repository/inventory";
@@ -22,6 +23,7 @@ import {
   assignInventorySchema,
   assignJerseyNumbersSchema,
   changePlayerClothingSizeSchema,
+  createManualInventoryBatchSchema,
   createManualInventorySchema,
   deliverInventorySchema,
   returnInventorySchema,
@@ -101,6 +103,47 @@ export async function createManualInventoryLotAction(input: unknown): Promise<Ac
 
     revalidateClothing();
     return { ok: true, id: lot.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
+  }
+}
+
+export async function createManualInventoryBatchAction(input: unknown): Promise<ActionResult> {
+  try {
+    await requireClothingWriteAccess();
+    const parsed = createManualInventoryBatchSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    }
+
+    const db = await getClothingDb();
+    const { product_id, storage_location_id, notes, lines } = parsed.data;
+
+    const product = await getProductById(db, product_id);
+    if (!product) return { ok: false, error: "Prenda no encontrada" };
+    if (!product.is_active) return { ok: false, error: "La prenda no está activa" };
+
+    if (storage_location_id) {
+      const location = await getLocationById(db, storage_location_id);
+      if (!location) return { ok: false, error: "Ubicación no encontrada" };
+      if (location.location_type !== "box") {
+        return { ok: false, error: "Solo se puede asignar stock a una caja" };
+      }
+    }
+
+    const lots = await createManualInventoryBatch(db, {
+      product_id,
+      storage_location_id: storage_location_id ?? null,
+      notes,
+      lines: lines.map((line) => ({
+        size: line.size,
+        quantity: line.jersey_number == null ? line.quantity : 1,
+        jersey_number: line.jersey_number ?? null,
+      })),
+    });
+
+    revalidateClothing();
+    return { ok: true, id: lots[0]?.id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
   }

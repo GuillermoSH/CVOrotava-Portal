@@ -37,6 +37,15 @@ typography:
     fontSize: "0.6875rem"
     fontWeight: 700
     letterSpacing: "0.06em"
+  field:
+    fontFamily: "system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 600
+    letterSpacing: "0.01em"
+  group:
+    fontFamily: "system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 550
 rounded:
   xs: "0.25rem"
   sm: "0.375rem"
@@ -80,7 +89,7 @@ CVOrotava Portal is a bilingual-ready club tool with Spanish UI. Brand color is 
 
 ## Typography
 
-Operate surfaces use one workhorse sans (system UI stack). Section titles ~1rem/650; labels uppercase ~0.6875rem tracking; scores via `.ropa-digit` with tabular nums. No display/marketing faces on admin tools.
+Operate surfaces use one workhorse sans (system UI stack). Hierarchy: page `.section-title` (~1.125–1.25rem) → panel/section `.ropa-panel__title` / `.ropa-section-heading` (1rem/650) → uppercase `.ropa-section-label` (0.6875rem) → field `.form-label` and group `.ropa-group-label` (0.75rem muted) → body 0.875rem. Scores via `.ropa-digit` with tabular nums. No display/marketing faces on admin tools.
 
 ## Layout
 

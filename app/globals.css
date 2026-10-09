@@ -82,7 +82,7 @@
   --shell-dock-offset: calc(
     var(--shell-dock-height) + max(0.25rem, env(safe-area-inset-bottom, 0px))
   );
-  /* Reserva scroll sobre la barra de acciones (una fila) */
+  /* Reserva de respaldo (SSR / antes de medir); la barra publica --clothing-sticky-bar-measured */
   --clothing-sticky-bar-height: 4.25rem;
   --clothing-sticky-bar-height-tall: 8.75rem;
   --clothing-sticky-bar-height-bulk: 10.5rem;
@@ -731,13 +731,15 @@ html.dark {
 }
 
 /* ── Form controls ── */
+/* Field label: quieter than section titles / body so inputs carry the weight. */
 .form-label {
   display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 600;
   line-height: 1.25;
-  color: var(--club-fg);
-  margin-bottom: 0.375rem;
+  letter-spacing: 0.01em;
+  color: var(--club-fg-muted);
+  margin-bottom: 0.3rem;
 }
 
 .form-input {
@@ -866,6 +868,14 @@ textarea.form-input {
   -webkit-backdrop-filter: blur(16px);
 }
 
+/* Toolbar desktop — acciones de página (primario + secundarios) */
+.clothing-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
 /* Barra de acciones móvil — fija encima del dock (portal en body) */
 .clothing-sticky-bar {
   position: fixed;
@@ -934,15 +944,15 @@ textarea.form-input {
 
 @media (max-width: 767px) {
   .clothing-page-with-sticky {
-    padding-bottom: calc(var(--clothing-sticky-bar-height) + 0.35rem);
+    padding-bottom: calc(var(--clothing-sticky-bar-measured, var(--clothing-sticky-bar-height)) + 0.35rem);
   }
 
   .clothing-page-with-sticky--tall {
-    padding-bottom: calc(var(--clothing-sticky-bar-height-tall) + 0.35rem);
+    padding-bottom: calc(var(--clothing-sticky-bar-measured, var(--clothing-sticky-bar-height-tall)) + 0.35rem);
   }
 
   .clothing-page-with-sticky--bulk {
-    padding-bottom: calc(var(--clothing-sticky-bar-height-bulk) + 0.35rem);
+    padding-bottom: calc(var(--clothing-sticky-bar-measured, var(--clothing-sticky-bar-height-bulk)) + 0.35rem);
   }
 }
 
@@ -1553,10 +1563,16 @@ html.dark .club-confirm-panel {
 }
 
 .clothing-sheet-group {
+  flex-shrink: 0;
   overflow: hidden;
   border: 1px solid var(--club-border);
   border-radius: var(--radius-lg);
   background: var(--club-drawer-field-bg);
+  transition: border-color 0.15s ease;
+}
+
+.clothing-sheet-group[data-open="true"] {
+  border-color: color-mix(in srgb, var(--club-brand) 32%, var(--club-border));
 }
 
 .clothing-sheet-fold {
@@ -1575,11 +1591,29 @@ html.dark .club-confirm-panel {
   letter-spacing: -0.02em;
   color: var(--club-fg);
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .clothing-sheet-fold:hover {
   background: color-mix(in srgb, var(--club-fg) 4%, transparent);
+}
+
+.clothing-sheet-group[data-open="true"] > .clothing-sheet-fold {
+  background: var(--club-brand-soft);
+  color: var(--club-brand-strong);
+}
+
+.clothing-sheet-group[data-open="true"] > .clothing-sheet-fold:hover {
+  background: color-mix(in srgb, var(--club-brand) 18%, transparent);
+}
+
+.clothing-sheet-group[data-open="true"] .clothing-sheet-fold__count {
+  background: color-mix(in srgb, var(--club-brand) 16%, transparent);
+  color: var(--club-brand-strong);
+}
+
+.clothing-sheet-group[data-open="true"] .clothing-sheet-fold__chevron {
+  color: var(--club-brand);
 }
 
 .clothing-sheet-fold:focus-visible,
@@ -2345,6 +2379,11 @@ button.ropa-loc {
   font-variant-numeric: tabular-nums;
 }
 
+/* Rojo de marca oscuro (#e62222) queda en 4.3:1 con texto claro; se asienta hacia el fondo. */
+html.dark .ropa-board {
+  --ropa-lit-bg: color-mix(in srgb, var(--club-brand) 88%, var(--club-bg));
+}
+
 .ropa-board ::selection {
   background: color-mix(in srgb, var(--club-brand) 28%, transparent);
   color: var(--club-fg);
@@ -2388,6 +2427,82 @@ button.ropa-loc {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ropa-muted);
+}
+
+/* Secondary group under a section label (Adulto / Infantil), not a second title. */
+.ropa-group-label {
+  font-size: 0.75rem;
+  font-weight: 550;
+  line-height: 1.3;
+  color: var(--ropa-muted);
+}
+
+/* Compact size × qty chips (≤4 digits). Never nest .form-input — it forces width 100%. */
+.ropa-size-qty-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ropa-size-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 2.375rem;
+  padding: 0 0.3rem 0 0.5rem;
+  border: 1px solid var(--ropa-line);
+  border-radius: var(--radius-sm);
+  background: var(--club-surface);
+  cursor: text;
+}
+
+.ropa-size-qty__size {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ropa-ink);
+  white-space: nowrap;
+}
+
+.ropa-size-qty__input {
+  box-sizing: content-box;
+  width: 3.75ch;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0 0.15rem;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: var(--ropa-panel);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  color: var(--ropa-ink);
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.ropa-size-qty__input::-webkit-outer-spin-button,
+.ropa-size-qty__input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.ropa-size-qty__input::placeholder {
+  color: var(--ropa-muted);
+  font-weight: 500;
+}
+
+.ropa-size-qty:focus-within {
+  border-color: color-mix(in srgb, var(--club-brand) 45%, var(--ropa-line));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-brand) 18%, transparent);
+}
+
+.ropa-size-qty__input:focus {
+  background: color-mix(in srgb, var(--club-brand-soft) 55%, var(--ropa-panel));
 }
 
 .ropa-board-nav {
@@ -2509,7 +2624,7 @@ button.ropa-loc {
 .ropa-set-band--lit .ropa-set-band__body,
 .ropa-set-band--lit .ropa-set-band__score-helper,
 .ropa-set-band--lit .ropa-set-band__status-meta {
-  color: color-mix(in srgb, var(--ropa-lit-fg) 78%, transparent);
+  color: color-mix(in srgb, var(--ropa-lit-fg) 92%, transparent);
 }
 
 .ropa-set-band--lit .ropa-set-band__cta {
@@ -2742,8 +2857,19 @@ button.ropa-loc {
   border-bottom: 1px solid var(--ropa-line);
 }
 
+.ropa-panel__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--ropa-ink);
+}
+
 .ropa-panel__meta {
   font-size: 0.75rem;
+  font-weight: 450;
+  line-height: 1.3;
   color: var(--ropa-muted);
 }
 

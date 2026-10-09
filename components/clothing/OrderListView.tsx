@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/club/Table";
+import { Select } from "@/components/club/Select";
 import { TableRowInteractive } from "@/components/club/TableRowInteractive";
 import { ClothingFilterChips } from "@/components/clothing/ClothingFilterChips";
 import { ClothingOrderCard } from "@/components/clothing/ClothingOrderCard";
@@ -73,17 +74,27 @@ function OrdersEmptyState({
   );
 }
 
-/** Orden operativo: abiertos / recibidos / serigrafía primero. */
-const PRIORITY_FILTERS: (ClothingOrderStatus | "all" | "open")[] = [
-  "open",
+type OrderStatusFilter = ClothingOrderStatus | "all" | "open";
+
+const QUICK_FILTERS: { value: OrderStatusFilter; label: string }[] = [
+  { value: "open", label: "Abiertos" },
+  { value: "all", label: "Todos" },
+];
+
+/** Orden operativo: recibidos / serigrafía primero. */
+const STATUS_FILTERS: ClothingOrderStatus[] = [
   "received",
   "at_serigraphy",
-  "all",
   "draft",
   "ordered",
   "returned_from_serigraphy",
   "closed",
 ];
+
+const STATUS_FILTER_OPTIONS = STATUS_FILTERS.map((value) => ({
+  value,
+  label: ORDER_STATUS_LABELS[value],
+}));
 
 export function OrderListView({
   orders,
@@ -104,25 +115,27 @@ export function OrderListView({
     return order.status === statusFilter;
   });
 
-  const filterOptions: { value: ClothingOrderStatus | "all" | "open"; label: string }[] =
-    PRIORITY_FILTERS.map((value) => ({
-      value,
-      label:
-        value === "open"
-          ? "Abiertos"
-          : value === "all"
-            ? "Todos"
-            : ORDER_STATUS_LABELS[value],
-    }));
+  const specificStatus = QUICK_FILTERS.some((f) => f.value === statusFilter) ? "" : statusFilter;
 
   return (
     <div className="flex flex-col gap-3">
-      <ClothingFilterChips
-        options={filterOptions}
-        value={statusFilter}
-        onChange={onStatusFilterChange}
-        ariaLabel="Filtrar pedidos por estado"
-      />
+      <div className="flex items-center gap-2">
+        <ClothingFilterChips
+          options={QUICK_FILTERS}
+          value={statusFilter}
+          onChange={onStatusFilterChange}
+          ariaLabel="Filtrar pedidos"
+          className="shrink-0"
+        />
+        <Select
+          value={specificStatus}
+          onChange={(value) => onStatusFilterChange(value as ClothingOrderStatus)}
+          options={STATUS_FILTER_OPTIONS}
+          placeholder="Por estado"
+          size="compact"
+          className="min-w-0 flex-1 sm:max-w-48"
+        />
+      </div>
 
       {filtered.length === 0 ? (
         <OrdersEmptyState
@@ -166,12 +179,12 @@ export function OrderListView({
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {order.lines.slice(0, 3).map((line) => (
-                            <Badge key={line.id} variant="secondary" className="text-[10px]">
+                            <Badge key={line.id} variant="secondary" className="text-[11px]">
                               {formatOrderLineSummary(line)}
                             </Badge>
                           ))}
                           {order.lines.length > 3 ? (
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-[11px]">
                               +{order.lines.length - 3}
                             </Badge>
                           ) : null}

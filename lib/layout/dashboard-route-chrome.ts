@@ -92,7 +92,6 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     return {
       title: "Ropa",
       subtitle: "Pedido activo, almacén y entregas.",
-      sticky: true,
       skeleton: "hub",
     };
   }
@@ -112,6 +111,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Prendas",
       subtitle: "Catálogo del club. Activas = disponibles en pedidos.",
       back: { href: appRoutes.clothing.hub, label: "Ropa" },
+      sticky: true,
       skeleton: "products",
     };
   }
@@ -121,6 +121,16 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Almacén",
       subtitle: "Stock por caja. Busca prenda, talla o dorsal.",
       back: { href: appRoutes.clothing.hub, label: "Ropa" },
+      sticky: true,
+      skeleton: "warehouse",
+    };
+  }
+
+  if (pathname === appRoutes.clothing.addStock) {
+    return {
+      title: "Carga por lote",
+      subtitle: "Componer tallas o dorsales de una prenda y confirmar.",
+      back: { href: appRoutes.clothing.warehouse, label: "Almacén" },
       sticky: true,
       skeleton: "warehouse",
     };

@@ -97,7 +97,7 @@ function KanbanColumn({
       className={cn("ropa-kanban-col", isOver && "ropa-kanban-col--over")}
     >
       <div className="ropa-kanban-col__head">
-        <h3 className="ropa-kanban-col__title">{ORDER_STATUS_LABELS[status]}</h3>
+        <h2 className="ropa-kanban-col__title">{ORDER_STATUS_LABELS[status]}</h2>
         <p className="ropa-digit ropa-digit--md">{columnOrders.length}</p>
       </div>
       <div className="ropa-kanban-col__body">

@@ -63,7 +63,7 @@ export function OrderLinesSection({ lines }: { lines: ClothingOrderLineWithProdu
 
       <div className="glass-panel hidden gap-0 !p-0 overflow-hidden md:block">
         <div className="border-b border-[var(--club-border)] px-5 py-3">
-          <h2 className="text-sm font-semibold text-foreground">Líneas del pedido</h2>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">Líneas del pedido</h2>
         </div>
         <Table>
           <TableHeader>

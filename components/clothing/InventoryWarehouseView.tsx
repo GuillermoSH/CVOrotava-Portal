@@ -49,8 +49,8 @@ export function InventoryWarehouseView({
             <Plus className="size-4" aria-hidden />
             Añadir stock
           </button>
-          <Link href={appRoutes.clothing.deliveries} className="btn-secondary inline-flex">
-            Registrar entrega
+          <Link href={appRoutes.clothing.addStock} className="btn-secondary inline-flex">
+            Carga por lote
           </Link>
           <Link href={appRoutes.clothing.locations} className="btn-secondary inline-flex">
             Cajas
@@ -59,6 +59,12 @@ export function InventoryWarehouseView({
       }
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 md:hidden">
+        <Link
+          href={appRoutes.clothing.addStock}
+          className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-brand"
+        >
+          Carga por lote
+        </Link>
         <Link
           href={appRoutes.clothing.deliveries}
           className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-brand"

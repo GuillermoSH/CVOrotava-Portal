@@ -419,6 +419,36 @@ export async function getPlayerById(
   return { ...player, contacts };
 }
 
+/** Ficha completa + contactos para exportación / lotes (misma temporada). */
+export async function listPlayersWithDetailsByIds(
+  db: RosterDb,
+  ids: string[],
+  season: string = getCurrentSeason(),
+): Promise<PlayerWithDetails[]> {
+  if (ids.length === 0) return [];
+
+  const { data, error } = await db
+    .from("players")
+    .select(PLAYER_DETAIL_SELECT)
+    .eq("season", season)
+    .in("id", ids)
+    .order("first_name", { ascending: true })
+    .order("last_name", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (error) throw new Error(dbErrorMessage(error));
+  const players = (data ?? []).map((row) => mapPlayerWithTeam(row as PlayerRow));
+  const contacts = await listContactsForPlayers(
+    db,
+    players.map((player) => player.id),
+  );
+
+  return players.map((player) => ({
+    ...player,
+    contacts: contacts.filter((contact) => contact.player_id === player.id),
+  }));
+}
+
 async function replaceContacts(
   db: RosterDb,
   playerId: string,

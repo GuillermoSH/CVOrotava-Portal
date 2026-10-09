@@ -171,9 +171,9 @@ export function DeliveryHistory({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 className="section-title">Historial</h2>
+        <h2 className="ropa-section-heading">Historial</h2>
         <p className="text-xs text-muted-foreground tabular-nums">
-          {filtered.length} registro{filtered.length === 1 ? "" : "s"}
+          {`${filtered.length} ${filtered.length === 1 ? "registro" : "registros"}`}
         </p>
       </div>
 
