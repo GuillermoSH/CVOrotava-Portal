@@ -111,13 +111,28 @@ export function matrixCell(row: PlayerFeeRow, column: MatrixColumn): MatrixCell 
   return cellFrom(obligation, payments);
 }
 
+/** Fecha de cobro (ISO) más reciente entre los cobros de una celda, o null. */
+export function lastPaymentDate(payments: readonly PlayerPaymentFact[]): string | null {
+  let latest: string | null = null;
+  for (const p of payments) {
+    if (p.paid_date && (latest === null || p.paid_date > latest)) latest = p.paid_date;
+  }
+  return latest;
+}
+
+/** `2026-10-13` → `13/10`; vacío si no hay fecha válida. */
+export function formatShortDate(iso: string | null): string {
+  const match = iso ? /^\d{4}-(\d{2})-(\d{2})/.exec(iso) : null;
+  return match ? `${match[2]}/${match[1]}` : "";
+}
+
 /** Firma de lo que se pinta en una fila: permite saltarse el re-render si no cambió. */
 export function rowCellsSignature(cells: readonly MatrixCell[]): string {
   return cells
     .map((cell) =>
       cell.kind === "none"
         ? "-"
-        : `${cell.kind}:${cell.obligation?.paid ?? 0}:${cell.obligation?.remaining ?? 0}:${methodLetters(cell.payments)}`,
+        : `${cell.kind}:${cell.obligation?.paid ?? 0}:${cell.obligation?.remaining ?? 0}:${methodLetters(cell.payments)}:${lastPaymentDate(cell.payments) ?? ""}`,
     )
     .join("|");
 }

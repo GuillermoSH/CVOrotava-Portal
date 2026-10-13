@@ -35,19 +35,32 @@ export function MethodMark({
   );
 }
 
-/** Pinta "T", "E" o "T+E" (salida de `methodLetters`) con sus iconos. */
+/**
+ * Pinta "T", "E" o "T+E" (salida de `methodLetters`). Un método: icono grande + letra;
+ * los dos a la vez: solo iconos, para que quepan en la celda.
+ */
 export function MethodLetters({ letters }: { letters: string }) {
   const parts = letters.split("+").filter(Boolean);
   if (parts.length === 0) return null;
+
+  if (parts.length > 1) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        {parts.map((letter) => (
+          <MethodIcon
+            key={letter}
+            method={letter === "E" ? "efectivo" : "transferencia"}
+            className="size-[1.125rem]"
+          />
+        ))}
+      </span>
+    );
+  }
+
   return (
-    <span className="inline-flex items-center gap-1.5">
-      {parts.map((letter) => (
-        <MethodMark
-          key={letter}
-          method={letter === "E" ? "efectivo" : "transferencia"}
-          iconClassName="size-3"
-        />
-      ))}
-    </span>
+    <MethodMark
+      method={parts[0] === "E" ? "efectivo" : "transferencia"}
+      iconClassName="size-[1.125rem]"
+    />
   );
 }

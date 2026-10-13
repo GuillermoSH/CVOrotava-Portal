@@ -23,6 +23,8 @@ import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/payments/consta
 import {
   buildRowCells,
   columnsProgress,
+  formatShortDate,
+  lastPaymentDate,
   matrixCell,
   methodLetters,
   rowCellsSignature,
@@ -68,8 +70,10 @@ function cellAriaLabel(row: PlayerFeeRow, column: MatrixColumn, cell: MatrixCell
 
 type ActiveCell = { rowId: string; columnKey: string; anchor: DOMRect };
 
-/** rowId → columnKey → letra pintada mientras el servidor confirma. */
-type OptimisticCells = ReadonlyMap<string, ReadonlyMap<string, string>>;
+type OptimisticMark = { letter: string; date: string };
+
+/** rowId → columnKey → marca pintada mientras el servidor confirma. */
+type OptimisticCells = ReadonlyMap<string, ReadonlyMap<string, OptimisticMark>>;
 
 type Optimistic = {
   rows: readonly PlayerFeeRow[];
@@ -283,7 +287,7 @@ type MatrixRowProps = {
   /** Firma de columnas + celdas: sin cambios de contenido, la fila no se vuelve a pintar. */
   signature: string;
   selected: boolean;
-  optimistic: ReadonlyMap<string, string> | undefined;
+  optimistic: ReadonlyMap<string, OptimisticMark> | undefined;
   activeColumnKey: string | null;
   onToggleSelect: (id: string) => void;
   onOpenCell: (row: PlayerFeeRow, column: MatrixColumn, element: HTMLElement) => void;
@@ -333,13 +337,28 @@ const MatrixRow = memo(
             );
           }
 
-          const pendingLetter = optimistic?.get(column.key);
+          const pendingMark = optimistic?.get(column.key);
+          const pendingLetter = pendingMark?.letter;
           const kind = pendingLetter ? "paid" : cell.kind;
           let content: ReactNode;
-          if (pendingLetter) content = <MethodLetters letters={pendingLetter} />;
-          else if (cell.kind === "paid") {
+          if (pendingMark) {
+            content = (
+              <span className="pay-cell__stack">
+                <MethodLetters letters={pendingMark.letter} />
+                <span className="pay-cell__date">{formatShortDate(pendingMark.date)}</span>
+              </span>
+            );
+          } else if (cell.kind === "paid") {
             const letters = methodLetters(cell.payments);
-            content = letters ? <MethodLetters letters={letters} /> : "✓";
+            const date = formatShortDate(lastPaymentDate(cell.payments));
+            content = letters ? (
+              <span className="pay-cell__stack">
+                <MethodLetters letters={letters} />
+                {date ? <span className="pay-cell__date">{date}</span> : null}
+              </span>
+            ) : (
+              "✓"
+            );
           }
           else if (cell.kind === "partial") content = formatEuros(cell.obligation?.paid ?? 0);
           else if (cell.kind === "due") content = formatEuros(cell.obligation?.remaining ?? 0);
@@ -456,14 +475,14 @@ export function PaymentMatrix({
     [],
   );
 
-  function mark(rowId: string, columnKey: string, letter: string | null) {
+  function mark(rowId: string, columnKey: string, value: OptimisticMark | null) {
     setOptimistic((prev) => {
-      const next = new Map<string, Map<string, string>>();
+      const next = new Map<string, Map<string, OptimisticMark>>();
       if (prev && prev.rows === rows) {
         for (const [id, cols] of prev.cells) next.set(id, new Map(cols));
       }
-      const cols = next.get(rowId) ?? new Map<string, string>();
-      if (letter) cols.set(columnKey, letter);
+      const cols = next.get(rowId) ?? new Map<string, OptimisticMark>();
+      if (value) cols.set(columnKey, value);
       else cols.delete(columnKey);
       if (cols.size > 0) next.set(rowId, cols);
       else next.delete(rowId);
@@ -478,7 +497,10 @@ export function PaymentMatrix({
     const obligation = activeCell.obligation;
     setLastMethod(method);
     setActive(null);
-    mark(row.id, column.key, method === "transferencia" ? "T" : "E");
+    mark(row.id, column.key, {
+      letter: method === "transferencia" ? "T" : "E",
+      date: sessionDate,
+    });
 
     startTransition(async () => {
       const result = await registerPaymentAction({
