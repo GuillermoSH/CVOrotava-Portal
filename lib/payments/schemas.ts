@@ -42,6 +42,15 @@ export const registerBulkPaymentsSchema = z.object({
 
 export type RegisterBulkPaymentsInput = z.infer<typeof registerBulkPaymentsSchema>;
 
+export const updatePaymentMethodSchema = z.object({
+  id: z.string().uuid("Cobro no válido"),
+  method: z.enum(PAYMENT_METHODS),
+});
+
+export const deletePaymentSchema = z.object({
+  id: z.string().uuid("Cobro no válido"),
+});
+
 const seasonSchema = z.string().trim().regex(/^\d{4}-\d{2}$/, "Temporada no válida");
 
 export const feeAudienceSchema = z.enum(["base", "senior", "aficionados"]);

@@ -29,9 +29,12 @@ export async function listPlayerIdsWithPaidMatricula(
 }
 
 export type SeasonPaymentFacts = {
+  id: string;
   player_id: string;
   amount: number;
   status: string;
+  method: string | null;
+  paid_date: string | null;
   fee_code: string | null;
   billing_month: number | null;
 };
@@ -48,7 +51,7 @@ export async function listSeasonPaymentFacts(
   for (let from = 0; ; from += SEASON_PAYMENTS_PAGE) {
     const { data, error } = await db
       .from("payments")
-      .select("player_id, amount, status, fee_code, billing_month")
+      .select("id, player_id, amount, status, method, paid_date, fee_code, billing_month")
       .eq("season", season)
       .eq("status", "paid")
       .not("player_id", "is", null)
@@ -62,9 +65,12 @@ export async function listSeasonPaymentFacts(
       const playerId = row.player_id as string;
       const list = byPlayer.get(playerId) ?? [];
       list.push({
+        id: row.id as string,
         player_id: playerId,
         amount: typeof row.amount === "string" ? Number(row.amount) : (row.amount as number),
         status: row.status as string,
+        method: (row.method as string | null) ?? null,
+        paid_date: (row.paid_date as string | null) ?? null,
         fee_code: (row.fee_code as string | null) ?? null,
         billing_month: (row.billing_month as number | null) ?? null,
       });
@@ -151,4 +157,28 @@ export async function createPayments(
 
   if (error) throw new Error(dbErrorMessage(error));
   return (data ?? []).map((row) => mapPayment(row as PaymentRow));
+}
+
+/** Cambia el método de un cobro anotado desde el Portal (RLS limita a filas con method). */
+export async function updatePaymentMethod(
+  db: PaymentsDb,
+  id: string,
+  method: string,
+): Promise<void> {
+  const { data, error } = await db
+    .from("payments")
+    .update({ method, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("id");
+
+  if (error) throw new Error(dbErrorMessage(error));
+  if (!data || data.length === 0) throw new Error("No se pudo modificar este cobro");
+}
+
+/** Anula un cobro anotado desde el Portal (RLS limita a filas con method). */
+export async function deletePayment(db: PaymentsDb, id: string): Promise<void> {
+  const { data, error } = await db.from("payments").delete().eq("id", id).select("id");
+
+  if (error) throw new Error(dbErrorMessage(error));
+  if (!data || data.length === 0) throw new Error("No se pudo anular este cobro");
 }

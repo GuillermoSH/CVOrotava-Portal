@@ -4,21 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
-import { Badge } from "@/components/club/Badge";
 import { FormDate, FormInput, FormSelect, FormTextarea } from "@/components/club/forms";
 import { Input } from "@/components/club/Input";
 import { Label } from "@/components/club/Label";
 import { SegmentedControl } from "@/components/club/SegmentedControl";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/club/Table";
-import { TableActionsCell, TableTextAction } from "@/components/club/TableActions";
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
+import { PaymentMatrix } from "@/components/payments/PaymentMatrix";
 import {
   registerBulkPaymentsAction,
   registerPaymentAction,
@@ -30,13 +21,12 @@ import {
   PAYMENT_METHOD_LABELS,
 } from "@/lib/payments/constants";
 import {
-  formatMonthGroup,
   monthName,
   obligationConcept,
   openObligations,
-  summarizeObligations,
   type FeeObligation,
 } from "@/lib/payments/fees";
+import { buildMatrixColumns } from "@/lib/payments/matrix";
 import type { PlayerFeeRow } from "@/lib/payments/player-fee-rows";
 import { appToast } from "@/lib/toast";
 
@@ -86,63 +76,6 @@ function obligationOptionLabel(o: FeeObligation): string {
 function sortOpen(obligations: readonly FeeObligation[]): FeeObligation[] {
   const open = openObligations(obligations);
   return [...open.filter((o) => o.overdue), ...open.filter((o) => !o.overdue)];
-}
-
-function PendingCell({ row }: { row: PlayerFeeRow }) {
-  if (!row.audience) {
-    return (
-      <Badge variant="secondary" className="text-[11px]">
-        Sin categoría
-      </Badge>
-    );
-  }
-  if (row.obligations.length === 0) {
-    return <span className="text-xs text-muted-foreground">Sin tarifa</span>;
-  }
-
-  const summary = summarizeObligations(row.obligations);
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {!summary.hasOverdue ? (
-        <Badge variant="success" className="text-[11px]">
-          Al día
-        </Badge>
-      ) : null}
-      {summary.overdueOnce.map((o) => (
-        <Badge key={o.key} variant="warning" className="text-[11px]">
-          {o.label}
-        </Badge>
-      ))}
-      {summary.overdueMonthly.map((group) => (
-        <Badge
-          key={`overdue-${group.code}`}
-          variant="warning"
-          className="text-[11px]"
-          title={`${group.label}: ${group.months.map(monthName).join(", ")}`}
-        >
-          {formatMonthGroup(group.months)}
-        </Badge>
-      ))}
-      {summary.upcomingMonthly.map((group) => (
-        <Badge
-          key={`upcoming-${group.code}`}
-          variant="secondary"
-          className="text-[11px]"
-          title={`Por llegar — ${group.label}: ${group.months.map(monthName).join(", ")}`}
-        >
-          {formatMonthGroup(group.months)}
-        </Badge>
-      ))}
-      {row.unassigned.count > 0 ? (
-        <span
-          className="text-[11px] text-muted-foreground"
-          title="Cobros anotados que no cierran ningún mes ni concepto de la tarifa"
-        >
-          {row.unassigned.count} cobro{row.unassigned.count === 1 ? "" : "s"} sin mes
-        </span>
-      ) : null}
-    </div>
-  );
 }
 
 function CommonPaymentFields({
@@ -213,6 +146,7 @@ export function PlayersPaymentsPageClient({
 
   const [query, setQuery] = useState("");
   const [onlyPending, setOnlyPending] = useState(false);
+  const [sessionDate, setSessionDate] = useState(todayIso);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
 
@@ -242,6 +176,8 @@ export function PlayersPaymentsPageClient({
       return [row.full_name, row.team_name ?? ""].join(" ").toLowerCase().includes(q);
     });
   }, [rows, query, onlyPending, overdueIds]);
+
+  const columns = useMemo(() => buildMatrixColumns(visibleRows), [visibleRows]);
 
   const allVisibleSelected =
     visibleRows.length > 0 && visibleRows.every((row) => selected.has(row.id));
@@ -573,6 +509,16 @@ export function PlayersPaymentsPageClient({
             aria-label="Buscar jugador"
             className="min-h-11 sm:max-w-xs"
           />
+          <label className="flex w-fit items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Fecha de cobro</span>
+            <input
+              type="date"
+              value={sessionDate}
+              onChange={(e) => setSessionDate(e.target.value || todayIso())}
+              className="min-h-11 rounded-lg border border-[var(--club-border)] bg-[var(--club-surface)] px-2.5 text-sm"
+              aria-label="Fecha de cobro de esta sesión"
+            />
+          </label>
           <label className="flex w-fit cursor-pointer items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -625,78 +571,39 @@ export function PlayersPaymentsPageClient({
           </div>
         ) : (
           <>
-            <div className="flex flex-col gap-2.5 md:hidden">
-              {visibleRows.map((row) => (
-                <div key={row.id} className="clothing-list-card flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="size-4 shrink-0 rounded border-[var(--club-border)] accent-brand"
-                    checked={selected.has(row.id)}
-                    onChange={() => toggleSelect(row.id)}
-                    aria-label={`Seleccionar ${row.full_name}`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-foreground">{row.full_name}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {row.team_name ?? "Sin equipo"}
-                    </p>
-                    <div className="mt-1.5">
-                      <PendingCell row={row} />
-                    </div>
-                  </div>
-                  <TableTextAction label="Registrar pago" onClick={() => openRegister(row)} />
-                </div>
-              ))}
-            </div>
-
-            <div className="hidden md:block">
-              <div className="glass-panel overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">
-                        <span className="sr-only">Seleccionar</span>
-                      </TableHead>
-                      <TableHead>Jugador</TableHead>
-                      <TableHead>Equipo</TableHead>
-                      <TableHead>Pendiente</TableHead>
-                      <TableHead className="club-table__actions">
-                        <span className="sr-only">Acciones</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visibleRows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            className="size-4 rounded border-[var(--club-border)] accent-brand"
-                            checked={selected.has(row.id)}
-                            onChange={() => toggleSelect(row.id)}
-                            aria-label={`Seleccionar ${row.full_name}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <p className="club-table__primary">{row.full_name}</p>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {row.team_name ?? "Sin equipo"}
-                        </TableCell>
-                        <TableCell>
-                          <PendingCell row={row} />
-                        </TableCell>
-                        <TableActionsCell>
-                          <TableTextAction
-                            label="Registrar pago"
-                            onClick={() => openRegister(row)}
-                          />
-                        </TableActionsCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+            <PaymentMatrix
+              rows={visibleRows}
+              columns={columns}
+              selected={selected}
+              allSelected={allVisibleSelected}
+              someSelected={someVisibleSelected}
+              onToggleSelect={toggleSelect}
+              onToggleAll={toggleSelectAllVisible}
+              sessionDate={sessionDate}
+              onOther={openRegister}
+              selectAllRef={selectAllRef}
+            />
+            <div className="pay-legend" aria-label="Leyenda de la matriz">
+              <span className="pay-legend__item">
+                <span className="pay-cell pay-cell--paid">T</span>
+                transferencia
+              </span>
+              <span className="pay-legend__item">
+                <span className="pay-cell pay-cell--paid">E</span>
+                efectivo
+              </span>
+              <span className="pay-legend__item">
+                <span className="pay-cell pay-cell--partial">10</span>
+                parcial
+              </span>
+              <span className="pay-legend__item">
+                <span className="pay-cell pay-cell--due">25</span>
+                vencido
+              </span>
+              <span className="pay-legend__item">
+                <span className="pay-cell pay-cell--upcoming">·</span>
+                por llegar
+              </span>
             </div>
           </>
         )}
