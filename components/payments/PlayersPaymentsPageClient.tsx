@@ -29,108 +29,139 @@ import {
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
 } from "@/lib/payments/constants";
-import { pickDefaultConceptId } from "@/lib/payments/concept-selection";
-import type { PaymentConcept, PlayerListItem } from "@/lib/types/db";
+import {
+  formatMonthGroup,
+  monthName,
+  obligationConcept,
+  openObligations,
+  summarizeObligations,
+  type FeeObligation,
+} from "@/lib/payments/fees";
+import type { PlayerFeeRow } from "@/lib/payments/player-fee-rows";
 import { appToast } from "@/lib/toast";
 
-type PaymentFieldsState = {
-  /** id de payment_concepts, o OTHER_CONCEPT_VALUE para concepto/importe libres. */
-  selectedConceptId: string;
-  concept: string;
-  amount: string;
+type CommonFields = {
   paid_date: string;
   method: (typeof PAYMENT_METHODS)[number];
   notes: string;
 };
 
-type SingleFormState = PaymentFieldsState & { playerId: string; playerName: string };
+type SingleForm = CommonFields & {
+  playerId: string;
+  playerName: string;
+  /** key de la obligación elegida, u OTHER_CONCEPT_VALUE. */
+  selectedKey: string;
+  customConcept: string;
+  amount: string;
+};
+
+type BulkForm = CommonFields & {
+  /** code de la línea elegida, u OTHER_CONCEPT_VALUE. */
+  lineCode: string;
+  month: string;
+  customConcept: string;
+  /** Importe único opcional; vacío = cada jugador paga su resto. */
+  amount: string;
+};
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function emptyPaymentFields(defaultConceptId: string, concepts: PaymentConcept[]): PaymentFieldsState {
-  const match = concepts.find((c) => c.id === defaultConceptId);
-  return {
-    selectedConceptId: defaultConceptId,
-    concept: match?.concept ?? "",
-    amount: match ? String(match.amount) : "",
-    paid_date: todayIso(),
-    method: "transferencia",
-    notes: "",
-  };
+function formatEuros(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2).replace(".", ",")} €`;
 }
 
-function applyConceptSelection(
-  id: string,
-  concepts: PaymentConcept[],
-  prev: PaymentFieldsState,
-): PaymentFieldsState {
-  if (id === OTHER_CONCEPT_VALUE) return { ...prev, selectedConceptId: id, concept: "" };
-  const match = concepts.find((c) => c.id === id);
-  return {
-    ...prev,
-    selectedConceptId: id,
-    concept: match?.concept ?? "",
-    amount: match ? String(match.amount) : prev.amount,
-  };
+function parseAmount(raw: string): number {
+  return Number(raw.replace(",", "."));
 }
 
-/** Campos compartidos entre el formulario individual y el registro en bloque. */
-function PaymentFormFields({
+function obligationOptionLabel(o: FeeObligation): string {
+  const partial = o.paid > 0 ? " · resto" : "";
+  return `${obligationConcept(o)} — ${formatEuros(o.remaining)}${partial}`;
+}
+
+/** Vencidas primero (ya vienen en orden de tarifa), luego los meses por llegar. */
+function sortOpen(obligations: readonly FeeObligation[]): FeeObligation[] {
+  const open = openObligations(obligations);
+  return [...open.filter((o) => o.overdue), ...open.filter((o) => !o.overdue)];
+}
+
+function PendingCell({ row }: { row: PlayerFeeRow }) {
+  if (!row.audience) {
+    return (
+      <Badge variant="secondary" className="text-[11px]">
+        Sin categoría
+      </Badge>
+    );
+  }
+  if (row.obligations.length === 0) {
+    return <span className="text-xs text-muted-foreground">Sin tarifa</span>;
+  }
+
+  const summary = summarizeObligations(row.obligations);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {!summary.hasOverdue ? (
+        <Badge variant="success" className="text-[11px]">
+          Al día
+        </Badge>
+      ) : null}
+      {summary.overdueOnce.map((o) => (
+        <Badge key={o.key} variant="warning" className="text-[11px]">
+          {o.label}
+        </Badge>
+      ))}
+      {summary.overdueMonthly.map((group) => (
+        <Badge
+          key={`overdue-${group.code}`}
+          variant="warning"
+          className="text-[11px]"
+          title={`${group.label}: ${group.months.map(monthName).join(", ")}`}
+        >
+          {formatMonthGroup(group.months)}
+        </Badge>
+      ))}
+      {summary.upcomingMonthly.map((group) => (
+        <Badge
+          key={`upcoming-${group.code}`}
+          variant="secondary"
+          className="text-[11px]"
+          title={`Por llegar — ${group.label}: ${group.months.map(monthName).join(", ")}`}
+        >
+          {formatMonthGroup(group.months)}
+        </Badge>
+      ))}
+      {row.unassigned.count > 0 ? (
+        <span
+          className="text-[11px] text-muted-foreground"
+          title="Cobros anotados que no cierran ningún mes ni concepto de la tarifa"
+        >
+          {row.unassigned.count} cobro{row.unassigned.count === 1 ? "" : "s"} sin mes
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function CommonPaymentFields({
   idPrefix,
   fields,
-  concepts,
-  conceptOptions,
   onChange,
 }: {
   idPrefix: string;
-  fields: PaymentFieldsState;
-  concepts: PaymentConcept[];
-  conceptOptions: { value: string; label: string }[];
-  onChange: (next: PaymentFieldsState) => void;
+  fields: CommonFields;
+  onChange: (next: Partial<CommonFields>) => void;
 }) {
-  const amountLocked = fields.selectedConceptId !== OTHER_CONCEPT_VALUE;
   return (
-    <div className="flex flex-col gap-4">
-      <FormSelect
-        label="Concepto"
-        name={`${idPrefix}-concept`}
-        id={`${idPrefix}-concept`}
-        value={fields.selectedConceptId}
-        onChange={(e) => onChange(applyConceptSelection(e.target.value, concepts, fields))}
-        options={conceptOptions}
-      />
-      {fields.selectedConceptId === OTHER_CONCEPT_VALUE ? (
-        <FormInput
-          label="Concepto (texto libre)"
-          name={`${idPrefix}-concept-custom`}
-          id={`${idPrefix}-concept-custom`}
-          className="min-h-11"
-          value={fields.concept}
-          onChange={(e) => onChange({ ...fields, concept: e.target.value })}
-          placeholder="Ej. Material de temporada"
-        />
-      ) : null}
-      <FormInput
-        label="Importe (€)"
-        name={`${idPrefix}-amount`}
-        id={`${idPrefix}-amount`}
-        type="number"
-        min="0"
-        step="0.01"
-        className="min-h-11"
-        value={fields.amount}
-        onChange={(e) => onChange({ ...fields, amount: e.target.value })}
-        placeholder="45"
-        disabled={amountLocked}
-      />
+    <>
       <FormDate
         label="Fecha de cobro"
         name={`${idPrefix}-paid-date`}
         id={`${idPrefix}-paid-date`}
         value={fields.paid_date}
-        onChange={(e) => onChange({ ...fields, paid_date: e.target.value })}
+        onChange={(e) => onChange({ paid_date: e.target.value })}
       />
       <div className="flex flex-col gap-1.5">
         <Label className="text-sm font-medium text-foreground">Método</Label>
@@ -139,7 +170,7 @@ function PaymentFormFields({
           fullWidth
           value={fields.method}
           options={PAYMENT_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }))}
-          onChange={(value) => onChange({ ...fields, method: value })}
+          onChange={(value) => onChange({ method: value })}
         />
       </div>
       <FormTextarea
@@ -148,64 +179,72 @@ function PaymentFormFields({
         id={`${idPrefix}-notes`}
         className="min-h-[4.5rem] resize-none"
         value={fields.notes}
-        onChange={(e) => onChange({ ...fields, notes: e.target.value })}
+        onChange={(e) => onChange({ notes: e.target.value })}
         placeholder="Opcional"
         rows={2}
       />
+    </>
+  );
+}
+
+function ErrorBanner({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <div
+      className="rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
+      role="alert"
+    >
+      {message}
     </div>
   );
 }
 
 export function PlayersPaymentsPageClient({
-  players,
+  rows,
   season,
-  matriculaPaidPlayerIds,
-  paymentConcepts,
+  hasFees,
 }: {
-  players: PlayerListItem[];
+  rows: PlayerFeeRow[];
   season: string;
-  matriculaPaidPlayerIds: string[];
-  paymentConcepts: PaymentConcept[];
+  hasFees: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const paidSet = useMemo(() => new Set(matriculaPaidPlayerIds), [matriculaPaidPlayerIds]);
 
   const [query, setQuery] = useState("");
-  const [onlyMissing, setOnlyMissing] = useState(false);
+  const [onlyPending, setOnlyPending] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState<SingleFormState | null>(null);
+  const [form, setForm] = useState<SingleForm | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkFields, setBulkFields] = useState<PaymentFieldsState | null>(null);
+  const [bulk, setBulk] = useState<BulkForm | null>(null);
   const [bulkError, setBulkError] = useState<string | null>(null);
 
-  const conceptOptions = useMemo(
-    () => [
-      ...paymentConcepts.map((c) => ({ value: c.id, label: `${c.concept} — ${c.amount} €` })),
-      { value: OTHER_CONCEPT_VALUE, label: "Otro" },
-    ],
-    [paymentConcepts],
-  );
+  const rowById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
 
-  const visiblePlayers = useMemo(() => {
+  const overdueIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of rows) {
+      if (row.obligations.some((o) => o.overdue && o.remaining > 0)) ids.add(row.id);
+    }
+    return ids;
+  }, [rows]);
+
+  const visibleRows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return players.filter((p) => {
-      if (onlyMissing && paidSet.has(p.id)) return false;
+    return rows.filter((row) => {
+      if (onlyPending && !overdueIds.has(row.id)) return false;
       if (!q) return true;
-      const haystack = [p.full_name, p.team?.name ?? ""].join(" ").toLowerCase();
-      return haystack.includes(q);
+      return [row.full_name, row.team_name ?? ""].join(" ").toLowerCase().includes(q);
     });
-  }, [players, query, onlyMissing, paidSet]);
-
-  const missingCount = players.filter((p) => !paidSet.has(p.id)).length;
+  }, [rows, query, onlyPending, overdueIds]);
 
   const allVisibleSelected =
-    visiblePlayers.length > 0 && visiblePlayers.every((p) => selected.has(p.id));
+    visibleRows.length > 0 && visibleRows.every((row) => selected.has(row.id));
   const selectedCount = selected.size;
   const hasSelection = selectedCount > 0;
   const someVisibleSelected = hasSelection && !allVisibleSelected;
@@ -227,41 +266,78 @@ export function PlayersPaymentsPageClient({
     setSelected((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) {
-        for (const p of visiblePlayers) next.delete(p.id);
+        for (const row of visibleRows) next.delete(row.id);
       } else {
-        for (const p of visiblePlayers) next.add(p.id);
+        for (const row of visibleRows) next.add(row.id);
       }
       return next;
     });
   }
 
-  function openRegister(player: PlayerListItem) {
-    const defaultId = pickDefaultConceptId(paymentConcepts, player);
+  /* ───────────── Registro individual ───────────── */
+
+  const formOptions = useMemo(() => {
+    if (!form) return [];
+    const row = rowById.get(form.playerId);
+    return row ? sortOpen(row.obligations) : [];
+  }, [form, rowById]);
+
+  const formConceptOptions = useMemo(
+    () => [
+      ...formOptions.map((o) => ({ value: o.key, label: obligationOptionLabel(o) })),
+      { value: OTHER_CONCEPT_VALUE, label: "Otro" },
+    ],
+    [formOptions],
+  );
+
+  const selectedObligation = form
+    ? (formOptions.find((o) => o.key === form.selectedKey) ?? null)
+    : null;
+
+  function openRegister(row: PlayerFeeRow) {
+    const first = sortOpen(row.obligations)[0] ?? null;
     setForm({
-      playerId: player.id,
-      playerName: player.full_name,
-      ...emptyPaymentFields(defaultId, paymentConcepts),
+      playerId: row.id,
+      playerName: row.full_name,
+      selectedKey: first?.key ?? OTHER_CONCEPT_VALUE,
+      customConcept: "",
+      amount: first ? String(first.remaining) : "",
+      paid_date: todayIso(),
+      method: "transferencia",
+      notes: "",
     });
     setFormError(null);
     setFormOpen(true);
   }
 
+  function changeSingleConcept(key: string) {
+    setForm((f) => {
+      if (!f) return f;
+      if (key === OTHER_CONCEPT_VALUE) return { ...f, selectedKey: key, amount: "" };
+      const match = formOptions.find((o) => o.key === key);
+      return { ...f, selectedKey: key, amount: match ? String(match.remaining) : f.amount };
+    });
+  }
+
   function submit() {
     if (!form) return;
-    const concept = form.concept.trim();
+    const concept = selectedObligation
+      ? obligationConcept(selectedObligation)
+      : form.customConcept.trim();
     if (!concept) {
       setFormError("Indica el concepto");
       return;
     }
-    const amountNumber = Number(form.amount.replace(",", "."));
     startTransition(async () => {
       const result = await registerPaymentAction({
         player_id: form.playerId,
         concept,
-        amount: amountNumber,
+        amount: parseAmount(form.amount),
         paid_date: form.paid_date,
         method: form.method,
         notes: form.notes.trim() || undefined,
+        fee_code: selectedObligation?.code ?? null,
+        billing_month: selectedObligation?.month ?? null,
       });
       if (!result.ok) {
         setFormError(result.error);
@@ -274,31 +350,166 @@ export function PlayersPaymentsPageClient({
     });
   }
 
+  /* ───────────── Registro en bloque ───────────── */
+
+  /** Líneas (code) con algo abierto entre los seleccionados, en orden de aparición. */
+  const bulkLines = useMemo(() => {
+    const lines = new Map<string, { code: string; label: string; kind: "once" | "monthly" }>();
+    for (const id of selected) {
+      const row = rowById.get(id);
+      if (!row) continue;
+      for (const o of sortOpen(row.obligations)) {
+        if (!lines.has(o.code)) lines.set(o.code, { code: o.code, label: o.label, kind: o.kind });
+      }
+    }
+    return [...lines.values()];
+  }, [selected, rowById]);
+
+  const bulkMonths = useMemo(() => {
+    if (!bulk) return [];
+    const months = new Set<number>();
+    for (const id of selected) {
+      const row = rowById.get(id);
+      if (!row) continue;
+      for (const o of openObligations(row.obligations)) {
+        if (o.code === bulk.lineCode && o.month != null) months.add(o.month);
+      }
+    }
+    return [...months];
+  }, [bulk, selected, rowById]);
+
+  const bulkLine = bulk ? (bulkLines.find((l) => l.code === bulk.lineCode) ?? null) : null;
+
+  /** Qué anotaría cada jugador seleccionado con la línea (y mes) elegidos. */
+  const bulkPlan = useMemo(() => {
+    if (!bulk || !bulkLine) return null;
+    const month = bulkLine.kind === "monthly" ? Number(bulk.month) : null;
+    const override = bulk.amount.trim() === "" ? null : parseAmount(bulk.amount);
+    const entries: { player_id: string; amount: number }[] = [];
+    let skipped = 0;
+    let label = bulkLine.label;
+    for (const id of selected) {
+      const row = rowById.get(id);
+      const match = row?.obligations.find(
+        (o) => o.code === bulkLine.code && o.month === month && o.remaining > 0,
+      );
+      if (!match) {
+        skipped += 1;
+        continue;
+      }
+      label = match.label;
+      entries.push({
+        player_id: id,
+        amount: override != null && Number.isFinite(override) ? override : match.remaining,
+      });
+    }
+    return { entries, skipped, month, label };
+  }, [bulk, bulkLine, selected, rowById]);
+
   function openBulkRegister() {
     if (selectedCount === 0) return;
-    const defaultId = pickDefaultConceptId(paymentConcepts, { pays_extended_monthly: false });
-    setBulkFields(emptyPaymentFields(defaultId, paymentConcepts));
+    const firstLine = bulkLines[0] ?? null;
+    let month = "";
+    if (firstLine?.kind === "monthly") {
+      const months = new Map<number, boolean>();
+      for (const id of selected) {
+        for (const o of openObligations(rowById.get(id)?.obligations ?? [])) {
+          if (o.code !== firstLine.code || o.month == null) continue;
+          months.set(o.month, (months.get(o.month) ?? false) || o.overdue);
+        }
+      }
+      const overdue = [...months.entries()].find(([, isOverdue]) => isOverdue);
+      const first = overdue?.[0] ?? [...months.keys()][0];
+      month = first != null ? String(first) : "";
+    }
+    setBulk({
+      lineCode: firstLine?.code ?? OTHER_CONCEPT_VALUE,
+      month,
+      customConcept: "",
+      amount: "",
+      paid_date: todayIso(),
+      method: "transferencia",
+      notes: "",
+    });
     setBulkError(null);
     setBulkOpen(true);
   }
 
+  function changeBulkLine(code: string) {
+    setBulk((b) => {
+      if (!b) return b;
+      const line = bulkLines.find((l) => l.code === code);
+      let month = "";
+      if (line?.kind === "monthly") {
+        const months: number[] = [];
+        for (const id of selected) {
+          for (const o of openObligations(rowById.get(id)?.obligations ?? [])) {
+            if (o.code === code && o.month != null && !months.includes(o.month)) months.push(o.month);
+          }
+        }
+        month = months[0] != null ? String(months[0]) : "";
+      }
+      return { ...b, lineCode: code, month, amount: "" };
+    });
+  }
+
   function submitBulk() {
-    if (!bulkFields || selectedCount === 0) return;
-    const concept = bulkFields.concept.trim();
-    if (!concept) {
-      setBulkError("Indica el concepto");
+    if (!bulk || selectedCount === 0) return;
+    const isOther = bulk.lineCode === OTHER_CONCEPT_VALUE;
+
+    if (isOther) {
+      const concept = bulk.customConcept.trim();
+      const amount = parseAmount(bulk.amount);
+      if (!concept) {
+        setBulkError("Indica el concepto");
+        return;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setBulkError("Indica el importe");
+        return;
+      }
+      runBulk(
+        {
+          entries: [...selected].map((id) => ({ player_id: id, amount })),
+          concept,
+          fee_code: null,
+          billing_month: null,
+        },
+        bulk,
+      );
       return;
     }
-    const amountNumber = Number(bulkFields.amount.replace(",", "."));
-    const ids = [...selected];
+
+    if (!bulkPlan || bulkPlan.entries.length === 0) {
+      setBulkError("Ningún jugador seleccionado tiene esto pendiente");
+      return;
+    }
+    runBulk(
+      {
+        entries: bulkPlan.entries,
+        concept: obligationConcept({ label: bulkPlan.label, month: bulkPlan.month }),
+        fee_code: bulk.lineCode,
+        billing_month: bulkPlan.month,
+      },
+      bulk,
+    );
+  }
+
+  function runBulk(
+    payload: {
+      entries: { player_id: string; amount: number }[];
+      concept: string;
+      fee_code: string | null;
+      billing_month: number | null;
+    },
+    fields: BulkForm,
+  ) {
     startTransition(async () => {
       const result = await registerBulkPaymentsAction({
-        player_ids: ids,
-        concept,
-        amount: amountNumber,
-        paid_date: bulkFields.paid_date,
-        method: bulkFields.method,
-        notes: bulkFields.notes.trim() || undefined,
+        ...payload,
+        paid_date: fields.paid_date,
+        method: fields.method,
+        notes: fields.notes.trim() || undefined,
       });
       if (!result.ok) {
         setBulkError(result.error);
@@ -308,23 +519,50 @@ export function PlayersPaymentsPageClient({
         `${result.created} pago${result.created === 1 ? "" : "s"} registrado${result.created === 1 ? "" : "s"}`,
       );
       setBulkOpen(false);
-      setBulkFields(null);
+      setBulk(null);
       setSelected(new Set());
       router.refresh();
     });
   }
 
+  const bulkIsOther = bulk?.lineCode === OTHER_CONCEPT_VALUE;
+  const bulkLineOptions = [
+    ...bulkLines.map((l) => ({ value: l.code, label: l.label })),
+    { value: OTHER_CONCEPT_VALUE, label: "Otro" },
+  ];
+  const bulkPrimaryDisabled =
+    !bulk ||
+    !bulk.paid_date ||
+    selectedCount === 0 ||
+    (bulkIsOther
+      ? !bulk.amount.trim() || !bulk.customConcept.trim()
+      : !bulkPlan || bulkPlan.entries.length === 0);
+
+  const pendingCount = overdueIds.size;
+
   return (
     <>
       <div className="flex flex-col gap-5">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <p className="text-sm text-muted-foreground">
-            {missingCount} sin matrícula · {players.length} jugadores · temporada {season}
+            {`${pendingCount} con pendiente · ${rows.length} jugadores · temporada ${season}`}
           </p>
-          <Link href={appRoutes.payments.concepts} className="text-sm text-brand hover:underline">
-            Gestionar predefinidos
+          <Link href={appRoutes.payments.fees} className="text-sm text-brand hover:underline">
+            Tarifas
           </Link>
         </div>
+
+        {!hasFees ? (
+          <div className="rounded-lg border border-dashed border-[var(--club-border)] px-4 py-3 text-sm">
+            <p className="font-medium text-foreground">Esta temporada no tiene tarifa</p>
+            <p className="mt-0.5 text-muted-foreground">
+              Sin tarifa no se calcula qué falta por cobrar.{" "}
+              <Link href={appRoutes.payments.fees} className="text-brand hover:underline">
+                Configurarla
+              </Link>
+            </p>
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Input
@@ -339,10 +577,10 @@ export function PlayersPaymentsPageClient({
             <input
               type="checkbox"
               className="size-4 rounded border-[var(--club-border)] accent-brand"
-              checked={onlyMissing}
-              onChange={(e) => setOnlyMissing(e.target.checked)}
+              checked={onlyPending}
+              onChange={(e) => setOnlyPending(e.target.checked)}
             />
-            Solo sin matrícula
+            Solo con pendiente
           </label>
         </div>
 
@@ -381,42 +619,34 @@ export function PlayersPaymentsPageClient({
           </button>
         </div>
 
-        {visiblePlayers.length === 0 ? (
+        {visibleRows.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--club-border)] px-6 py-10 text-center">
             <p className="font-medium text-foreground">Ningún jugador coincide</p>
           </div>
         ) : (
           <>
             <div className="flex flex-col gap-2.5 md:hidden">
-              {visiblePlayers.map((player) => {
-                const paid = paidSet.has(player.id);
-                return (
-                  <div
-                    key={player.id}
-                    className="clothing-list-card flex items-center gap-3"
-                  >
-                    <input
-                      type="checkbox"
-                      className="size-4 shrink-0 rounded border-[var(--club-border)] accent-brand"
-                      checked={selected.has(player.id)}
-                      onChange={() => toggleSelect(player.id)}
-                      aria-label={`Seleccionar ${player.full_name}`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-foreground">{player.full_name}</p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {player.team?.name ?? "Sin equipo"}
-                        </span>
-                        <Badge variant={paid ? "success" : "warning"} className="text-[10px]">
-                          {paid ? "Matrícula pagada" : "Matrícula pendiente"}
-                        </Badge>
-                      </div>
+              {visibleRows.map((row) => (
+                <div key={row.id} className="clothing-list-card flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="size-4 shrink-0 rounded border-[var(--club-border)] accent-brand"
+                    checked={selected.has(row.id)}
+                    onChange={() => toggleSelect(row.id)}
+                    aria-label={`Seleccionar ${row.full_name}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-foreground">{row.full_name}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {row.team_name ?? "Sin equipo"}
+                    </p>
+                    <div className="mt-1.5">
+                      <PendingCell row={row} />
                     </div>
-                    <TableTextAction label="Registrar pago" onClick={() => openRegister(player)} />
                   </div>
-                );
-              })}
+                  <TableTextAction label="Registrar pago" onClick={() => openRegister(row)} />
+                </div>
+              ))}
             </div>
 
             <div className="hidden md:block">
@@ -429,46 +659,41 @@ export function PlayersPaymentsPageClient({
                       </TableHead>
                       <TableHead>Jugador</TableHead>
                       <TableHead>Equipo</TableHead>
-                      <TableHead>Matrícula</TableHead>
+                      <TableHead>Pendiente</TableHead>
                       <TableHead className="club-table__actions">
                         <span className="sr-only">Acciones</span>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {visiblePlayers.map((player) => {
-                      const paid = paidSet.has(player.id);
-                      return (
-                        <TableRow key={player.id}>
-                          <TableCell>
-                            <input
-                              type="checkbox"
-                              className="size-4 rounded border-[var(--club-border)] accent-brand"
-                              checked={selected.has(player.id)}
-                              onChange={() => toggleSelect(player.id)}
-                              aria-label={`Seleccionar ${player.full_name}`}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <p className="club-table__primary">{player.full_name}</p>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {player.team?.name ?? "Sin equipo"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={paid ? "success" : "warning"} className="text-[11px]">
-                              {paid ? "Pagada" : "Pendiente"}
-                            </Badge>
-                          </TableCell>
-                          <TableActionsCell>
-                            <TableTextAction
-                              label="Registrar pago"
-                              onClick={() => openRegister(player)}
-                            />
-                          </TableActionsCell>
-                        </TableRow>
-                      );
-                    })}
+                    {visibleRows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            className="size-4 rounded border-[var(--club-border)] accent-brand"
+                            checked={selected.has(row.id)}
+                            onChange={() => toggleSelect(row.id)}
+                            aria-label={`Seleccionar ${row.full_name}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <p className="club-table__primary">{row.full_name}</p>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {row.team_name ?? "Sin equipo"}
+                        </TableCell>
+                        <TableCell>
+                          <PendingCell row={row} />
+                        </TableCell>
+                        <TableActionsCell>
+                          <TableTextAction
+                            label="Registrar pago"
+                            onClick={() => openRegister(row)}
+                          />
+                        </TableActionsCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
@@ -492,37 +717,70 @@ export function PlayersPaymentsPageClient({
           secondaryAction={{ label: "Cancelar", onClick: () => setFormOpen(false) }}
         >
           <div className="flex flex-col gap-4">
-            {formError ? (
-              <div
-                className="rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
-                role="alert"
-              >
-                {formError}
-              </div>
+            <ErrorBanner message={formError} />
+            <FormSelect
+              label="Qué se cobra"
+              name="payment-concept"
+              id="payment-concept"
+              value={form.selectedKey}
+              onChange={(e) => changeSingleConcept(e.target.value)}
+              options={formConceptOptions}
+            />
+            {form.selectedKey === OTHER_CONCEPT_VALUE ? (
+              <FormInput
+                label="Concepto (texto libre)"
+                name="payment-concept-custom"
+                id="payment-concept-custom"
+                className="min-h-11"
+                value={form.customConcept}
+                onChange={(e) => setForm((f) => (f ? { ...f, customConcept: e.target.value } : f))}
+                placeholder="Ej. Material de temporada"
+              />
             ) : null}
-            <PaymentFormFields
+            <div className="flex flex-col gap-1.5">
+              <FormInput
+                label="Importe (€)"
+                name="payment-amount"
+                id="payment-amount"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                className="min-h-11"
+                value={form.amount}
+                onChange={(e) => setForm((f) => (f ? { ...f, amount: e.target.value } : f))}
+                placeholder="45"
+              />
+              {selectedObligation && form.amount.trim() ? (
+                <AmountHint
+                  amount={parseAmount(form.amount)}
+                  remaining={selectedObligation.remaining}
+                />
+              ) : null}
+            </div>
+            <CommonPaymentFields
               idPrefix="payment"
               fields={form}
-              concepts={paymentConcepts}
-              conceptOptions={conceptOptions}
               onChange={(next) => setForm((f) => (f ? { ...f, ...next } : f))}
             />
           </div>
         </ClothingBottomSheet>
       ) : null}
 
-      {bulkFields ? (
+      {bulk ? (
         <ClothingBottomSheet
           open={bulkOpen}
           onClose={() => {
             if (!pending) setBulkOpen(false);
           }}
           title={`Registrar pago — ${selectedCount} jugador${selectedCount === 1 ? "" : "es"}`}
-          description="El mismo concepto, importe, fecha y método se anota para todos los seleccionados."
+          description="Cada jugador anota su resto; si ya lo tiene cubierto, se salta."
           primaryAction={{
-            label: "Registrar pagos",
+            label: bulkPlan && !bulkIsOther
+              ? `Registrar ${bulkPlan.entries.length} pago${bulkPlan.entries.length === 1 ? "" : "s"}`
+              : "Registrar pagos",
             pending,
-            disabled: !bulkFields.amount.trim() || !bulkFields.paid_date || selectedCount === 0,
+            disabled: bulkPrimaryDisabled,
             onClick: submitBulk,
           }}
           secondaryAction={{
@@ -534,24 +792,89 @@ export function PlayersPaymentsPageClient({
           }}
         >
           <div className="flex flex-col gap-4">
-            {bulkError ? (
-              <div
-                className="rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
-                role="alert"
-              >
-                {bulkError}
-              </div>
+            <ErrorBanner message={bulkError} />
+            <FormSelect
+              label="Qué se cobra"
+              name="bulk-payment-line"
+              id="bulk-payment-line"
+              value={bulk.lineCode}
+              onChange={(e) => changeBulkLine(e.target.value)}
+              options={bulkLineOptions}
+            />
+            {bulkLine?.kind === "monthly" ? (
+              <FormSelect
+                label="Mes"
+                name="bulk-payment-month"
+                id="bulk-payment-month"
+                value={bulk.month}
+                onChange={(e) => setBulk((b) => (b ? { ...b, month: e.target.value } : b))}
+                options={bulkMonths.map((month) => ({
+                  value: String(month),
+                  label: monthName(month),
+                }))}
+              />
             ) : null}
-            <PaymentFormFields
+            {bulkIsOther ? (
+              <FormInput
+                label="Concepto (texto libre)"
+                name="bulk-payment-custom"
+                id="bulk-payment-custom"
+                className="min-h-11"
+                value={bulk.customConcept}
+                onChange={(e) => setBulk((b) => (b ? { ...b, customConcept: e.target.value } : b))}
+                placeholder="Ej. Material de temporada"
+              />
+            ) : null}
+            <div className="flex flex-col gap-1.5">
+              <FormInput
+                label={bulkIsOther ? "Importe (€)" : "Importe único (€) — opcional"}
+                name="bulk-payment-amount"
+                id="bulk-payment-amount"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                className="min-h-11"
+                value={bulk.amount}
+                onChange={(e) => setBulk((b) => (b ? { ...b, amount: e.target.value } : b))}
+                placeholder={bulkIsOther ? "45" : "Cada jugador, su resto"}
+              />
+              {!bulkIsOther && bulkPlan ? (
+                <p className="text-xs text-muted-foreground">
+                  {`${bulkPlan.entries.length} jugador${bulkPlan.entries.length === 1 ? "" : "es"} por anotar`}
+                  {bulkPlan.skipped > 0
+                    ? ` · ${bulkPlan.skipped} ya lo tiene${bulkPlan.skipped === 1 ? "" : "n"} cubierto o no le aplica`
+                    : ""}
+                </p>
+              ) : null}
+            </div>
+            <CommonPaymentFields
               idPrefix="bulk-payment"
-              fields={bulkFields}
-              concepts={paymentConcepts}
-              conceptOptions={conceptOptions}
-              onChange={(next) => setBulkFields(next)}
+              fields={bulk}
+              onChange={(next) => setBulk((b) => (b ? { ...b, ...next } : b))}
             />
           </div>
         </ClothingBottomSheet>
       ) : null}
     </>
   );
+}
+
+function AmountHint({ amount, remaining }: { amount: number; remaining: number }) {
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  if (amount < remaining) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {`Quedará pendiente ${formatEuros(remaining - amount)} de este concepto.`}
+      </p>
+    );
+  }
+  if (amount > remaining) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {`Son ${formatEuros(amount - remaining)} más de lo pendiente: se anota tal cual, sin aplicarse a otro pago.`}
+      </p>
+    );
+  }
+  return null;
 }

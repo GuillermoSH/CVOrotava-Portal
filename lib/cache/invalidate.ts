@@ -7,7 +7,7 @@ import {
   clothingInventoryTag,
   clothingOrdersTag,
   clothingProductsTag,
-  paymentConceptsTag,
+  paymentFeesTag,
   playerTag,
   rosterSeasonTag,
 } from "@/lib/cache/tags";
@@ -40,10 +40,10 @@ export function invalidateClothingOrders() {
   revalidatePath("/admin/ropa");
 }
 
-/** Conceptos de pago (use cache). */
-export function invalidatePaymentConcepts() {
-  updateTag(paymentConceptsTag());
-  revalidatePath(appRoutes.payments.concepts);
+/** Tarifas de la temporada (use cache). */
+export function invalidatePaymentFees() {
+  updateTag(paymentFeesTag());
+  revalidatePath(appRoutes.payments.fees);
   revalidatePath(appRoutes.payments.list);
 }
 

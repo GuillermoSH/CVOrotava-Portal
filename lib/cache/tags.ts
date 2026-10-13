@@ -10,8 +10,8 @@ export function clothingOrdersTag(): string {
   return "clothing:orders";
 }
 
-export function paymentConceptsTag(): string {
-  return "payments:concepts";
+export function paymentFeesTag(): string {
+  return "payments:fees";
 }
 
 export function rosterSeasonTag(season: string): string {

@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { pickDefaultConceptId } from "@/lib/payments/concept-selection";
 import { mapPayment, type PaymentRow } from "@/lib/payments/mappers";
-import { OTHER_CONCEPT_VALUE, PAYMENT_METHODS } from "@/lib/payments/constants";
+import { PAYMENT_METHODS } from "@/lib/payments/constants";
 import { registerPaymentSchema } from "@/lib/payments/schemas";
-import type { PaymentConcept } from "@/lib/types/db";
 
 describe("registerPaymentSchema", () => {
   const valid = {
@@ -76,6 +74,8 @@ describe("mapPayment", () => {
     updated_at: "2026-09-30T10:00:00Z",
     season: "2026-27",
     method: "transferencia",
+    fee_code: "matricula",
+    billing_month: null,
   };
 
   it("coerces a string numeric amount to a number", () => {
@@ -92,66 +92,8 @@ describe("mapPayment", () => {
     expect(payment.status).toBe("paid");
     expect(payment.method).toBe("transferencia");
     expect(payment.season).toBe("2026-27");
-  });
-});
-
-describe("pickDefaultConceptId", () => {
-  const base: Omit<PaymentConcept, "id" | "concept" | "amount" | "is_matricula"> = {
-    is_active: true,
-    sort_order: 0,
-    created_at: "2026-09-01T00:00:00Z",
-    updated_at: "2026-09-01T00:00:00Z",
-  };
-  const cuota25: PaymentConcept = {
-    ...base,
-    id: "cuota25",
-    concept: "Cuota mensual",
-    amount: 25,
-    is_matricula: false,
-  };
-  const cuota30: PaymentConcept = {
-    ...base,
-    id: "cuota30",
-    concept: "Cuota mensual",
-    amount: 30,
-    is_matricula: false,
-  };
-  const matricula: PaymentConcept = {
-    ...base,
-    id: "matricula",
-    concept: "Matrícula",
-    amount: 75,
-    is_matricula: true,
-  };
-  const pagoUnico: PaymentConcept = {
-    ...base,
-    id: "pago-unico",
-    concept: "Pago único",
-    amount: 90,
-    is_matricula: false,
-  };
-  const concepts = [cuota25, cuota30, matricula, pagoUnico];
-
-  it("picks the base cuota (25 €) for players without the extended fee", () => {
-    expect(pickDefaultConceptId(concepts, { pays_extended_monthly: false })).toBe("cuota25");
-  });
-
-  it("picks the extended cuota (30 €) for players with pays_extended_monthly", () => {
-    expect(pickDefaultConceptId(concepts, { pays_extended_monthly: true })).toBe("cuota30");
-  });
-
-  it("falls back to the matrícula concept when there is no amount-variant group", () => {
-    expect(pickDefaultConceptId([matricula, pagoUnico], { pays_extended_monthly: false })).toBe(
-      "matricula",
-    );
-  });
-
-  it("falls back to the first concept when none is flagged as matrícula", () => {
-    expect(pickDefaultConceptId([pagoUnico], { pays_extended_monthly: false })).toBe("pago-unico");
-  });
-
-  it("falls back to Otro when there are no concepts at all", () => {
-    expect(pickDefaultConceptId([], { pays_extended_monthly: false })).toBe(OTHER_CONCEPT_VALUE);
+    expect(payment.fee_code).toBe("matricula");
+    expect(payment.billing_month).toBeNull();
   });
 });
 

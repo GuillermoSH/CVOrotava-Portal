@@ -36,6 +36,8 @@ export async function registerPaymentAction(input: unknown): Promise<ActionResul
       method: parsed.data.method,
       notes: parsed.data.notes,
       season: getCurrentSeason(),
+      fee_code: parsed.data.fee_code ?? null,
+      billing_month: parsed.data.fee_code ? (parsed.data.billing_month ?? null) : null,
     });
 
     revalidatePath(appRoutes.payments.list, "layout");
@@ -45,7 +47,7 @@ export async function registerPaymentAction(input: unknown): Promise<ActionResul
   }
 }
 
-/** Registra el mismo pago (concepto/importe/fecha/método) para varios jugadores a la vez. */
+/** Registra el mismo concepto/fecha/método para varios jugadores, con el importe de cada uno. */
 export async function registerBulkPaymentsAction(input: unknown): Promise<BulkActionResult> {
   try {
     await requirePaymentsWriteAccess();
@@ -55,21 +57,27 @@ export async function registerBulkPaymentsAction(input: unknown): Promise<BulkAc
     }
 
     const db = await getPaymentsDb();
-    const players = await listPlayerUserIds(db, parsed.data.player_ids);
+    const amountByPlayer = new Map(
+      parsed.data.entries.map((entry) => [entry.player_id, entry.amount]),
+    );
+    const players = await listPlayerUserIds(db, [...amountByPlayer.keys()]);
     if (players.length === 0) return { ok: false, error: "Jugadores no encontrados" };
 
     const season = getCurrentSeason();
+    const feeCode = parsed.data.fee_code ?? null;
     const payments = await createPayments(
       db,
       players.map((player) => ({
         player_id: player.id,
         user_id: player.user_id ?? null,
         concept: parsed.data.concept,
-        amount: parsed.data.amount,
+        amount: amountByPlayer.get(player.id) ?? 0,
         paid_date: parsed.data.paid_date,
         method: parsed.data.method,
         notes: parsed.data.notes,
         season,
+        fee_code: feeCode,
+        billing_month: feeCode ? (parsed.data.billing_month ?? null) : null,
       })),
     );
 

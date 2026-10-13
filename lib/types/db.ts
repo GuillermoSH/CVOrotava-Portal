@@ -125,6 +125,30 @@ export type Payment = {
   updated_at: string;
   season: string | null;
   method: PaymentMethod | null;
+  /** Línea de tarifa que cierra el cobro (supabase/migrations/20261013100000_season_fee_lines.sql). */
+  fee_code: string | null;
+  /** Mes natural (1–12) que cubre una mensualidad; null en cobros únicos y cuotas antiguas. */
+  billing_month: number | null;
+};
+
+export type FeeAudience = "base" | "senior" | "aficionados";
+export type FeeLineKind = "once" | "monthly";
+
+/** supabase/migrations/20261013100000_season_fee_lines.sql — tarifa por temporada y audiencia. */
+export type SeasonFeeLine = {
+  id: string;
+  season: string;
+  audience: FeeAudience;
+  code: string;
+  label: string;
+  kind: FeeLineKind;
+  /** null = importe sin fijar; no genera deuda. */
+  amount: number | null;
+  /** Solo mensualidad de base (players.pays_extended_monthly). */
+  amount_extended: number | null;
+  /** Meses naturales (1–12); vacío en kind "once". */
+  months: number[];
+  sort_order: number;
 };
 
 /** supabase/migrations/20261001100000_payment_concepts.sql — catálogo propio del Portal. */

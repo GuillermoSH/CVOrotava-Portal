@@ -14,6 +14,8 @@ export type PaymentRow = {
   updated_at: string;
   season: string | null;
   method: string | null;
+  fee_code: string | null;
+  billing_month: number | null;
 };
 
 export function mapPayment(row: PaymentRow): Payment {
@@ -31,5 +33,7 @@ export function mapPayment(row: PaymentRow): Payment {
     updated_at: row.updated_at,
     season: row.season,
     method: row.method as PaymentMethod | null,
+    fee_code: row.fee_code,
+    billing_month: row.billing_month,
   };
 }
