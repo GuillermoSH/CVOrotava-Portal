@@ -5,13 +5,16 @@ import { getCachedSeasonFeeLines } from "@/lib/payments/cached-fees";
 import { buildPlayerFeeRows } from "@/lib/payments/player-fee-rows";
 import { getPaymentsDb } from "@/lib/payments/repository/client";
 import { listSeasonPaymentFacts } from "@/lib/payments/repository/payments";
-import { getRosterSnapshot } from "@/lib/roster/snapshots";
+import { listPlayersForPayments } from "@/lib/payments/repository/players";
+import { getCurrentSeason } from "@/lib/season";
 
 async function PaymentsContent() {
   await requirePaymentsWriteAccess();
 
-  const [{ players, season }, db] = await Promise.all([getRosterSnapshot(), getPaymentsDb()]);
-  const [lines, paymentsByPlayer] = await Promise.all([
+  const season = getCurrentSeason();
+  const db = await getPaymentsDb();
+  const [players, lines, paymentsByPlayer] = await Promise.all([
+    listPlayersForPayments(db, season),
     getCachedSeasonFeeLines(season),
     listSeasonPaymentFacts(db, season),
   ]);

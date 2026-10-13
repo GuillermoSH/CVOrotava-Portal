@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import {
+  memo,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -17,9 +19,11 @@ import { deletePaymentAction, updatePaymentMethodAction } from "@/lib/actions/pa
 import { registerPaymentAction } from "@/lib/actions/payments/register";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/payments/constants";
 import {
-  columnProgress,
+  buildRowCells,
+  columnsProgress,
   matrixCell,
   methodLetters,
+  rowCellsSignature,
   type MatrixCell,
   type MatrixColumn,
 } from "@/lib/payments/matrix";
@@ -62,9 +66,12 @@ function cellAriaLabel(row: PlayerFeeRow, column: MatrixColumn, cell: MatrixCell
 
 type ActiveCell = { rowId: string; columnKey: string; anchor: DOMRect };
 
+/** rowId → columnKey → letra pintada mientras el servidor confirma. */
+type OptimisticCells = ReadonlyMap<string, ReadonlyMap<string, string>>;
+
 type Optimistic = {
   rows: readonly PlayerFeeRow[];
-  cells: Map<string, { letter: string }>;
+  cells: OptimisticCells;
 };
 
 const POPOVER_WIDTH = 272;
@@ -139,7 +146,6 @@ function CellPopover({
 
   const amountNumber = Number(amount.replace(",", "."));
   const amountValid = Number.isFinite(amountNumber) && amountNumber > 0;
-  const canRegister = remaining > 0 || cell.kind === "paid";
   const what =
     column.kind === "once" ? column.label : `${column.label} · ${monthName(column.month ?? 0)}`;
 
@@ -203,7 +209,7 @@ function CellPopover({
         </ul>
       ) : null}
 
-      {canRegister && remaining > 0 ? (
+      {remaining > 0 ? (
         <div className="pay-popover__body">
           <label className="pay-popover__field">
             <span className="pay-popover__label">
@@ -266,6 +272,121 @@ function CellPopover({
   );
 }
 
+type MatrixRowProps = {
+  row: PlayerFeeRow;
+  rowIndex: number;
+  columns: MatrixColumn[];
+  cells: MatrixCell[];
+  /** Firma de columnas + celdas: sin cambios de contenido, la fila no se vuelve a pintar. */
+  signature: string;
+  selected: boolean;
+  optimistic: ReadonlyMap<string, string> | undefined;
+  activeColumnKey: string | null;
+  onToggleSelect: (id: string) => void;
+  onOpenCell: (row: PlayerFeeRow, column: MatrixColumn, element: HTMLElement) => void;
+  onOther: (row: PlayerFeeRow) => void;
+};
+
+const MatrixRow = memo(
+  function MatrixRow({
+    row,
+    rowIndex,
+    columns,
+    cells,
+    selected,
+    optimistic,
+    activeColumnKey,
+    onToggleSelect,
+    onOpenCell,
+    onOther,
+  }: MatrixRowProps) {
+    return (
+      <tr className={selected ? "is-selected" : undefined}>
+        <th scope="row" className="pay-matrix__player">
+          <input
+            type="checkbox"
+            className="size-4 shrink-0 rounded border-[var(--club-border)] accent-brand"
+            checked={selected}
+            onChange={() => onToggleSelect(row.id)}
+            aria-label={`Seleccionar ${row.full_name}`}
+          />
+          <span className="pay-matrix__player-text">
+            <span className="pay-matrix__name">{row.full_name}</span>
+            <span className="pay-matrix__team">{row.team_name ?? "Sin equipo"}</span>
+          </span>
+        </th>
+        {columns.map((column, c) => {
+          const cell = cells[c];
+          if (cell.kind === "none") {
+            return (
+              <td key={column.key} className="pay-matrix__cell">
+                <span
+                  className="pay-cell pay-cell--none"
+                  aria-label={cellAriaLabel(row, column, cell)}
+                >
+                  –
+                </span>
+              </td>
+            );
+          }
+
+          const pendingLetter = optimistic?.get(column.key);
+          const kind = pendingLetter ? "paid" : cell.kind;
+          let content: string;
+          if (pendingLetter) content = pendingLetter;
+          else if (cell.kind === "paid") content = methodLetters(cell.payments) || "✓";
+          else if (cell.kind === "partial") content = formatEuros(cell.obligation?.paid ?? 0);
+          else if (cell.kind === "due") content = formatEuros(cell.obligation?.remaining ?? 0);
+          else content = "·";
+
+          return (
+            <td key={column.key} className="pay-matrix__cell">
+              <button
+                type="button"
+                data-cell={`${rowIndex},${c}`}
+                className={cn(
+                  "pay-cell",
+                  `pay-cell--${kind}`,
+                  pendingLetter && "is-saving",
+                  activeColumnKey === column.key && "is-active",
+                )}
+                aria-label={cellAriaLabel(row, column, cell)}
+                aria-haspopup="dialog"
+                onClick={(e) => onOpenCell(row, column, e.currentTarget)}
+              >
+                {content}
+                {cell.kind === "partial" && !pendingLetter ? (
+                  <span className="pay-cell__rest">/{formatEuros(cell.obligation?.due ?? 0)}</span>
+                ) : null}
+              </button>
+            </td>
+          );
+        })}
+        <td className="pay-matrix__cell pay-matrix__cell--other">
+          <button
+            type="button"
+            className="pay-matrix__other"
+            onClick={() => onOther(row)}
+            aria-label={`Otro cobro para ${row.full_name}`}
+          >
+            Otro
+          </button>
+        </td>
+      </tr>
+    );
+  },
+  (prev, next) =>
+    prev.signature === next.signature &&
+    prev.row.id === next.row.id &&
+    prev.rowIndex === next.rowIndex &&
+    prev.selected === next.selected &&
+    prev.optimistic === next.optimistic &&
+    prev.activeColumnKey === next.activeColumnKey &&
+    prev.onToggleSelect === next.onToggleSelect &&
+    prev.onOpenCell === next.onOpenCell &&
+    prev.onOther === next.onOther,
+);
+
 export function PaymentMatrix({
   rows,
   columns,
@@ -298,33 +419,49 @@ export function PaymentMatrix({
 
   const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
   const columnByKey = useMemo(() => new Map(columns.map((c) => [c.key, c])), [columns]);
-  const monthlyCodes = useMemo(
-    () => new Set(columns.filter((c) => c.kind === "monthly").map((c) => c.code)),
+  const showMonthlyLabels = useMemo(
+    () => new Set(columns.filter((c) => c.kind === "monthly").map((c) => c.code)).size > 1,
     [columns],
   );
-  const showMonthlyLabels = monthlyCodes.size > 1;
-  const progress = useMemo(
-    () => columns.map((column) => columnProgress(rows, column)),
-    [rows, columns],
-  );
+
+  /** Celdas y firma de cada fila, calculadas una vez por cambio de datos (no por render). */
+  const computed = useMemo(() => {
+    const columnsSignature = columns.map((c) => c.key).join(",");
+    const cellsByRow = rows.map((row) => buildRowCells(row, columns));
+    return {
+      cellsByRow,
+      signatures: cellsByRow.map((cells) => `${columnsSignature}#${rowCellsSignature(cells)}`),
+      progress: columnsProgress(cellsByRow, columns.length),
+    };
+  }, [rows, columns]);
 
   /** El overlay optimista solo vale mientras no llegue un `rows` nuevo del servidor. */
-  const overlay = optimistic && optimistic.rows === rows ? optimistic.cells : null;
+  const overlay: OptimisticCells | null =
+    optimistic && optimistic.rows === rows ? optimistic.cells : null;
 
   const activeRow = active ? (rowById.get(active.rowId) ?? null) : null;
   const activeColumn = active ? (columnByKey.get(active.columnKey) ?? null) : null;
   const activeCell = activeRow && activeColumn ? matrixCell(activeRow, activeColumn) : null;
 
-  function openCell(row: PlayerFeeRow, column: MatrixColumn, element: HTMLElement) {
-    setActive({ rowId: row.id, columnKey: column.key, anchor: element.getBoundingClientRect() });
-  }
+  const openCell = useCallback(
+    (row: PlayerFeeRow, column: MatrixColumn, element: HTMLElement) => {
+      setActive({ rowId: row.id, columnKey: column.key, anchor: element.getBoundingClientRect() });
+    },
+    [],
+  );
 
   function mark(rowId: string, columnKey: string, letter: string | null) {
     setOptimistic((prev) => {
-      const cells = new Map(prev && prev.rows === rows ? prev.cells : []);
-      if (letter) cells.set(`${rowId}|${columnKey}`, { letter });
-      else cells.delete(`${rowId}|${columnKey}`);
-      return { rows, cells };
+      const next = new Map<string, Map<string, string>>();
+      if (prev && prev.rows === rows) {
+        for (const [id, cols] of prev.cells) next.set(id, new Map(cols));
+      }
+      const cols = next.get(rowId) ?? new Map<string, string>();
+      if (letter) cols.set(columnKey, letter);
+      else cols.delete(columnKey);
+      if (cols.size > 0) next.set(rowId, cols);
+      else next.delete(rowId);
+      return { rows, cells: next };
     });
   }
 
@@ -441,77 +578,20 @@ export function PaymentMatrix({
           </thead>
           <tbody>
             {rows.map((row, r) => (
-              <tr key={row.id} className={selected.has(row.id) ? "is-selected" : undefined}>
-                <th scope="row" className="pay-matrix__player">
-                  <input
-                    type="checkbox"
-                    className="size-4 shrink-0 rounded border-[var(--club-border)] accent-brand"
-                    checked={selected.has(row.id)}
-                    onChange={() => onToggleSelect(row.id)}
-                    aria-label={`Seleccionar ${row.full_name}`}
-                  />
-                  <span className="pay-matrix__player-text">
-                    <span className="pay-matrix__name">{row.full_name}</span>
-                    <span className="pay-matrix__team">{row.team_name ?? "Sin equipo"}</span>
-                  </span>
-                </th>
-                {columns.map((column, c) => {
-                  const cell = matrixCell(row, column);
-                  const pendingMark = overlay?.get(`${row.id}|${column.key}`);
-                  if (cell.kind === "none") {
-                    return (
-                      <td key={column.key} className="pay-matrix__cell">
-                        <span className="pay-cell pay-cell--none" aria-label={cellAriaLabel(row, column, cell)}>
-                          –
-                        </span>
-                      </td>
-                    );
-                  }
-
-                  const kind = pendingMark ? "paid" : cell.kind;
-                  const isActive =
-                    active?.rowId === row.id && active.columnKey === column.key;
-                  let content: string;
-                  if (pendingMark) content = pendingMark.letter;
-                  else if (cell.kind === "paid") content = methodLetters(cell.payments) || "✓";
-                  else if (cell.kind === "partial") content = formatEuros(cell.obligation?.paid ?? 0);
-                  else if (cell.kind === "due") content = formatEuros(cell.obligation?.remaining ?? 0);
-                  else content = "·";
-
-                  return (
-                    <td key={column.key} className="pay-matrix__cell">
-                      <button
-                        type="button"
-                        data-cell={`${r},${c}`}
-                        className={cn(
-                          "pay-cell",
-                          `pay-cell--${kind}`,
-                          pendingMark && "is-saving",
-                          isActive && "is-active",
-                        )}
-                        aria-label={cellAriaLabel(row, column, cell)}
-                        aria-haspopup="dialog"
-                        onClick={(e) => openCell(row, column, e.currentTarget)}
-                      >
-                        {content}
-                        {cell.kind === "partial" && !pendingMark ? (
-                          <span className="pay-cell__rest">/{formatEuros(cell.obligation?.due ?? 0)}</span>
-                        ) : null}
-                      </button>
-                    </td>
-                  );
-                })}
-                <td className="pay-matrix__cell pay-matrix__cell--other">
-                  <button
-                    type="button"
-                    className="pay-matrix__other"
-                    onClick={() => onOther(row)}
-                    aria-label={`Otro cobro para ${row.full_name}`}
-                  >
-                    Otro
-                  </button>
-                </td>
-              </tr>
+              <MatrixRow
+                key={row.id}
+                row={row}
+                rowIndex={r}
+                columns={columns}
+                cells={computed.cellsByRow[r]}
+                signature={computed.signatures[r]}
+                selected={selected.has(row.id)}
+                optimistic={overlay?.get(row.id)}
+                activeColumnKey={active?.rowId === row.id ? active.columnKey : null}
+                onToggleSelect={onToggleSelect}
+                onOpenCell={openCell}
+                onOther={onOther}
+              />
             ))}
           </tbody>
           <tfoot>
@@ -521,8 +601,8 @@ export function PaymentMatrix({
               </th>
               {columns.map((column, i) => (
                 <td key={column.key} className="pay-matrix__foot">
-                  <span className="ropa-digit">{progress[i].paid}</span>
-                  <span className="pay-matrix__foot-total">/{progress[i].total}</span>
+                  <span className="ropa-digit">{computed.progress[i].paid}</span>
+                  <span className="pay-matrix__foot-total">/{computed.progress[i].total}</span>
                 </td>
               ))}
               <td className="pay-matrix__foot" />

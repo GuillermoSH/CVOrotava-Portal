@@ -6,7 +6,15 @@ import {
   type FeePaymentLike,
 } from "@/lib/payments/fees";
 import type { SeasonId } from "@/lib/season";
-import type { FeeAudience, PlayerListItem, SeasonFeeLine } from "@/lib/types/db";
+import type { FeeAudience, SeasonFeeLine } from "@/lib/types/db";
+
+/** Lo mínimo de un jugador que necesita el cálculo de tarifas. */
+export type PaymentPlayer = {
+  id: string;
+  full_name: string;
+  pays_extended_monthly: boolean;
+  team: { name: string; category: string } | null;
+};
 
 /** Cobro anotado de la temporada, tal y como lo necesita la matriz (editar / anular). */
 export type PlayerPaymentFact = FeePaymentLike & {
@@ -35,7 +43,7 @@ export function buildPlayerFeeRows({
   season,
   today,
 }: {
-  players: readonly PlayerListItem[];
+  players: readonly PaymentPlayer[];
   lines: readonly SeasonFeeLine[];
   paymentsByPlayer: ReadonlyMap<string, readonly PlayerPaymentFact[]>;
   season: SeasonId;

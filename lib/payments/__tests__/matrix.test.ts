@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { FeeObligation } from "@/lib/payments/fees";
 import {
   buildMatrixColumns,
-  columnProgress,
+  buildRowCells,
+  columnsProgress,
   matrixCell,
   methodLetters,
+  rowCellsSignature,
 } from "@/lib/payments/matrix";
 import type { PlayerFeeRow, PlayerPaymentFact } from "@/lib/payments/player-fee-rows";
 
@@ -156,14 +158,67 @@ describe("methodLetters", () => {
   });
 });
 
-describe("columnProgress", () => {
+describe("buildRowCells", () => {
+  const columns = [
+    { key: "matricula", code: "matricula", label: "Matrícula", kind: "once" as const, month: null },
+    { key: "mensualidad:10", code: "mensualidad", label: "Cuota", kind: "monthly" as const, month: 10 },
+    { key: "mensualidad:11", code: "mensualidad", label: "Cuota", kind: "monthly" as const, month: 11 },
+  ];
+
+  it("aligns one cell per column with the right payments", () => {
+    const cells = buildRowCells(
+      row(
+        "a",
+        [
+          obligation({ code: "matricula", paid: 75, remaining: 0 }),
+          obligation({ code: "mensualidad", month: 10, paid: 25, remaining: 0 }),
+        ],
+        [
+          payment({ id: "m", fee_code: "matricula" }),
+          payment({ id: "oct", fee_code: "mensualidad", billing_month: 10 }),
+          payment({ id: "legacy", fee_code: "mensualidad", billing_month: null }),
+        ],
+      ),
+      columns,
+    );
+    expect(cells.map((c) => c.kind)).toEqual(["paid", "paid", "none"]);
+    expect(cells[0].payments.map((p) => p.id)).toEqual(["m"]);
+    expect(cells[1].payments.map((p) => p.id)).toEqual(["oct"]);
+  });
+
+  it("produces a stable signature that changes when a cell changes", () => {
+    const open = buildRowCells(
+      row("a", [obligation({ code: "matricula" })]),
+      columns.slice(0, 1),
+    );
+    const paid = buildRowCells(
+      row(
+        "a",
+        [obligation({ code: "matricula", paid: 75, remaining: 0 })],
+        [payment({ fee_code: "matricula", method: "efectivo" })],
+      ),
+      columns.slice(0, 1),
+    );
+    expect(rowCellsSignature(open)).toBe(rowCellsSignature(open));
+    expect(rowCellsSignature(open)).not.toBe(rowCellsSignature(paid));
+  });
+});
+
+describe("columnsProgress", () => {
   it("counts covered players over those the concept applies to", () => {
-    const col = { key: "matricula", code: "matricula", label: "Matrícula", kind: "once" as const, month: null };
+    const col = {
+      key: "matricula",
+      code: "matricula",
+      label: "Matrícula",
+      kind: "once" as const,
+      month: null,
+    };
     const rows = [
       row("a", [obligation({ code: "matricula", paid: 75, remaining: 0 })]),
       row("b", [obligation({ code: "matricula" })]),
       row("c", []),
     ];
-    expect(columnProgress(rows, col)).toEqual({ paid: 1, total: 2 });
+    const cells = rows.map((r) => buildRowCells(r, [col]));
+    expect(columnsProgress(cells, 1)).toEqual([{ paid: 1, total: 2 }]);
   });
 });

@@ -57,14 +57,8 @@ export type MatrixCell = {
   payments: PlayerPaymentFact[];
 };
 
-export function matrixCell(row: PlayerFeeRow, column: MatrixColumn): MatrixCell {
-  const obligation = row.obligations.find((o) => o.key === column.key) ?? null;
+function cellFrom(obligation: FeeObligation | null, payments: PlayerPaymentFact[]): MatrixCell {
   if (!obligation) return { kind: "none", obligation: null, payments: [] };
-
-  const payments = row.payments.filter(
-    (p) =>
-      p.fee_code === column.code && (column.month == null || p.billing_month === column.month),
-  );
 
   let kind: MatrixCellKind;
   if (obligation.remaining === 0) kind = "paid";
@@ -73,6 +67,59 @@ export function matrixCell(row: PlayerFeeRow, column: MatrixColumn): MatrixCell 
   else kind = "upcoming";
 
   return { kind, obligation, payments };
+}
+
+function paymentSlot(code: string | null, month: number | null): string {
+  return `${code ?? ""}|${month ?? ""}`;
+}
+
+/**
+ * Celdas de una fila alineadas con `columns`, en una sola pasada (O(obligaciones +
+ * cobros + columnas)). Los cobros de conceptos únicos se agrupan sin mes; los de
+ * mensualidad, por mes.
+ */
+export function buildRowCells(
+  row: PlayerFeeRow,
+  columns: readonly MatrixColumn[],
+): MatrixCell[] {
+  const obligationByKey = new Map<string, FeeObligation>();
+  for (const o of row.obligations) obligationByKey.set(o.key, o);
+
+  const paymentsBySlot = new Map<string, PlayerPaymentFact[]>();
+  for (const p of row.payments) {
+    const slot = paymentSlot(p.fee_code, p.billing_month);
+    const list = paymentsBySlot.get(slot);
+    if (list) list.push(p);
+    else paymentsBySlot.set(slot, [p]);
+  }
+
+  return columns.map((column) =>
+    cellFrom(
+      obligationByKey.get(column.key) ?? null,
+      paymentsBySlot.get(paymentSlot(column.code, column.month)) ?? [],
+    ),
+  );
+}
+
+/** Una celda suelta (popover); las filas usan `buildRowCells`. */
+export function matrixCell(row: PlayerFeeRow, column: MatrixColumn): MatrixCell {
+  const obligation = row.obligations.find((o) => o.key === column.key) ?? null;
+  const payments = row.payments.filter(
+    (p) =>
+      p.fee_code === column.code && (column.month == null || p.billing_month === column.month),
+  );
+  return cellFrom(obligation, payments);
+}
+
+/** Firma de lo que se pinta en una fila: permite saltarse el re-render si no cambió. */
+export function rowCellsSignature(cells: readonly MatrixCell[]): string {
+  return cells
+    .map((cell) =>
+      cell.kind === "none"
+        ? "-"
+        : `${cell.kind}:${cell.obligation?.paid ?? 0}:${cell.obligation?.remaining ?? 0}:${methodLetters(cell.payments)}`,
+    )
+    .join("|");
 }
 
 /** `T`, `E` o `T+E` si el mismo concepto se cobró por las dos vías. */
@@ -85,18 +132,19 @@ export function methodLetters(payments: readonly PlayerPaymentFact[]): string {
   return [...letters].sort().reverse().join("+");
 }
 
-/** Cuántos jugadores tienen la columna cubierta sobre los que les aplica. */
-export function columnProgress(
-  rows: readonly PlayerFeeRow[],
-  column: MatrixColumn,
-): { paid: number; total: number } {
-  let paid = 0;
-  let total = 0;
-  for (const row of rows) {
-    const cell = matrixCell(row, column);
-    if (cell.kind === "none") continue;
-    total += 1;
-    if (cell.kind === "paid") paid += 1;
+/** Cuántos jugadores tienen cada columna cubierta sobre los que les aplica. */
+export function columnsProgress(
+  cellsByRow: readonly (readonly MatrixCell[])[],
+  columnCount: number,
+): { paid: number; total: number }[] {
+  const progress = Array.from({ length: columnCount }, () => ({ paid: 0, total: 0 }));
+  for (const cells of cellsByRow) {
+    for (let i = 0; i < columnCount; i += 1) {
+      const cell = cells[i];
+      if (!cell || cell.kind === "none") continue;
+      progress[i].total += 1;
+      if (cell.kind === "paid") progress[i].paid += 1;
+    }
   }
-  return { paid, total };
+  return progress;
 }

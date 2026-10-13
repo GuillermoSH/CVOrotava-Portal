@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { FormDate, FormInput, FormSelect, FormTextarea } from "@/components/club/forms";
 import { Input } from "@/components/club/Input";
@@ -189,14 +189,14 @@ export function PlayersPaymentsPageClient({
     if (selectAllRef.current) selectAllRef.current.indeterminate = someVisibleSelected;
   }, [someVisibleSelected]);
 
-  function toggleSelect(id: string) {
+  const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }
+  }, []);
 
   function toggleSelectAllVisible() {
     setSelected((prev) => {
@@ -230,7 +230,7 @@ export function PlayersPaymentsPageClient({
     ? (formOptions.find((o) => o.key === form.selectedKey) ?? null)
     : null;
 
-  function openRegister(row: PlayerFeeRow) {
+  const openRegister = useCallback((row: PlayerFeeRow) => {
     const first = sortOpen(row.obligations)[0] ?? null;
     setForm({
       playerId: row.id,
@@ -244,7 +244,7 @@ export function PlayersPaymentsPageClient({
     });
     setFormError(null);
     setFormOpen(true);
-  }
+  }, []);
 
   function changeSingleConcept(key: string) {
     setForm((f) => {
