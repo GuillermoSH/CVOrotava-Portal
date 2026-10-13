@@ -214,6 +214,12 @@ export function openObligations(obligations: readonly FeeObligation[]): FeeOblig
   return obligations.filter((o) => o.remaining > 0);
 }
 
+/** Pendientes ordenados: lo vencido primero, luego los meses por llegar. */
+export function sortOpenObligations(obligations: readonly FeeObligation[]): FeeObligation[] {
+  const open = openObligations(obligations);
+  return [...open.filter((o) => o.overdue), ...open.filter((o) => !o.overdue)];
+}
+
 /**
  * Cobros pagados que no cierran ninguna línea: sin fee_code, o mensualidad antigua
  * sin mes (no se adivina el mes). El listado los muestra aparte.

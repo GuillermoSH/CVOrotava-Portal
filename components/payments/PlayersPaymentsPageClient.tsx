@@ -9,6 +9,7 @@ import { Input } from "@/components/club/Input";
 import { Label } from "@/components/club/Label";
 import { SegmentedControl } from "@/components/club/SegmentedControl";
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
+import { FlashPaymentSheet } from "@/components/payments/FlashPaymentSheet";
 import { PaymentMatrix } from "@/components/payments/PaymentMatrix";
 import {
   registerBulkPaymentsAction,
@@ -147,6 +148,7 @@ export function PlayersPaymentsPageClient({
   const [query, setQuery] = useState("");
   const [onlyPending, setOnlyPending] = useState(false);
   const [sessionDate, setSessionDate] = useState(todayIso);
+  const [flashOpen, setFlashOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
 
@@ -483,9 +485,18 @@ export function PlayersPaymentsPageClient({
           <p className="text-sm text-muted-foreground">
             {`${pendingCount} con pendiente · ${rows.length} jugadores · temporada ${season}`}
           </p>
-          <Link href={appRoutes.payments.fees} className="text-sm text-brand hover:underline">
-            Tarifas
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href={appRoutes.payments.fees} className="text-sm text-brand hover:underline">
+              Tarifas
+            </Link>
+            <button
+              type="button"
+              className="btn-primary min-h-10"
+              onClick={() => setFlashOpen(true)}
+            >
+              Cobro rápido
+            </button>
+          </div>
         </div>
 
         {!hasFees ? (
@@ -608,6 +619,13 @@ export function PlayersPaymentsPageClient({
           </>
         )}
       </div>
+
+      <FlashPaymentSheet
+        open={flashOpen}
+        onClose={() => setFlashOpen(false)}
+        rows={rows}
+        sessionDate={sessionDate}
+      />
 
       {form ? (
         <ClothingBottomSheet
