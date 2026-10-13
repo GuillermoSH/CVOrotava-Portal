@@ -10,6 +10,7 @@ import { Label } from "@/components/club/Label";
 import { SegmentedControl } from "@/components/club/SegmentedControl";
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { FlashPaymentSheet } from "@/components/payments/FlashPaymentSheet";
+import { MethodMark } from "@/components/payments/MethodMark";
 import { PaymentMatrix } from "@/components/payments/PaymentMatrix";
 import {
   registerBulkPaymentsAction,
@@ -596,11 +597,15 @@ export function PlayersPaymentsPageClient({
             />
             <div className="pay-legend" aria-label="Leyenda de la matriz">
               <span className="pay-legend__item">
-                <span className="pay-cell pay-cell--paid">T</span>
+                <span className="pay-cell pay-cell--paid">
+                  <MethodMark method="transferencia" iconClassName="size-3" />
+                </span>
                 transferencia
               </span>
               <span className="pay-legend__item">
-                <span className="pay-cell pay-cell--paid">E</span>
+                <span className="pay-cell pay-cell--paid">
+                  <MethodMark method="efectivo" iconClassName="size-3" />
+                </span>
                 efectivo
               </span>
               <span className="pay-legend__item">

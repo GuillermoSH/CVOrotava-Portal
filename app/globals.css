@@ -3644,8 +3644,9 @@ html.dark .ropa-board {
 }
 
 .pay-legend .pay-cell {
-  width: 1.75rem;
-  min-width: 1.75rem;
+  width: auto;
+  min-width: 2.5rem;
+  padding-inline: 0.375rem;
   min-height: 1.5rem;
   font-size: 0.75rem;
   cursor: default;

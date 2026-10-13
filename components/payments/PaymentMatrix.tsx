@@ -11,11 +11,13 @@ import {
   useState,
   useTransition,
   type KeyboardEvent,
+  type ReactNode,
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 
 import { deletePaymentAction, updatePaymentMethodAction } from "@/lib/actions/payments/correct";
+import { MethodIcon, MethodLetters } from "@/components/payments/MethodMark";
 import { registerPaymentAction } from "@/lib/actions/payments/register";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/payments/constants";
 import {
@@ -242,6 +244,7 @@ function CellPopover({
                   method === lastMethod && "pay-popover__method--last",
                 )}
               >
+                <MethodIcon method={method} className="size-4" />
                 <span className="pay-popover__method-letter">
                   {method === "transferencia" ? "T" : "E"}
                 </span>
@@ -332,9 +335,12 @@ const MatrixRow = memo(
 
           const pendingLetter = optimistic?.get(column.key);
           const kind = pendingLetter ? "paid" : cell.kind;
-          let content: string;
-          if (pendingLetter) content = pendingLetter;
-          else if (cell.kind === "paid") content = methodLetters(cell.payments) || "✓";
+          let content: ReactNode;
+          if (pendingLetter) content = <MethodLetters letters={pendingLetter} />;
+          else if (cell.kind === "paid") {
+            const letters = methodLetters(cell.payments);
+            content = letters ? <MethodLetters letters={letters} /> : "✓";
+          }
           else if (cell.kind === "partial") content = formatEuros(cell.obligation?.paid ?? 0);
           else if (cell.kind === "due") content = formatEuros(cell.obligation?.remaining ?? 0);
           else content = "·";

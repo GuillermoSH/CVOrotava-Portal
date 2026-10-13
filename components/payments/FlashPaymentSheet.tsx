@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
+import { MethodIcon } from "@/components/payments/MethodMark";
 import { registerPaymentAction } from "@/lib/actions/payments/register";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/payments/constants";
 import { obligationConcept, sortOpenObligations, type FeeObligation } from "@/lib/payments/fees";
@@ -349,6 +350,7 @@ export function FlashPaymentSheet({
                       : "border-[var(--club-border)] bg-[var(--club-surface)]",
                   )}
                 >
+                  <MethodIcon method={method} className="size-5" />
                   <span className="text-lg font-extrabold">
                     {method === "transferencia" ? "T" : "E"}
                   </span>
