@@ -617,7 +617,7 @@ export function PlayersPaymentsPageClient({
                 vencido
               </span>
               <span className="pay-legend__item">
-                <span className="pay-cell pay-cell--upcoming">·</span>
+                <span className="pay-cell pay-cell--upcoming">25</span>
                 por llegar
               </span>
             </div>

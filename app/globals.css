@@ -3446,10 +3446,6 @@ html.dark .ropa-board {
   vertical-align: middle;
 }
 
-.pay-matrix__name--short {
-  display: none;
-}
-
 .pay-matrix__name {
   font-size: 0.875rem;
   font-weight: 600;
@@ -3559,9 +3555,18 @@ html.dark .ropa-board {
   color: var(--club-brand);
 }
 
+/* Por llegar: importe legible, sin el peso de un vencido ni el vacío del borde discontinuo. */
 .pay-cell--upcoming {
-  border: 1px dashed var(--club-border);
+  border: 1px solid color-mix(in srgb, var(--club-border) 70%, transparent);
+  background: color-mix(in srgb, var(--club-surface-2) 55%, transparent);
+  font-size: 0.8125rem;
   font-weight: 500;
+  color: color-mix(in srgb, var(--club-fg-muted) 82%, transparent);
+}
+
+.pay-cell--upcoming:hover {
+  border-color: var(--club-border);
+  background: var(--club-surface-2);
   color: var(--club-fg-muted);
 }
 
@@ -3597,6 +3602,11 @@ html.dark .ropa-board {
   font-size: 0.6875rem;
   font-weight: 500;
   opacity: 0.8;
+}
+
+.pay-cell__upcoming-amount {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 
 .pay-matrix__other {
@@ -3907,25 +3917,13 @@ html.dark .ropa-board {
     max-width: 5.5rem;
   }
 
-  /* En vertical se muestra "Nombre Apellido" en una línea, truncado solo si no cabe. */
-  .pay-matrix__name--full {
-    display: none;
-  }
-
-  .pay-matrix__name--short {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
+  /* Nombre corto vía utilidades Tailwind (hidden / max-md:block); aquí solo tipografía. */
   .pay-matrix__name {
     font-size: 0.8125rem;
     line-height: 1.2;
-  }
-
-  .pay-matrix__team {
-    display: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .pay-matrix__col {

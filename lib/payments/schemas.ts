@@ -60,6 +60,14 @@ const optionalAmount = z.preprocess(
   z.coerce.number().positive("El importe debe ser mayor que 0").nullable(),
 );
 
+const optionalDueDate = z.preprocess(
+  (value) => (value === "" || value === undefined || value === null ? null : value),
+  z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha no válida")
+    .nullable(),
+);
+
 export const upsertFeeLineSchema = z
   .object({
     id: z.string().uuid().optional(),
@@ -76,6 +84,7 @@ export const upsertFeeLineSchema = z
     amount: optionalAmount,
     amount_extended: optionalAmount,
     months: z.array(z.number().int().min(1).max(12)).max(12),
+    due_date: optionalDueDate,
   })
   .refine((value) => value.kind === "once" || value.months.length > 0, {
     message: "Elige al menos un mes",

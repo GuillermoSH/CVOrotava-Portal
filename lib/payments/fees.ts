@@ -87,6 +87,23 @@ export function isSeasonMonthDue(season: SeasonId, month: number, today: Date): 
   return todayKey >= monthKey;
 }
 
+/** YYYY-MM-DD en calendario local (evita desfaces UTC al comparar con `due_date`). */
+export function localDateKey(today: Date): string {
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, "0");
+  const d = String(today.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Pago único atrasado tras la fecha límite (el día límite aún cuenta a tiempo).
+ * Sin `due_date` → vencido (comportamiento histórico).
+ */
+export function isOnceFeeOverdue(dueDate: string | null | undefined, today: Date): boolean {
+  if (!dueDate) return true;
+  return localDateKey(today) > dueDate;
+}
+
 /** Importe unitario de una línea para un jugador; null si todavía no tiene importe. */
 export function lineAmountFor(
   line: Pick<SeasonFeeLine, "amount" | "amount_extended" | "kind">,
@@ -121,7 +138,10 @@ export type FeeObligation = {
   due: number;
   paid: number;
   remaining: number;
-  /** Matrícula/equipación/pago único cuentan como vencidos desde el inicio de temporada. */
+  /**
+   * Vencido / atrasado: únicos según `due_date` (o siempre si no hay fecha);
+   * mensualidades cuando el mes de temporada ya ha empezado.
+   */
   overdue: boolean;
 };
 
@@ -186,7 +206,7 @@ export function computeObligations({
         due: amount,
         paid,
         remaining: Math.max(0, roundCents(amount - paid)),
-        overdue: true,
+        overdue: isOnceFeeOverdue(line.due_date, today),
       });
       continue;
     }
