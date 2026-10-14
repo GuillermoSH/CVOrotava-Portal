@@ -14,6 +14,10 @@ export function paymentFeesTag(): string {
   return "payments:fees";
 }
 
+export function paymentsTag(): string {
+  return "payments:records";
+}
+
 export function rosterSeasonTag(season: string): string {
   return `roster:season:${season}`;
 }

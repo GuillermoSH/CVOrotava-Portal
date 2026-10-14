@@ -1,7 +1,6 @@
 import { PlayersPageClient } from "@/components/roster/PlayersPageClient";
 import { RuntimePage } from "@/components/shared/RuntimePage";
-import { getPaymentsDb } from "@/lib/payments/repository/client";
-import { listPlayerIdsWithPaidMatricula } from "@/lib/payments/repository/payments";
+import { getCachedPaidMatriculaIds } from "@/lib/payments/cached-payments";
 import { requireRosterReadAccess } from "@/lib/roster/auth";
 import {
   parsePlayerListUrlState,
@@ -20,13 +19,12 @@ async function PlayersContent({
   const canDelete = role === "admin";
   const season = getCurrentSeason();
   const params = await searchParams;
-  const teams = await getTeamsSnapshot(season);
+  const [teams, matriculaPaidPlayerIds] = await Promise.all([
+    getTeamsSnapshot(season),
+    canWrite ? getCachedPaidMatriculaIds(season) : Promise.resolve<string[]>([]),
+  ]);
   const urlState = parsePlayerListUrlState(params, teams);
   const listFilters = playerFilterStateToListFilters(urlState);
-
-  const matriculaPaidPlayerIds = canWrite
-    ? [...(await listPlayerIdsWithPaidMatricula(await getPaymentsDb(), season))]
-    : [];
 
   const { players, total, page, pageSize, inactiveCount } = await getPlayersListSnapshot({
     season,

@@ -1,8 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
-import { appRoutes } from "@/lib/constants";
+import { invalidatePayments } from "@/lib/cache/invalidate";
 import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
 import { getPaymentsDb } from "@/lib/payments/repository/client";
 import { deletePayment, updatePaymentMethod } from "@/lib/payments/repository/payments";
@@ -24,7 +22,7 @@ export async function updatePaymentMethodAction(input: unknown): Promise<Correct
     }
 
     await updatePaymentMethod(await getPaymentsDb(), parsed.data.id, parsed.data.method);
-    revalidatePath(appRoutes.payments.list, "layout");
+    invalidatePayments();
     return { ok: true };
   } catch (e) {
     return failure(e);
@@ -41,7 +39,7 @@ export async function deletePaymentAction(input: unknown): Promise<CorrectAction
     }
 
     await deletePayment(await getPaymentsDb(), parsed.data.id);
-    revalidatePath(appRoutes.payments.list, "layout");
+    invalidatePayments();
     return { ok: true };
   } catch (e) {
     return failure(e);

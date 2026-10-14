@@ -8,6 +8,7 @@ import {
   clothingOrdersTag,
   clothingProductsTag,
   paymentFeesTag,
+  paymentsTag,
   playerTag,
   rosterSeasonTag,
 } from "@/lib/cache/tags";
@@ -45,6 +46,13 @@ export function invalidatePaymentFees() {
   updateTag(paymentFeesTag());
   revalidatePath(appRoutes.payments.fees);
   revalidatePath(appRoutes.payments.list);
+}
+
+/** Cobros anotados desde el Portal (matrícula pagada, matriz de pagos). */
+export function invalidatePayments() {
+  updateTag(paymentsTag());
+  revalidatePath(appRoutes.payments.list, "layout");
+  revalidatePath("/admin/jugadores", "layout");
 }
 
 /** Plantilla / entregas; tags preparados para caché futura por temporada. */

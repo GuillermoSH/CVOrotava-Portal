@@ -1,8 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
-import { appRoutes } from "@/lib/constants";
+import { invalidatePayments } from "@/lib/cache/invalidate";
 import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
 import { getPaymentsDb } from "@/lib/payments/repository/client";
 import { createPayment, createPayments } from "@/lib/payments/repository/payments";
@@ -40,7 +38,7 @@ export async function registerPaymentAction(input: unknown): Promise<ActionResul
       billing_month: parsed.data.fee_code ? (parsed.data.billing_month ?? null) : null,
     });
 
-    revalidatePath(appRoutes.payments.list, "layout");
+    invalidatePayments();
     return { ok: true, id: payment.id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };
@@ -81,7 +79,7 @@ export async function registerBulkPaymentsAction(input: unknown): Promise<BulkAc
       })),
     );
 
-    revalidatePath(appRoutes.payments.list, "layout");
+    invalidatePayments();
     return { ok: true, created: payments.length };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };

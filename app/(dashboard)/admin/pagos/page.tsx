@@ -3,21 +3,22 @@ import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
 import { getCachedSeasonFeeLines } from "@/lib/payments/cached-fees";
 import { buildPlayerFeeRows } from "@/lib/payments/player-fee-rows";
-import { getPaymentsDb } from "@/lib/payments/repository/client";
-import { listSeasonPaymentFacts } from "@/lib/payments/repository/payments";
-import { listPlayersForPayments } from "@/lib/payments/repository/players";
+import {
+  getCachedPaymentPlayers,
+  getCachedSeasonPaymentFacts,
+} from "@/lib/payments/cached-payments";
 import { getCurrentSeason } from "@/lib/season";
 
 async function PaymentsContent() {
   await requirePaymentsWriteAccess();
 
   const season = getCurrentSeason();
-  const db = await getPaymentsDb();
-  const [players, lines, paymentsByPlayer] = await Promise.all([
-    listPlayersForPayments(db, season),
+  const [players, lines, paymentEntries] = await Promise.all([
+    getCachedPaymentPlayers(season),
     getCachedSeasonFeeLines(season),
-    listSeasonPaymentFacts(db, season),
+    getCachedSeasonPaymentFacts(season),
   ]);
+  const paymentsByPlayer = new Map(paymentEntries);
 
   const rows = buildPlayerFeeRows({
     players,

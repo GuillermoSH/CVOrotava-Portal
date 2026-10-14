@@ -1,4 +1,11 @@
-import type { ClothingSize, Player, PlayerContact, PlayerWithTeam, Team } from "@/lib/types/db";
+import type {
+  ClothingSize,
+  Player,
+  PlayerContact,
+  PlayerListItem,
+  PlayerWithTeam,
+  Team,
+} from "@/lib/types/db";
 
 export type TeamRow = {
   id: string;
@@ -46,6 +53,13 @@ export type PlayerRow = {
   updated_at?: string;
   teams?: TeamRow | TeamRow[] | null;
   team?: TeamRow | TeamRow[] | null;
+};
+
+/** Contacto embebido en el select del listado (`contacts:player_contacts(...)`). */
+export type EmbeddedContactRow = {
+  phone: string | null;
+  email: string | null;
+  is_primary: boolean;
 };
 
 export type PlayerContactRow = {
@@ -126,6 +140,26 @@ export function mapPlayer(row: PlayerRow): Player {
     birth_country: row.birth_country ?? null,
     nationality: row.nationality ?? null,
     pays_extended_monthly: Boolean(row.pays_extended_monthly),
+  };
+}
+
+/** Contacto principal embebido (o el primero) → teléfono/email del listado. */
+function primaryEmbeddedContact(
+  contacts: readonly EmbeddedContactRow[] | null | undefined,
+): EmbeddedContactRow | null {
+  if (!contacts || contacts.length === 0) return null;
+  return contacts.find((contact) => contact.is_primary) ?? contacts[0] ?? null;
+}
+
+/** Fila del listado con los contactos ya embebidos: sin segunda consulta. */
+export function mapPlayerListItem(
+  row: PlayerRow & { contacts?: EmbeddedContactRow[] | null },
+): PlayerListItem {
+  const primary = primaryEmbeddedContact(row.contacts);
+  return {
+    ...mapPlayerWithTeam(row),
+    primary_phone: primary?.phone?.trim() || null,
+    primary_email: primary?.email?.trim() || null,
   };
 }
 
