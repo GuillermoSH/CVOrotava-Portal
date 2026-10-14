@@ -15,6 +15,7 @@ export function PlayersWhatsAppSheet({
   teams,
   canWrite = false,
   loading = false,
+  onMarked,
 }: {
   open: boolean;
   onClose: () => void;
@@ -23,6 +24,7 @@ export function PlayersWhatsAppSheet({
   canWrite?: boolean;
   /** True while the full roster is fetched for WhatsApp. */
   loading?: boolean;
+  onMarked?: (playerIds: string[]) => void;
 }) {
   const filters = useWhatsAppFilters(players, teams);
   const showLoading = open && loading && players.length === 0;
@@ -59,6 +61,7 @@ export function PlayersWhatsAppSheet({
                 entries={filters.entries}
                 category={filters.category}
                 canWrite={canWrite}
+                onMarked={onMarked}
               />
             </div>
           </>

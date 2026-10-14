@@ -12,59 +12,21 @@ import {
   updatePlayerChecklistFieldAction,
 } from "@/lib/actions/roster/players";
 import {
-  formatPlayerName,
   formatTeamCategory,
   TEAM_CATEGORIES,
   TEAM_CATEGORY_LABELS,
   type TeamCategory,
 } from "@/lib/roster/constants";
+import {
+  buildWhatsAppEntries,
+  normalizePhone,
+  type WhatsAppEntry,
+} from "@/lib/roster/whatsapp";
 import type { PlayerListItem, Team } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
-export type WhatsAppEntry = {
-  playerId: string;
-  name: string;
-  teamName: string;
-  phone: string;
-  inGroup: boolean;
-};
-
-export function normalizePhone(raw: string): string {
-  return raw.replace(/[^\d+]/g, "").trim();
-}
-
-export function buildWhatsAppEntries(
-  players: PlayerListItem[],
-  {
-    category,
-    teamId,
-    onlyMissingWhatsapp,
-  }: {
-    category: string;
-    teamId: string;
-    onlyMissingWhatsapp: boolean;
-  },
-): WhatsAppEntry[] {
-  if (!category) return [];
-  const list: WhatsAppEntry[] = [];
-  for (const player of players) {
-    if (!player.is_active) continue;
-    if (player.team?.category !== category) continue;
-    if (teamId !== "all" && player.team_id !== teamId) continue;
-    if (onlyMissingWhatsapp && player.in_whatsapp_group) continue;
-    const phone = player.primary_phone?.trim();
-    if (!phone || !normalizePhone(phone)) continue;
-    list.push({
-      playerId: player.id,
-      name: formatPlayerName(player),
-      teamName: player.team?.name ?? "Sin equipo",
-      phone: phone.trim(),
-      inGroup: player.in_whatsapp_group,
-    });
-  }
-  return list.sort((a, b) => a.name.localeCompare(b.name, "es"));
-}
+export { buildWhatsAppEntries, normalizePhone, type WhatsAppEntry };
 
 export function useWhatsAppFilters(players: PlayerListItem[], teams: Team[], initialCategory = "") {
   const categoriesInUse = useMemo(() => {
@@ -178,11 +140,14 @@ export function WhatsAppEntryList({
   category,
   canWrite,
   className,
+  onMarked,
 }: {
   entries: WhatsAppEntry[];
   category: string;
   canWrite: boolean;
   className?: string;
+  /** Jugadores confirmados en el grupo: el padre actualiza su copia local de la plantilla. */
+  onMarked?: (playerIds: string[]) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -243,6 +208,7 @@ export function WhatsAppEntryList({
         return;
       }
       setLocalDone((prev) => new Set(prev).add(entry.playerId));
+      onMarked?.([entry.playerId]);
       appToast.success(`${entry.name} en el grupo`);
       router.refresh();
     });
@@ -267,6 +233,7 @@ export function WhatsAppEntryList({
         return next;
       });
       setBulkConfirmOpen(false);
+      onMarked?.(ids);
       appToast.success(
         `${result.updated ?? ids.length} contacto${ids.length === 1 ? "" : "s"} marcados en WhatsApp`,
       );
