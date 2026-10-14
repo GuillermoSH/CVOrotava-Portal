@@ -344,17 +344,19 @@ export function FlashPaymentSheet({
                   disabled={pending || !amountValid}
                   onClick={() => submit(method)}
                   className={cn(
-                    "flex min-h-14 items-center justify-center gap-2 rounded-lg border text-sm font-semibold disabled:opacity-50",
+                    "flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-lg border px-2 text-sm font-semibold disabled:opacity-50",
                     method === lastMethod
                       ? "border-[var(--club-brand)] bg-[var(--club-brand-soft)]"
                       : "border-[var(--club-border)] bg-[var(--club-surface)]",
                   )}
                 >
-                  <MethodIcon method={method} className="size-5" />
-                  <span className="text-lg font-extrabold">
-                    {method === "transferencia" ? "T" : "E"}
+                  <span className="inline-flex items-center gap-1.5">
+                    <MethodIcon method={method} className="size-5" />
+                    <span className="text-lg font-extrabold">
+                      {method === "transferencia" ? "T" : "E"}
+                    </span>
                   </span>
-                  {PAYMENT_METHOD_LABELS[method]}
+                  <span className="text-xs font-medium">{PAYMENT_METHOD_LABELS[method]}</span>
                 </button>
               ))}
             </div>

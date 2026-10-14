@@ -248,11 +248,13 @@ function CellPopover({
                   method === lastMethod && "pay-popover__method--last",
                 )}
               >
-                <MethodIcon method={method} className="size-4" />
-                <span className="pay-popover__method-letter">
-                  {method === "transferencia" ? "T" : "E"}
+                <span className="pay-popover__method-top">
+                  <MethodIcon method={method} className="size-[1.125rem]" />
+                  <span className="pay-popover__method-letter">
+                    {method === "transferencia" ? "T" : "E"}
+                  </span>
                 </span>
-                <span>{PAYMENT_METHOD_LABELS[method]}</span>
+                <span className="pay-popover__method-name">{PAYMENT_METHOD_LABELS[method]}</span>
               </button>
             ))}
           </div>
