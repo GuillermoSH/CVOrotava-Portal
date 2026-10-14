@@ -80,7 +80,7 @@ type Optimistic = {
   cells: OptimisticCells;
 };
 
-const POPOVER_WIDTH = 272;
+const POPOVER_WIDTH = 304;
 
 function CellPopover({
   row,
