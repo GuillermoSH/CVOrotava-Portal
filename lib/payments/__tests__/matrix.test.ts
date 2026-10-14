@@ -47,6 +47,7 @@ function row(
   return {
     id,
     full_name: id,
+    short_name: id,
     team_name: null,
     audience: "base",
     obligations,

@@ -3446,6 +3446,10 @@ html.dark .ropa-board {
   vertical-align: middle;
 }
 
+.pay-matrix__name--short {
+  display: none;
+}
+
 .pay-matrix__name {
   font-size: 0.875rem;
   font-weight: 600;
@@ -3901,6 +3905,18 @@ html.dark .ropa-board {
 
   .pay-matrix__player-text {
     max-width: 5.5rem;
+  }
+
+  /* En vertical se muestra "Nombre Apellido" en una línea, truncado solo si no cabe. */
+  .pay-matrix__name--full {
+    display: none;
+  }
+
+  .pay-matrix__name--short {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .pay-matrix__name {

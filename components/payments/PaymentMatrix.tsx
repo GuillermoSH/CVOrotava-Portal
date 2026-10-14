@@ -320,7 +320,10 @@ const MatrixRow = memo(
             aria-label={`Seleccionar ${row.full_name}`}
           />
           <span className="pay-matrix__player-text">
-            <span className="pay-matrix__name">{row.full_name}</span>
+            <span className="pay-matrix__name pay-matrix__name--full">{row.full_name}</span>
+            <span className="pay-matrix__name pay-matrix__name--short" title={row.full_name}>
+              {row.short_name}
+            </span>
             <span className="pay-matrix__team">{row.team_name ?? "Sin equipo"}</span>
           </span>
         </th>
