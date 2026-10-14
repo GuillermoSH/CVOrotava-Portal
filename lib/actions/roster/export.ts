@@ -1,7 +1,6 @@
 "use server";
 
-import { getPaymentsDb } from "@/lib/payments/repository/client";
-import { listPlayerIdsWithPaidMatricula } from "@/lib/payments/repository/payments";
+import { getCachedPaidMatriculaIds } from "@/lib/payments/cached-payments";
 import { requireRosterWriteAccess } from "@/lib/roster/auth";
 import {
   buildPlayersCsv,
@@ -57,7 +56,7 @@ export async function exportPlayersCsvAction(
       );
       const needsMatricula = filters.checklist === "missing_matricula";
       const matriculaPaidPlayerIds = needsMatricula
-        ? new Set(await listPlayerIdsWithPaidMatricula(await getPaymentsDb(), season))
+        ? new Set(await getCachedPaidMatriculaIds(season))
         : undefined;
       const page = await listPlayersPage(db, {
         season,

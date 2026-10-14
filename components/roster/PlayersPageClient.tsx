@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { Badge } from "@/components/club/Badge";
 import { ConfirmDialog } from "@/components/club/ConfirmDialog";
@@ -26,6 +26,7 @@ import {
   updatePlayerChecklistFieldAction,
 } from "@/lib/actions/roster/players";
 import { listWhatsAppPlayersAction } from "@/lib/actions/roster/whatsapp-players";
+import { markInWhatsappGroup } from "@/lib/roster/whatsapp";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { appRoutes } from "@/lib/constants";
 import {
@@ -504,9 +505,10 @@ export function PlayersPageClient({
     };
   }, [filterState]);
 
+  // Cada vez que se abre se vuelve a pedir la plantilla: lo marcado desde la ficha, otra
+  // pestaña o la importación no puede quedarse viejo. Mientras llega se muestra lo último.
   useEffect(() => {
     if (!whatsappOpen) return;
-    if (whatsappPlayers.length > 0) return;
 
     let cancelled = false;
     setWhatsappLoading(true);
@@ -524,7 +526,12 @@ export function PlayersPageClient({
     return () => {
       cancelled = true;
     };
-  }, [whatsappOpen, whatsappPlayers.length]);
+  }, [whatsappOpen]);
+
+  const markWhatsappMembers = useCallback((playerIds: string[]) => {
+    setWhatsappPlayers((list) => markInWhatsappGroup(list, playerIds));
+    setPagePlayers((list) => markInWhatsappGroup(list, playerIds));
+  }, []);
 
   const cascadedTeams = useMemo(
     () => teamsMatchingFacets(teams, facets),
@@ -1416,6 +1423,7 @@ export function PlayersPageClient({
         teams={teams}
         canWrite={canWrite}
         loading={whatsappLoading}
+        onMarked={markWhatsappMembers}
       />
     </DashboardPage>
   );

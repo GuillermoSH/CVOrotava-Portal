@@ -3378,3 +3378,445 @@ html.dark .ropa-board {
   box-shadow: none;
 }
 
+
+/* === MATRIZ DE COBROS (/admin/pagos) — jugador × concepto/mes, una celda = un cobro === */
+.pay-matrix-wrap {
+  max-height: calc(100dvh - 16rem);
+  min-height: 16rem;
+  overflow: auto;
+  border: 1px solid var(--club-border);
+  border-radius: var(--radius-lg);
+  background: var(--club-surface);
+  scrollbar-width: thin;
+}
+
+.pay-matrix {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--club-surface-2);
+  border-bottom: 1px solid var(--club-border);
+}
+
+.pay-matrix__player {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 11.5rem;
+  padding: 0.375rem 0.625rem;
+  text-align: left;
+  font-weight: 400;
+  background: var(--club-surface);
+  border-right: 1px solid var(--club-border);
+}
+
+.pay-matrix__player > input {
+  margin-right: 0.625rem;
+  vertical-align: middle;
+}
+
+.pay-matrix__corner {
+  z-index: 4 !important;
+  background: var(--club-surface-2) !important;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--club-fg-muted);
+}
+
+.pay-matrix__corner > span {
+  vertical-align: middle;
+}
+
+/* El nombre solo se parte en dos líneas si no cabe en el ancho máximo; nunca se corta con "…". */
+.pay-matrix__player-text {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(17rem, 55vw);
+  flex-direction: column;
+  vertical-align: middle;
+}
+
+.pay-matrix__name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  color: var(--club-fg);
+}
+
+.pay-matrix__team {
+  font-size: 0.6875rem;
+  color: var(--club-fg-muted);
+}
+
+.pay-matrix tbody tr.is-selected .pay-matrix__player,
+.pay-matrix tbody tr.is-selected .pay-matrix__cell {
+  background: color-mix(in srgb, var(--club-brand) 6%, var(--club-surface));
+}
+
+.pay-matrix tbody tr:not(:last-child) > * {
+  border-bottom: 1px solid color-mix(in srgb, var(--club-border) 60%, transparent);
+}
+
+.pay-matrix__col {
+  min-width: 3.5rem;
+  padding: 0.5rem 0.25rem;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--club-fg-muted);
+}
+
+.pay-matrix__col-main {
+  display: block;
+}
+
+.pay-matrix__col-sub {
+  display: block;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pay-matrix__col--other {
+  min-width: 3.75rem;
+}
+
+.pay-matrix__cell {
+  padding: 0.1875rem;
+  text-align: center;
+}
+
+.pay-matrix__cell--other {
+  padding-inline: 0.375rem;
+}
+
+.pay-cell {
+  display: inline-flex;
+  width: 100%;
+  min-width: 3.25rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1;
+  color: var(--club-fg-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+}
+
+.pay-cell:hover {
+  background: var(--club-surface-2);
+}
+
+.pay-cell:focus-visible {
+  outline: 2px solid var(--club-brand);
+  outline-offset: -2px;
+}
+
+.pay-cell.is-active {
+  outline: 2px solid var(--club-brand);
+  outline-offset: -2px;
+}
+
+.pay-cell--paid {
+  background: var(--club-success-muted);
+  border-color: var(--club-success-border);
+  color: var(--club-success);
+}
+
+.pay-cell--partial {
+  background: var(--club-warning-muted);
+  border-color: color-mix(in srgb, var(--club-warning) 45%, transparent);
+  color: var(--club-warning-strong, var(--club-fg));
+}
+
+.pay-cell--due {
+  border-color: color-mix(in srgb, var(--club-brand) 38%, var(--club-border));
+  background: color-mix(in srgb, var(--club-brand) 7%, transparent);
+  color: var(--club-brand);
+}
+
+.pay-cell--upcoming {
+  border: 1px dashed var(--club-border);
+  font-weight: 500;
+  color: var(--club-fg-muted);
+}
+
+.pay-cell--none {
+  cursor: default;
+  font-weight: 400;
+  opacity: 0.4;
+}
+
+.pay-cell--none:hover {
+  background: transparent;
+}
+
+.pay-cell.is-saving {
+  opacity: 0.65;
+}
+
+.pay-cell__stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.0625rem;
+}
+
+.pay-cell__date {
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.72;
+}
+
+.pay-cell__rest {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.pay-matrix__other {
+  min-height: 2.75rem;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--club-fg-muted);
+}
+
+.pay-matrix__other:hover {
+  background: var(--club-surface-2);
+  color: var(--club-fg);
+}
+
+.pay-matrix tfoot th,
+.pay-matrix tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--club-surface-2);
+  border-top: 1px solid var(--club-border);
+}
+
+.pay-matrix tfoot .pay-matrix__player {
+  z-index: 4;
+}
+
+.pay-matrix__foot-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--club-fg-muted);
+}
+
+.pay-matrix__foot {
+  padding: 0.5rem 0.25rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--club-fg);
+}
+
+.pay-matrix__foot-total {
+  color: var(--club-fg-muted);
+}
+
+.pay-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: var(--club-fg-muted);
+}
+
+.pay-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.pay-legend .pay-cell {
+  width: auto;
+  min-width: 2.5rem;
+  padding-inline: 0.375rem;
+  min-height: 1.5rem;
+  font-size: 0.75rem;
+  cursor: default;
+  pointer-events: none;
+}
+
+.pay-popover {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  border: 1px solid var(--club-border);
+  border-radius: var(--radius-lg);
+  background: var(--club-drawer-bg);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--club-fg) 16%, transparent);
+}
+
+.pay-popover__title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--club-fg);
+}
+
+.pay-popover__sub {
+  font-size: 0.75rem;
+  color: var(--club-fg-muted);
+}
+
+.pay-popover__payments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem;
+  border: 1px solid var(--club-border);
+  border-radius: var(--radius-sm);
+  background: var(--club-surface);
+}
+
+.pay-popover__payment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.pay-popover__payment-info {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.pay-popover__payment-actions {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.pay-popover__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pay-popover__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pay-popover__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--club-fg-muted);
+}
+
+.pay-popover__input {
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--club-border);
+  border-radius: var(--radius-sm);
+  background: var(--club-surface);
+  font-size: 1.125rem;
+  font-weight: 650;
+  color: var(--club-fg);
+}
+
+.pay-popover__input:focus-visible {
+  outline: 2px solid var(--club-brand);
+  outline-offset: 1px;
+}
+
+.pay-popover__methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.pay-popover__method {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--club-border);
+  border-radius: var(--radius-sm);
+  background: var(--club-surface);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--club-fg);
+  touch-action: manipulation;
+}
+
+.pay-popover__method:hover:not(:disabled) {
+  background: var(--club-surface-2);
+}
+
+.pay-popover__method:disabled {
+  opacity: 0.5;
+}
+
+.pay-popover__method--last {
+  border-color: var(--club-brand);
+  background: var(--club-brand-soft);
+}
+
+.pay-popover__method-letter {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.pay-popover__hint {
+  font-size: 0.75rem;
+  color: var(--club-fg-muted);
+}
+
+.pay-popover__foot {
+  display: flex;
+  justify-content: space-between;
+}
+
+.pay-popover__link {
+  min-height: 2rem;
+  padding: 0 0.375rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--club-fg-muted);
+}
+
+.pay-popover__link:hover:not(:disabled) {
+  background: var(--club-surface-2);
+  color: var(--club-fg);
+}
+
+.pay-popover__link--danger {
+  color: var(--club-brand);
+}

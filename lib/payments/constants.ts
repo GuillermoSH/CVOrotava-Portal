@@ -8,7 +8,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 /**
  * Valor centinela para la opción "Otro" (concepto/importe libres) en el
- * desplegable de /admin/pagos — los conceptos reales vienen de payment_concepts
- * (ver lib/payments/repository/concepts.ts), gestionables desde /admin/pagos/conceptos.
+ * desplegable de /admin/pagos — el resto de opciones salen de la tarifa de la
+ * temporada (ver lib/payments/fees.ts, gestionable desde /admin/pagos/tarifas).
  */
 export const OTHER_CONCEPT_VALUE = "__other__";

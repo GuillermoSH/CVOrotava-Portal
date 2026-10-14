@@ -1,18 +1,8 @@
-import { PaymentConceptsPageClient } from "@/components/payments/PaymentConceptsPageClient";
-import { RuntimePage } from "@/components/shared/RuntimePage";
-import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
-import { getCachedAllPaymentConceptsSnapshot } from "@/lib/payments/cached-concepts";
+import { redirect } from "next/navigation";
 
-async function PaymentConceptsContent() {
-  await requirePaymentsWriteAccess();
-  const concepts = await getCachedAllPaymentConceptsSnapshot();
-  return <PaymentConceptsPageClient concepts={concepts} />;
-}
+import { appRoutes } from "@/lib/constants";
 
+/** Los conceptos predefinidos se sustituyeron por tarifas por temporada. */
 export default function PaymentConceptsPage() {
-  return (
-    <RuntimePage kind="products">
-      <PaymentConceptsContent />
-    </RuntimePage>
-  );
+  redirect(appRoutes.payments.fees);
 }

@@ -7,34 +7,80 @@ import { getCurrentSeason, type SeasonId } from "@/lib/season";
 import type { Payment } from "@/lib/types/db";
 
 const PAYMENT_SELECT =
-  "id, user_id, player_id, concept, amount, status, due_date, paid_date, notes, created_at, updated_at, season, method";
+  "id, user_id, player_id, concept, amount, status, due_date, paid_date, notes, created_at, updated_at, season, method, fee_code, billing_month";
 
 /** player_ids con Matrícula ya pagada esta temporada — base del badge Pagada/Pendiente.
- *  "Matrícula" se determina por payment_concepts.is_matricula (no por texto fijo), para
- *  que renombrar el concepto desde la mini-UI de gestión no rompa esta comprobación. */
+ *  Cuenta el cobro cerrado con fee_code "matricula" o, para anotaciones previas sin
+ *  fee_code, el concepto escrito "Matrícula…" (el backfill de la migración ya lo asigna). */
 export async function listPlayerIdsWithPaidMatricula(
   db: PaymentsDb,
   season: SeasonId = getCurrentSeason(),
 ): Promise<Set<string>> {
-  const { data: concepts, error: conceptsError } = await db
-    .from("payment_concepts")
-    .select("concept")
-    .eq("is_matricula", true);
-  if (conceptsError) throw new Error(dbErrorMessage(conceptsError));
-
-  const matriculaConcepts = [...new Set((concepts ?? []).map((row) => row.concept as string))];
-  if (matriculaConcepts.length === 0) return new Set();
-
   const { data, error } = await db
     .from("payments")
     .select("player_id")
     .eq("season", season)
-    .in("concept", matriculaConcepts)
     .eq("status", "paid")
+    .or("fee_code.eq.matricula,concept.ilike.matr_cula%")
     .not("player_id", "is", null);
 
   if (error) throw new Error(dbErrorMessage(error));
   return new Set((data ?? []).map((row) => row.player_id as string));
+}
+
+export type SeasonPaymentFacts = {
+  id: string;
+  player_id: string;
+  amount: number;
+  status: string;
+  method: string | null;
+  paid_date: string | null;
+  fee_code: string | null;
+  billing_month: number | null;
+};
+
+const SEASON_PAYMENTS_PAGE = 1000;
+
+/** Cobros de la temporada agrupados por jugador (solo lo que necesita el cálculo de tarifa). */
+export async function listSeasonPaymentFacts(
+  db: PaymentsDb,
+  season: SeasonId,
+): Promise<Map<string, SeasonPaymentFacts[]>> {
+  const byPlayer = new Map<string, SeasonPaymentFacts[]>();
+
+  for (let from = 0; ; from += SEASON_PAYMENTS_PAGE) {
+    const { data, error } = await db
+      .from("payments")
+      .select("id, player_id, amount, status, method, paid_date, fee_code, billing_month")
+      .eq("season", season)
+      .eq("status", "paid")
+      .not("player_id", "is", null)
+      .order("created_at")
+      .range(from, from + SEASON_PAYMENTS_PAGE - 1);
+
+    if (error) throw new Error(dbErrorMessage(error));
+    const rows = data ?? [];
+
+    for (const row of rows) {
+      const playerId = row.player_id as string;
+      const list = byPlayer.get(playerId) ?? [];
+      list.push({
+        id: row.id as string,
+        player_id: playerId,
+        amount: typeof row.amount === "string" ? Number(row.amount) : (row.amount as number),
+        status: row.status as string,
+        method: (row.method as string | null) ?? null,
+        paid_date: (row.paid_date as string | null) ?? null,
+        fee_code: (row.fee_code as string | null) ?? null,
+        billing_month: (row.billing_month as number | null) ?? null,
+      });
+      byPlayer.set(playerId, list);
+    }
+
+    if (rows.length < SEASON_PAYMENTS_PAGE) break;
+  }
+
+  return byPlayer;
 }
 
 /** Histórico de pagos de un jugador para una temporada. */
@@ -64,6 +110,9 @@ export type CreatePaymentInput = {
   method: string;
   notes?: string | null;
   season?: SeasonId;
+  /** Línea de tarifa que cierra el cobro; null = cobro libre. */
+  fee_code?: string | null;
+  billing_month?: number | null;
 };
 
 function buildPaymentRow(input: CreatePaymentInput) {
@@ -78,6 +127,8 @@ function buildPaymentRow(input: CreatePaymentInput) {
     method: input.method,
     notes: input.notes?.trim() || null,
     season: input.season ?? getCurrentSeason(),
+    fee_code: input.fee_code ?? null,
+    billing_month: input.billing_month ?? null,
   };
 }
 
@@ -106,4 +157,28 @@ export async function createPayments(
 
   if (error) throw new Error(dbErrorMessage(error));
   return (data ?? []).map((row) => mapPayment(row as PaymentRow));
+}
+
+/** Cambia el método de un cobro anotado desde el Portal (RLS limita a filas con method). */
+export async function updatePaymentMethod(
+  db: PaymentsDb,
+  id: string,
+  method: string,
+): Promise<void> {
+  const { data, error } = await db
+    .from("payments")
+    .update({ method, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("id");
+
+  if (error) throw new Error(dbErrorMessage(error));
+  if (!data || data.length === 0) throw new Error("No se pudo modificar este cobro");
+}
+
+/** Anula un cobro anotado desde el Portal (RLS limita a filas con method). */
+export async function deletePayment(db: PaymentsDb, id: string): Promise<void> {
+  const { data, error } = await db.from("payments").delete().eq("id", id).select("id");
+
+  if (error) throw new Error(dbErrorMessage(error));
+  if (!data || data.length === 0) throw new Error("No se pudo anular este cobro");
 }

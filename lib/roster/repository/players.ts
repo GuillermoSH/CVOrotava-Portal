@@ -3,9 +3,11 @@ import { formatPlayerAddress } from "@/lib/roster/address";
 import { isSpanishNationality } from "@/lib/roster/document";
 import {
   mapPlayerContact,
+  mapPlayerListItem,
   mapPlayerWithTeam,
   type PlayerRow,
 } from "@/lib/roster/mappers";
+import { omitPreservedFields } from "@/lib/roster/player-update";
 import {
   docsDeliveredInputToIso,
   type PlayerListToggleField,
@@ -31,7 +33,10 @@ const PLAYER_DETAIL_SELECT =
 
 /** Listado admin — sin medical/nationality/photo_path/etc. */
 const PLAYER_LIST_SELECT =
-  "id, full_name, first_name, last_name, birth_date, team_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, team:teams(id, name, category, gender, season)";
+  "id, full_name, first_name, last_name, birth_date, team_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, pays_extended_monthly, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, team:teams(id, name, category, gender, season)";
+
+/** Contactos embebidos: teléfono/email principal sin una segunda consulta. */
+const CONTACTS_EMBED = "contacts:player_contacts(phone, email, is_primary)";
 
 export type ListPlayersPageFilters = {
   query?: string;
@@ -124,54 +129,15 @@ export type PlayerWriteInput = {
   contacts?: PlayerContactInput[];
 };
 
-function primaryContactFromContacts(
-  contacts: PlayerContact[],
-  playerId: string,
-): PlayerContact | null {
-  const forPlayer = contacts.filter((contact) => contact.player_id === playerId);
-  return forPlayer.find((contact) => contact.is_primary) ?? forPlayer[0] ?? null;
-}
-
-function primaryPhoneFromContacts(
-  contacts: PlayerContact[],
-  playerId: string,
-): string | null {
-  const phone = primaryContactFromContacts(contacts, playerId)?.phone?.trim();
-  return phone || null;
-}
-
-function primaryEmailFromContacts(
-  contacts: PlayerContact[],
-  playerId: string,
-): string | null {
-  const email = primaryContactFromContacts(contacts, playerId)?.email?.trim();
-  return email || null;
-}
-
-async function attachPrimaryContacts(
-  db: RosterDb,
-  players: PlayerWithTeam[],
-): Promise<PlayerListItem[]> {
-  const contacts = await listContactsForPlayers(
-    db,
-    players.map((player) => player.id),
-  );
-  return players.map((player) => ({
-    ...player,
-    primary_phone: primaryPhoneFromContacts(contacts, player.id),
-    primary_email: primaryEmailFromContacts(contacts, player.id),
-  }));
-}
-
 function listSelect(filters: ListPlayersPageFilters): string {
   const needsTeamInner = Boolean(filters.category) || filters.gender === "mixed";
   const teamEmbed = needsTeamInner
     ? "team:teams!inner(id, name, category, gender, season)"
     : "team:teams(id, name, category, gender, season)";
-  return PLAYER_LIST_SELECT.replace(
+  return `${PLAYER_LIST_SELECT.replace(
     "team:teams(id, name, category, gender, season)",
     teamEmbed,
-  );
+  )}, ${CONTACTS_EMBED}`;
 }
 
 function applyListFilters(
@@ -252,8 +218,15 @@ export async function listPlayersWithPrimaryPhone(
   db: RosterDb,
   season: string = getCurrentSeason(),
 ): Promise<PlayerListItem[]> {
-  const players = await listPlayers(db, season);
-  return attachPrimaryContacts(db, players);
+  const { data, error } = await db
+    .from("players")
+    .select(`${PLAYER_LIST_SELECT}, ${CONTACTS_EMBED}`)
+    .eq("season", season)
+    .order("first_name", { ascending: true })
+    .order("last_name", { ascending: true });
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return ((data ?? []) as unknown as PlayerRow[]).map((row) => mapPlayerListItem(row));
 }
 
 /**
@@ -287,9 +260,7 @@ export async function listPlayersPage(
       .order("id", { ascending: true })
       .range(from, to);
     if (error) throw new Error(dbErrorMessage(error));
-    const rows = (data ?? []) as PlayerRow[];
-    const mapped = rows.map((row) => mapPlayerWithTeam(row));
-    const players = await attachPrimaryContacts(db, mapped);
+    const players = ((data ?? []) as PlayerRow[]).map((row) => mapPlayerListItem(row));
     return {
       players,
       total: count ?? players.length,
@@ -305,11 +276,7 @@ export async function listPlayersPage(
     .order("id", { ascending: true });
 
   if (error) throw new Error(dbErrorMessage(error));
-  const rows = (data ?? []) as PlayerRow[];
-  let players = await attachPrimaryContacts(
-    db,
-    rows.map((row) => mapPlayerWithTeam(row)),
-  );
+  let players = ((data ?? []) as PlayerRow[]).map((row) => mapPlayerListItem(row));
 
   if (filters.checklist && checklistNeedsPostFilter(filters.checklist)) {
     players = players.filter((player) =>
@@ -569,8 +536,10 @@ export async function updatePlayer(
   db: RosterDb,
   id: string,
   input: PlayerWriteInput,
+  options: { preserve?: readonly string[] } = {},
 ): Promise<PlayerWithDetails> {
-  const { error } = await db.from("players").update(playerInsert(input)).eq("id", id);
+  const patch = omitPreservedFields(playerInsert(input), options.preserve);
+  const { error } = await db.from("players").update(patch).eq("id", id);
   if (error) throw new Error(dbErrorMessage(error));
   await replaceContacts(db, id, input.contacts ?? []);
   const player = await getPlayerById(db, id);

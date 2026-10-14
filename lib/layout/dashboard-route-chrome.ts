@@ -73,16 +73,16 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     return {
       title: "Pagos",
       subtitle:
-        "Anota pagos ya recibidos (transferencia o efectivo) y consulta quién falta por pagar la matrícula.",
+        "Anota pagos ya recibidos (transferencia o efectivo) y consulta qué le falta a cada jugador.",
       sticky: true,
       skeleton: "products",
     };
   }
 
-  if (pathname === appRoutes.payments.concepts) {
+  if (pathname === appRoutes.payments.fees) {
     return {
-      title: "Conceptos predefinidos",
-      subtitle: "Cuotas, matrícula y otros importes fijos para agilizar el registro de pagos.",
+      title: "Tarifas",
+      subtitle: "Matrícula, equipación, pago único y mensualidades por temporada y categoría.",
       back: { href: appRoutes.payments.list, label: "Pagos" },
       skeleton: "products",
     };
