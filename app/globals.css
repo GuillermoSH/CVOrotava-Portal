@@ -3641,6 +3641,48 @@ html.dark .ropa-board {
   color: var(--club-fg-muted);
 }
 
+/*
+ * Escritorio: la página ocupa justo la altura disponible. La matriz absorbe el
+ * espacio sobrante y scrollea por dentro; cabecera, filtros y leyenda siempre
+ * a la vista. En alturas cortas se compactan las celdas, sin bajar de 32px
+ * (mínimo de objetivo táctil WCAG 2.2 es 24px; el cómodo 44px se mantiene
+ * cuando hay sitio).
+ */
+@media (min-width: 768px) {
+  .pay-matrix-wrap {
+    flex: 1 1 0;
+    min-height: 10rem;
+    max-height: none;
+  }
+
+  .pay-legend {
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 768px) and (max-height: 820px) {
+  .pay-cell,
+  .pay-matrix__other {
+    min-height: 2.375rem;
+  }
+
+  .pay-matrix__cell {
+    padding: 0.125rem;
+  }
+}
+
+@media (min-width: 768px) and (max-height: 700px) {
+  .pay-cell,
+  .pay-matrix__other {
+    min-height: 2rem;
+    font-size: 0.8125rem;
+  }
+
+  .pay-matrix__team {
+    display: none;
+  }
+}
+
 .pay-legend {
   display: flex;
   flex-wrap: wrap;
