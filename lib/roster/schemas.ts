@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PRESERVABLE_PLAYER_FIELDS } from "@/lib/roster/player-update";
 
 import { CLOTHING_SIZES } from "@/lib/clothing/constants";
 import {
@@ -147,6 +148,8 @@ export const quickCreatePlayerSchema = z.object({
 export const updatePlayerSchema = upsertPlayerSchema.and(
   z.object({
     id: z.string().uuid(),
+    /** Campos que la ficha no tocó: se conserva el valor actual de la base de datos. */
+    preserve_fields: z.array(z.enum(PRESERVABLE_PLAYER_FIELDS)).max(20).optional(),
   }),
 );
 

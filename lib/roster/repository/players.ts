@@ -7,6 +7,7 @@ import {
   mapPlayerWithTeam,
   type PlayerRow,
 } from "@/lib/roster/mappers";
+import { omitPreservedFields } from "@/lib/roster/player-update";
 import {
   docsDeliveredInputToIso,
   type PlayerListToggleField,
@@ -535,8 +536,10 @@ export async function updatePlayer(
   db: RosterDb,
   id: string,
   input: PlayerWriteInput,
+  options: { preserve?: readonly string[] } = {},
 ): Promise<PlayerWithDetails> {
-  const { error } = await db.from("players").update(playerInsert(input)).eq("id", id);
+  const patch = omitPreservedFields(playerInsert(input), options.preserve);
+  const { error } = await db.from("players").update(patch).eq("id", id);
   if (error) throw new Error(dbErrorMessage(error));
   await replaceContacts(db, id, input.contacts ?? []);
   const player = await getPlayerById(db, id);

@@ -67,6 +67,10 @@ import {
   isDocsDeliveryDateRelevant,
 } from "@/lib/roster/onboarding";
 import { getPlayerProfileCompleteness } from "@/lib/roster/profile-completeness";
+import {
+  unchangedPlayerFields,
+  type PreservablePlayerValues,
+} from "@/lib/roster/player-update";
 import { createPlayerSchema, updatePlayerSchema } from "@/lib/roster/schemas";
 import {
   firstPlayerErrorField,
@@ -449,6 +453,23 @@ export function PlayerForm({
     ],
   );
 
+  // Valores de los campos que otros flujos también editan (WhatsApp, checklist, equipo en
+  // bloque, bajas), tal y como estaban al cargar la ficha. Lo que no se toque aquí no se
+  // escribe al guardar, para no revertir cambios hechos desde otro sitio.
+  const [sharedBaseline, setSharedBaseline] = useState<PreservablePlayerValues>(() => ({
+    team_id: teamId || null,
+    gender: gender || null,
+    license_completed: licenseCompleted,
+    registration_papers_received: papersReceived,
+    docs_delivered_to_family: docsDelivered,
+    docs_delivered_at: docsDelivered ? docsDeliveredAt || null : null,
+    photo_taken: photoTaken,
+    photo_consent: photoConsent,
+    in_whatsapp_group: inWhatsappGroup,
+    pays_extended_monthly: paysExtendedMonthly,
+    is_active: player?.is_active ?? true,
+  }));
+
   const [savedSnapshotKey, setSavedSnapshotKey] = useState(() =>
     player ? snapshotKey(currentSnapshot) : "",
   );
@@ -687,6 +708,20 @@ export function PlayerForm({
           is_primary: index === 0,
         }));
 
+    const sharedValues: PreservablePlayerValues = {
+      team_id: teamId || null,
+      gender: gender || null,
+      license_completed: licenseCompleted,
+      registration_papers_received: papersReceived,
+      docs_delivered_to_family: docsDelivered,
+      docs_delivered_at: docsDelivered ? docsDeliveredAt || null : null,
+      photo_taken: photoTaken,
+      photo_consent: photoConsent,
+      in_whatsapp_group: inWhatsappGroup,
+      pays_extended_monthly: paysExtendedMonthly,
+      is_active: player?.is_active ?? true,
+    };
+
     const payload = {
       first_name: firstName,
       last_name: lastName,
@@ -723,7 +758,12 @@ export function PlayerForm({
         teamCategory,
         contacts: draftContacts,
       }),
-      ...(player ? { id: player.id } : {}),
+      ...(player
+        ? {
+            id: player.id,
+            preserve_fields: unchangedPlayerFields(sharedBaseline, sharedValues),
+          }
+        : {}),
     };
 
     const parsed = player ? updatePlayerSchema.safeParse(payload) : createPlayerSchema.safeParse(payload);
@@ -748,6 +788,7 @@ export function PlayerForm({
       appToast.success(player ? "Ficha guardada" : "Jugador dado de alta");
       if (player) {
         setSavedSnapshotKey(snapshotKey(currentSnapshot));
+        setSharedBaseline(sharedValues);
         router.refresh();
       } else {
         router.push(listHref);

@@ -190,11 +190,16 @@ export async function updatePlayerAction(input: unknown): Promise<ActionResult> 
       contacts: parsed.data.contacts,
     });
 
-    await updatePlayer(db, parsed.data.id, {
-      ...parsed.data,
-      gender: resolvedGender,
-      contacts,
-    });
+    await updatePlayer(
+      db,
+      parsed.data.id,
+      {
+        ...parsed.data,
+        gender: resolvedGender,
+        contacts,
+      },
+      { preserve: parsed.data.preserve_fields },
+    );
     invalidateRoster(parsed.data.season);
     refresh();
     return { ok: true, id: parsed.data.id };
