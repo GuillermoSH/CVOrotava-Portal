@@ -53,41 +53,6 @@ function FormSection({
   );
 }
 
-function KpiTile({
-  title,
-  helper,
-  href,
-  wide,
-}: {
-  title: string;
-  helper: string;
-  href: string;
-  wide?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "group block min-h-11 rounded-[var(--radius-lg)] outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--club-brand)_40%,transparent)]",
-        wide && "col-span-2 lg:col-span-1",
-      )}
-    >
-      <Card
-        size="sm"
-        className="h-full transition-[border-color,box-shadow] group-hover:border-[var(--club-border-hover)] group-hover:shadow-[var(--club-shadow-card-hover)]"
-      >
-        <CardHeader className="gap-1.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <CardTitle className="text-sm font-semibold leading-snug">{title}</CardTitle>
-            <span className="shrink-0 text-xs text-muted-foreground">{helper}</span>
-          </div>
-          <Bone className="h-9 w-16 rounded-md" />
-        </CardHeader>
-      </Card>
-    </Link>
-  );
-}
-
 function AdminMetricCard({
   title,
   helper,
@@ -186,21 +151,17 @@ function AdminBody() {
 
 function HubBody() {
   return (
-    <>
-      <section className="flex flex-col gap-3">
-        <h2 className="section-title">Indicadores</h2>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-          <KpiTile title="Pedidos abiertos" helper="activos" href={appRoutes.clothing.orders} />
-          <KpiTile title="Pendiente ubicar" helper="lotes" href={appRoutes.clothing.warehouse} />
-          <KpiTile title="En almacén" helper="unidades" href={appRoutes.clothing.warehouse} wide />
-        </div>
-      </section>
+    <div className="ropa-hub">
+      <div className="ropa-hub__ahora">
+        <Bone className="h-4 w-48" />
+        <Bone className="h-[7.5rem] w-full rounded-[var(--radius-md)]" />
+      </div>
       <SearchBone />
-      <section className="flex flex-col gap-2.5">
+      <section className="ropa-hub__ops">
         <h2 className="ropa-section-label">Accesos rápidos</h2>
         <ClothingHubQuickLinks />
       </section>
-    </>
+    </div>
   );
 }
 

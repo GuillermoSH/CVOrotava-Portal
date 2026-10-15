@@ -16,10 +16,11 @@ export function OrderLineReceivedEditor({
   layout = "table",
 }: {
   line: ClothingOrderLineWithProduct;
-  layout?: "mobile" | "table";
+  layout?: "mobile" | "table" | "chip";
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const ariaLabel = `Unidades recibidas de ${formatProductShort(line.product)}, talla ${formatClothingSize(line.size)}`;
 
   function handleBlur(value: string) {
     const qty = Number(value);
@@ -39,6 +40,22 @@ export function OrderLineReceivedEditor({
     });
   }
 
+  if (layout === "chip") {
+    return (
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={9999}
+        defaultValue={line.quantity_received}
+        disabled={pending}
+        aria-label={ariaLabel}
+        className="ropa-size-qty__input"
+        onBlur={(e) => handleBlur(e.target.value)}
+      />
+    );
+  }
+
   return (
     <Input
       type="number"
@@ -47,7 +64,7 @@ export function OrderLineReceivedEditor({
       max={9999}
       defaultValue={line.quantity_received}
       disabled={pending}
-      aria-label={`Unidades recibidas de ${formatProductShort(line.product)}, talla ${formatClothingSize(line.size)}`}
+      aria-label={ariaLabel}
       className={cn(
         "tabular-nums",
         layout === "mobile"

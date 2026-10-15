@@ -27,31 +27,41 @@ export function ClothingSetBand({
   children,
   className,
 }: ClothingSetBandProps) {
+  const cta =
+    href && hrefLabel ? (
+      href.startsWith("#") ? (
+        <a href={href} className="ropa-set-band__cta">
+          {hrefLabel}
+        </a>
+      ) : (
+        <Link href={href} className="ropa-set-band__cta">
+          {hrefLabel}
+        </Link>
+      )
+    ) : null;
+  const hasActions = Boolean(cta || children);
+
   return (
     <div className={cn("ropa-set-band", lit && "ropa-set-band--lit", className)}>
-      <div className="ropa-set-band__main">
-        <p className="ropa-set-band__label">{label}</p>
-        <h2 className="ropa-set-band__title">{title}</h2>
-        {body ? <p className="ropa-set-band__body">{body}</p> : null}
-        {href && hrefLabel ? (
-          href.startsWith("#") ? (
-            <a href={href} className="ropa-set-band__cta">
-              {hrefLabel}
-            </a>
-          ) : (
-            <Link href={href} className="ropa-set-band__cta">
-              {hrefLabel}
-            </Link>
-          )
+      <div className="ropa-set-band__content">
+        <div className="ropa-set-band__main">
+          <p className="ropa-set-band__label">{label}</p>
+          <h2 className="ropa-set-band__title">{title}</h2>
+          {body ? <p className="ropa-set-band__body">{body}</p> : null}
+        </div>
+        {score ? (
+          <div className="ropa-set-band__score">
+            <span className="ropa-digit ropa-digit--lg">{score.value}</span>
+            {score.helper ? (
+              <span className="ropa-set-band__score-helper">{score.helper}</span>
+            ) : null}
+          </div>
         ) : null}
-        {children}
       </div>
-      {score ? (
-        <div className="ropa-set-band__score">
-          <span className="ropa-digit ropa-digit--lg">{score.value}</span>
-          {score.helper ? (
-            <span className="ropa-set-band__score-helper">{score.helper}</span>
-          ) : null}
+      {hasActions ? (
+        <div className="ropa-set-band__actions">
+          {cta}
+          {children}
         </div>
       ) : null}
     </div>

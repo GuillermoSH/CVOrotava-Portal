@@ -87,7 +87,7 @@ export function OrderStatusActions({
   if (forwardStatuses.length === 0 && !canReopenDraft) {
     return (
       <p className="text-sm text-muted-foreground">
-        Pedido {ORDER_STATUS_LABELS[status].toLowerCase()}. No hay más transiciones.
+        No hay más transiciones en este pedido.
       </p>
     );
   }
