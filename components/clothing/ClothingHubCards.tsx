@@ -17,7 +17,6 @@ export function ClothingHubCards({ kpis }: { kpis: ClothingHubKpis }) {
         body={`${ORDER_STATUS_LABELS[featured.status]} · ${featured.supplier_name}`}
         href={appRoutes.clothing.orderDetail(featured.id)}
         hrefLabel="Abrir pedido"
-        score={{ value: String(kpis.openOrders), helper: "abiertos" }}
       />
     );
   }
@@ -44,7 +43,6 @@ export function ClothingHubCards({ kpis }: { kpis: ClothingHubKpis }) {
       body="No hay pedidos abiertos ni stock pendiente de ubicar."
       href={appRoutes.clothing.newOrder}
       hrefLabel="Nuevo pedido"
-      score={{ value: String(kpis.storedUnits), helper: "uds en caja" }}
     />
   );
 }

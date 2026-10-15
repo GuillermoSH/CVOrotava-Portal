@@ -5,7 +5,6 @@ import { OrderCockpit } from "@/components/clothing/OrderCockpit";
 import { OrderForm } from "@/components/clothing/OrderForm";
 import { OrderLinesSection } from "@/components/clothing/OrderLinesSection";
 import { OrderReceivingVerificationPanel } from "@/components/clothing/OrderReceivingVerificationPanel";
-import { OrderStatusBadge } from "@/components/clothing/OrderStatusBadge";
 import { OrderStatusStepper } from "@/components/clothing/OrderStatusStepper";
 import { DashboardPage } from "@/components/layout/DashboardPage";
 import { RuntimePage } from "@/components/shared/RuntimePage";
@@ -43,10 +42,13 @@ async function ClothingOrderDetailContent({
       subtitle={`${order.supplier_name} · Temporada ${order.season}`}
       className="flex flex-col gap-5 md:gap-6"
     >
-      <section className="ropa-panel">
-        <div className="ropa-panel__bar">
-          <OrderStatusBadge status={order.status} />
-          <time dateTime={order.updated_at} className="ropa-panel__meta">
+      <section className="ropa-panel ropa-order-summary">
+        <div className="ropa-panel__block ropa-order-summary__progress">
+          <OrderStatusStepper
+            currentStatus={order.status}
+            statusEvents={order.status_events}
+          />
+          <time dateTime={order.updated_at} className="ropa-panel__meta ropa-order-summary__updated">
             Actualizado{" "}
             {new Date(order.updated_at).toLocaleString("es-ES", {
               day: "numeric",
@@ -60,14 +62,6 @@ async function ClothingOrderDetailContent({
         {!isDraft && order.notes ? (
           <p className="ropa-panel__notes">{order.notes}</p>
         ) : null}
-
-        <div className="ropa-panel__block">
-          <h2 className="ropa-section-label">Sets</h2>
-          <OrderStatusStepper
-            currentStatus={order.status}
-            statusEvents={order.status_events}
-          />
-        </div>
 
         <div className="ropa-panel__block ropa-panel__block--flush">
           <OrderCockpit

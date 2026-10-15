@@ -24,10 +24,11 @@ function stateLabel(state: LineReceivingState, missing: number, excess: number):
   return "Sin recibir";
 }
 
-function stateClass(state: LineReceivingState): string {
-  if (state === "complete") return "text-success";
-  if (state === "excess") return "text-[var(--club-info-strong)]";
-  return "text-[var(--club-warning-strong)]";
+function chipStateClass(state: LineReceivingState): string {
+  if (state === "complete") return "ropa-verify-chip--complete";
+  if (state === "excess") return "ropa-verify-chip--excess";
+  if (state === "short") return "ropa-verify-chip--short";
+  return "ropa-verify-chip--empty";
 }
 
 function ProductGroupCard({
@@ -89,27 +90,27 @@ function ProductGroupCard({
       </div>
 
       <ul className="ropa-verify-sizes">
-        {group.lines.map(({ line, state, missing, excess }) => (
-          <li key={line.id} className="ropa-verify-size">
-            <div className="ropa-verify-size__label">
-              <p className="font-medium text-foreground">{formatClothingSize(line.size)}</p>
-              <p className={cn("text-xs font-medium", stateClass(state))}>
-                {stateLabel(state, missing, excess)}
-              </p>
-            </div>
-
-            <div className="ropa-verify-size__score">
+        {group.lines.map(({ line, state, missing, excess }) => {
+          const sizeLabel = formatClothingSize(line.size);
+          const status = stateLabel(state, missing, excess);
+          return (
+            <li
+              key={line.id}
+              className={cn("ropa-verify-chip", chipStateClass(state))}
+              title={`${sizeLabel}: ${status}`}
+            >
+              <span className="ropa-verify-chip__size">{sizeLabel}</span>
               {editable ? (
-                <OrderLineReceivedEditor line={line} layout="table" />
+                <OrderLineReceivedEditor line={line} layout="chip" />
               ) : (
                 <span className="ropa-digit ropa-digit--sm">{line.quantity_received}</span>
               )}
-              <span className="ropa-verify-size__denom">
-                / <span className="ropa-digit">{line.quantity_ordered}</span>
+              <span className="ropa-verify-chip__denom">
+                /{line.quantity_ordered}
               </span>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </article>
   );
@@ -173,12 +174,12 @@ export function OrderReceivingVerificationPanel({
   }
 
   return (
-    <div id="verificacion-recepcion" className="flex flex-col gap-4 scroll-mt-24">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div id="verificacion-recepcion" className="flex flex-col gap-3 scroll-mt-24">
+      <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="ropa-section-heading">Verificación</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Recibidas / pedidas por prenda y talla.
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Recibidas / pedidas por talla.
           </p>
         </div>
         {editable && !summary.allComplete ? (
@@ -216,7 +217,7 @@ export function OrderReceivingVerificationPanel({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {summary.groups.map((group) => (
           <ProductGroupCard
             key={group.productId}

@@ -38,67 +38,41 @@ export function OrderStatusStepper({
   const dates = latestDateByStatus(statusEvents);
 
   return (
-    <>
-      <nav aria-label="Progreso del pedido" className="ropa-sets hidden md:block">
-        <ol className="ropa-sets__track">
-          {ORDER_STATUSES.map((status, index) => {
-            const isPast = index < currentIndex;
-            const isCurrent = index === currentIndex;
-            const date = dates[status];
+    <nav aria-label="Progreso del pedido" className="ropa-sets">
+      <ol className="ropa-sets__track">
+        {ORDER_STATUSES.map((status, index) => {
+          const isPast = index < currentIndex;
+          const isCurrent = index === currentIndex;
+          const date = dates[status];
+          const label = ORDER_STATUS_LABELS[status];
 
-            return (
-              <li
-                key={status}
-                className={cn(
-                  "ropa-sets__set",
-                  isPast && "ropa-sets__set--past",
-                  isCurrent && "ropa-sets__set--current",
-                )}
-                title={
-                  date
-                    ? `${ORDER_STATUS_LABELS[status]} · ${formatStatusDate(date)}`
-                    : ORDER_STATUS_LABELS[status]
-                }
-              >
-                <span className="ropa-sets__num ropa-digit">{index + 1}</span>
-                <span className="ropa-sets__name">{ORDER_STATUS_LABELS[status]}</span>
-                {date && (isPast || isCurrent) ? (
-                  <span className="ropa-sets__date">{formatStatusDate(date)}</span>
-                ) : null}
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
-
-      <nav aria-label="Progreso del pedido" className="ropa-sets-mobile md:hidden">
-        <ol className="ropa-sets-mobile__list">
-          {ORDER_STATUSES.map((status, index) => {
-            const isPast = index < currentIndex;
-            const isCurrent = index === currentIndex;
-            const date = dates[status];
-
-            return (
-              <li
-                key={status}
-                className={cn(
-                  "ropa-sets-mobile__item",
-                  isPast && "ropa-sets-mobile__item--past",
-                  isCurrent && "ropa-sets-mobile__item--current",
-                )}
-              >
-                <span className="ropa-sets-mobile__num ropa-digit">{index + 1}</span>
-                <span className="ropa-sets-mobile__name">{ORDER_STATUS_LABELS[status]}</span>
-                {date && (isPast || isCurrent) ? (
-                  <time dateTime={date} className="ropa-sets-mobile__date">
-                    {formatStatusDate(date)}
-                  </time>
-                ) : null}
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
-    </>
+          return (
+            <li
+              key={status}
+              className={cn(
+                "ropa-sets__set",
+                index === 0 && "ropa-sets__set--first",
+                index === ORDER_STATUSES.length - 1 && "ropa-sets__set--last",
+                isPast && "ropa-sets__set--past",
+                isCurrent && "ropa-sets__set--current",
+              )}
+              aria-current={isCurrent ? "step" : undefined}
+              title={
+                date
+                  ? `${label} · ${formatStatusDate(date)}`
+                  : label
+              }
+            >
+              <span className="ropa-sets__name">{label}</span>
+              {date && (isPast || isCurrent) ? (
+                <time dateTime={date} className="ropa-sets__date">
+                  {formatStatusDate(date)}
+                </time>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

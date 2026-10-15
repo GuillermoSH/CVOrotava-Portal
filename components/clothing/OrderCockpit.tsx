@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import { ClothingSetBand } from "@/components/clothing/ClothingSetBand";
 import { OrderStatusActions } from "@/components/clothing/OrderStatusActions";
-import { ORDER_STATUS_LABELS } from "@/lib/clothing/constants";
 import { summarizeOrderReceiving } from "@/lib/clothing/orderReceiving";
 import { competitionNeedsJersey } from "@/lib/clothing/formatJersey";
 import { appRoutes } from "@/lib/constants";
@@ -166,10 +165,7 @@ export function OrderCockpit({
       ) : null}
 
       {status !== "closed" ? (
-        <div className="flex flex-col gap-2 rounded-[var(--radius-sm)] border border-[var(--ropa-line)] bg-[var(--ropa-panel)] p-3">
-          <p className="text-xs text-muted-foreground">
-            Estado: {ORDER_STATUS_LABELS[status]}
-          </p>
+        <div className="ropa-order-actions">
           <OrderStatusActions
             orderId={orderId}
             status={status}

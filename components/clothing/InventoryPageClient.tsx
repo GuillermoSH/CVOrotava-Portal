@@ -162,14 +162,18 @@ export function InventoryPageClient({
     <>
       <div className="clothing-page-with-sticky flex flex-col gap-4">
         {orderFilter && sourceOrderLabel ? (
-          <div className="ropa-set-band ropa-set-band--lit !py-3">
-            <div className="ropa-set-band__main">
-              <p className="ropa-set-band__label">Filtro</p>
-              <p className="ropa-set-band__title text-base">
-                Pedido {sourceOrderLabel}
-                {statusFilter === "pending_storage" ? " · ubicar" : ""}
-                {missingJerseyOnly ? " · sin dorsal" : ""}
-              </p>
+          <div className="ropa-set-band ropa-set-band--lit">
+            <div className="ropa-set-band__content !py-3">
+              <div className="ropa-set-band__main">
+                <p className="ropa-set-band__label">Filtro</p>
+                <p className="ropa-set-band__title text-base">
+                  Pedido {sourceOrderLabel}
+                  {statusFilter === "pending_storage" ? " · ubicar" : ""}
+                  {missingJerseyOnly ? " · sin dorsal" : ""}
+                </p>
+              </div>
+            </div>
+            <div className="ropa-set-band__actions">
               <button
                 type="button"
                 className="ropa-set-band__cta"

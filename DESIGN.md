@@ -57,10 +57,12 @@ spacing:
   section-gap: "1.25rem"
 components:
   ropa-set-band-lit:
-    backgroundColor: "{colors.club-brand-light}"
-    textColor: "{colors.ropa-lit-fg}"
+    backgroundColor: "color-mix(in srgb, club-brand 10%, ropa-panel)"
+    textColor: "{colors.club-fg-light}"
+    borderLeft: "1px solid club-brand"
     rounded: "{rounded.md}"
-    padding: "1rem 1.1rem"
+    padding: "0.9rem 1.1rem"
+    actionsBackground: "ropa-panel"
   ropa-ops-lane:
     backgroundColor: "var(--club-surface)"
     textColor: "{colors.club-fg-light}"
@@ -84,7 +86,7 @@ CVOrotava Portal is a bilingual-ready club tool with Spanish UI. Brand color is 
 - **Primary:** `--club-brand` / `--club-brand-strong` (red) for primary actions and the lit “Ahora” set.
 - **Neutrals:** `--club-bg`, `--club-surface`, `--club-surface-2`, `--club-fg`, `--club-fg-muted`, `--club-border`.
 - **Semantic:** success / warning / info tokens for receiving states and badges.
-- **Ropa lit band:** brand fill + `--primary-foreground` ink; only one region uses full brand fill at a time.
+- **Ropa lit band:** soft brand tint (~10%) + ink; 1px brand hairline on the leading edge; actions sit on a neutral footer. Full brand fill is reserved for compact chips/stepper current — not the hub Ahora band.
 - Never pure `#000000`, `#FFFFFF`, or `#FF0000`.
 
 ## Typography
@@ -94,14 +96,14 @@ Operate surfaces use one workhorse sans (system UI stack). Hierarchy: page `.sec
 ## Layout
 
 - Ropa routes wrap in `.ropa-board` (`app/(dashboard)/admin/ropa/layout.tsx`) with horizontal `.ropa-board-nav`.
-- Hub first viewport: meta counts → lit `ClothingSetBand` → search → ops lanes.
+- Hub first viewport (`.ropa-hub`): tight `.ropa-hub__ahora` (meta + lit band) → search → ops lanes; section gap 1.25rem, ahora cluster 0.35rem.
 - Order detail: `.ropa-panel` (status + sets stepper + cockpit) then verification groups.
 - Mobile-first warehouse density; desktop adds kanban and denser verification strips.
 - Structural breakpoints (collapse columns / stack), not fluid display type.
 
 ## Elevation & Depth
 
-Tonal panels and 1px borders dominate. Lit set uses a soft brand-tinted shadow (`0 2px 10px` mix). Avoid glass stacks and KPI card shadows on ropa.
+Tonal panels and 1px borders dominate. Lit set uses tint + hairline, not glow. Avoid glass stacks and KPI card shadows on ropa.
 
 ## Shapes
 
@@ -114,8 +116,8 @@ Prefer `--radius-sm` / `--radius-md` on ropa board chrome (tighter than marketin
 | `ClothingSetBand` | Single active operational step (“Ahora”) |
 | `ClothingOpsLanes` | Hub / shortcut rows |
 | `ropa-score-strip` | Pedidas / recibidas / faltantes / tallas |
-| `ropa-verify-group` | Product → size X/Y receiving |
-| `ropa-sets` | Order status as numbered sets |
+| `ropa-verify-group` | Product → compact size chips (recibidas/pedidas), same density as `ropa-size-qty` |
+| `ropa-sets` | Order progress as Odoo-style arrow ribbon (no numbers; soft lit current) |
 | `ropa-status` | Compact status chip |
 | `ropa-order-row` / `ropa-kanban-*` | Order list & board |
 | Club `Button` / forms | Shared controls; keep vocabulary consistent |
@@ -126,7 +128,7 @@ Sheets/dialogs for clothing keep existing behavior; chrome follows opaque drawer
 
 **Do**
 
-- Light one next step in brand red; keep lists/stock on neutrals.
+- Light one next step with a quiet brand tint + hairline; keep lists/stock on neutrals.
 - Use tabular digits for all counts and X/Y receiving.
 - Keep Spanish task copy; name the action on controls.
 - Preserve clothing business flows when changing visuals.

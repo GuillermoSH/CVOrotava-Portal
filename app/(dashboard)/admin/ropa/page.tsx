@@ -10,8 +10,8 @@ async function ClothingHubContent() {
   const kpis = await getClothingHubKpis();
 
   return (
-    <>
-      <div className="ropa-hub-stats">
+    <div className="ropa-hub">
+      <div className="ropa-hub__ahora">
         <p className="ropa-board-header__meta">
           <span className="ropa-digit">{kpis.storedUnits}</span>
           <span> uds en caja</span>
@@ -21,20 +21,21 @@ async function ClothingHubContent() {
           <span className="ropa-digit">{kpis.openOrders}</span>
           <span> pedidos abiertos</span>
         </p>
+        <ClothingHubCards kpis={kpis} />
       </div>
-
-      <ClothingHubCards kpis={kpis} />
 
       <ClothingHubSearch />
 
-      <section className="flex flex-col gap-2.5">
-        <h2 className="ropa-section-label">Accesos rápidos</h2>
+      <section className="ropa-hub__ops" aria-labelledby="ropa-hub-ops-heading">
+        <h2 id="ropa-hub-ops-heading" className="ropa-section-label">
+          Accesos rápidos
+        </h2>
         <ClothingHubQuickLinks
           featuredOrderId={kpis.featuredOpenOrder?.id}
           pendingStorageUnits={kpis.pendingStorageUnits}
         />
       </section>
-    </>
+    </div>
   );
 }
 
