@@ -14,7 +14,13 @@ import { formatProductShort } from "@/lib/clothing/formatProduct";
 import type { ClothingOrderLineWithProduct } from "@/lib/types/db";
 import { cn } from "@/lib/utils";
 
-function OrderLineCard({ line }: { line: ClothingOrderLineWithProduct }) {
+function OrderLineCard({
+  line,
+  showReceived,
+}: {
+  line: ClothingOrderLineWithProduct;
+  showReceived: boolean;
+}) {
   const isComplete = line.quantity_received >= line.quantity_ordered;
 
   return (
@@ -26,27 +32,34 @@ function OrderLineCard({ line }: { line: ClothingOrderLineWithProduct }) {
             Talla {formatClothingSize(line.size)} · {line.quantity_ordered} pedidas
           </p>
         </div>
-        {isComplete ? (
-          <span className="shrink-0 text-xs font-medium text-success">
-            Completo
-          </span>
+        {showReceived && isComplete ? (
+          <span className="shrink-0 text-xs font-medium text-success">Completo</span>
         ) : null}
       </div>
 
-      <div className="mt-3 flex items-end gap-3 border-t border-[var(--club-border)] pt-3">
-        <label className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Recibidas</span>
-          <OrderLineReceivedEditor line={line} layout="mobile" />
-        </label>
-        <span className="shrink-0 pb-2.5 text-sm tabular-nums text-muted-foreground">
-          de {line.quantity_ordered}
-        </span>
-      </div>
+      {showReceived ? (
+        <div className="mt-3 flex items-end gap-3 border-t border-[var(--club-border)] pt-3">
+          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Recibidas</span>
+            <OrderLineReceivedEditor line={line} layout="mobile" />
+          </label>
+          <span className="shrink-0 pb-2.5 text-sm tabular-nums text-muted-foreground">
+            de {line.quantity_ordered}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-export function OrderLinesSection({ lines }: { lines: ClothingOrderLineWithProduct[] }) {
+export function OrderLinesSection({
+  lines,
+  showReceived = true,
+}: {
+  lines: ClothingOrderLineWithProduct[];
+  /** En borrador no se anotan recibidas. */
+  showReceived?: boolean;
+}) {
   if (lines.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">Este pedido no tiene líneas.</p>
@@ -57,13 +70,15 @@ export function OrderLinesSection({ lines }: { lines: ClothingOrderLineWithProdu
     <>
       <div className="flex flex-col gap-3 md:hidden">
         {lines.map((line) => (
-          <OrderLineCard key={line.id} line={line} />
+          <OrderLineCard key={line.id} line={line} showReceived={showReceived} />
         ))}
       </div>
 
       <div className="glass-panel hidden gap-0 !p-0 overflow-hidden md:block">
         <div className="border-b border-[var(--club-border)] px-5 py-3">
-          <h2 className="text-base font-semibold tracking-tight text-foreground">Líneas del pedido</h2>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">
+            Líneas del pedido
+          </h2>
         </div>
         <Table>
           <TableHeader>
@@ -71,7 +86,7 @@ export function OrderLinesSection({ lines }: { lines: ClothingOrderLineWithProdu
               <TableHead>Prenda</TableHead>
               <TableHead>Talla</TableHead>
               <TableHead>Pedidas</TableHead>
-              <TableHead>Recibidas</TableHead>
+              {showReceived ? <TableHead>Recibidas</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -80,23 +95,21 @@ export function OrderLinesSection({ lines }: { lines: ClothingOrderLineWithProdu
 
               return (
                 <TableRow key={line.id}>
-                  <TableCell className="club-table__primary">{formatProductShort(line.product)}</TableCell>
+                  <TableCell className="club-table__primary">
+                    {formatProductShort(line.product)}
+                  </TableCell>
                   <TableCell>{formatClothingSize(line.size)}</TableCell>
                   <TableCell className="tabular-nums">{line.quantity_ordered}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <OrderLineReceivedEditor line={line} layout="table" />
-                      {isComplete ? (
-                        <span
-                          className={cn(
-                            "text-xs font-medium text-success",
-                          )}
-                        >
-                          ✓
-                        </span>
-                      ) : null}
-                    </div>
-                  </TableCell>
+                  {showReceived ? (
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <OrderLineReceivedEditor line={line} layout="table" />
+                        {isComplete ? (
+                          <span className={cn("text-xs font-medium text-success")}>✓</span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               );
             })}

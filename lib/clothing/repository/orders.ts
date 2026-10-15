@@ -172,6 +172,65 @@ export async function createSupplierOrder(
   };
 }
 
+export async function updateDraftOrder(
+  db: ClothingDb,
+  input: {
+    order_id: string;
+    supplier_name: string;
+    season: string;
+    notes?: string | null;
+    lines: { product_id: string; size: ClothingSize; quantity_ordered: number }[];
+  },
+): Promise<{ order: ClothingSupplierOrder; lines: ClothingSupplierOrderLine[] }> {
+  const existing = await getOrderWithLines(db, input.order_id);
+  if (!existing) throw new Error("Pedido no encontrado");
+  if (existing.order.status !== "draft") {
+    throw new Error("Solo se puede editar un pedido en borrador");
+  }
+
+  const changedAt = new Date().toISOString();
+  const { data: orderRow, error: orderError } = await db
+    .from("clothing_supplier_orders")
+    .update({
+      supplier_name: input.supplier_name.trim(),
+      season: input.season.trim(),
+      notes: input.notes ?? null,
+      updated_at: changedAt,
+    })
+    .eq("id", input.order_id)
+    .select("*")
+    .single();
+
+  if (orderError) throw new Error(dbErrorMessage(orderError));
+
+  const { error: deleteError } = await db
+    .from("clothing_supplier_order_lines")
+    .delete()
+    .eq("order_id", input.order_id);
+
+  if (deleteError) throw new Error(dbErrorMessage(deleteError));
+
+  const lineInserts = input.lines.map((line) => ({
+    order_id: input.order_id,
+    product_id: line.product_id,
+    size: line.size,
+    quantity_ordered: line.quantity_ordered,
+    quantity_received: 0,
+  }));
+
+  const { data: lineRows, error: lineError } = await db
+    .from("clothing_supplier_order_lines")
+    .insert(lineInserts)
+    .select("*");
+
+  if (lineError) throw new Error(dbErrorMessage(lineError));
+
+  return {
+    order: mapOrder(orderRow),
+    lines: (lineRows ?? []).map(mapOrderLine),
+  };
+}
+
 export async function updateOrderStatus(
   db: ClothingDb,
   orderId: string,
@@ -204,12 +263,22 @@ export async function updateOrderStatus(
     changed_by: changedBy ?? null,
   });
 
+  if (status === "draft" && existing.order.status === "ordered") {
+    const { error: resetError } = await db
+      .from("clothing_supplier_order_lines")
+      .update({ quantity_received: 0 })
+      .eq("order_id", orderId);
+    if (resetError) throw new Error(dbErrorMessage(resetError));
+  }
+
   if (status === "returned_from_serigraphy") {
     await createInventoryLotsFromOrder(db, orderId);
   }
 
   return mapOrder(data);
 }
+
+const RECEIVED_EDITABLE_STATUSES: ClothingOrderStatus[] = ["ordered", "received"];
 
 export async function updateOrderLineReceived(
   db: ClothingDb,
@@ -224,6 +293,12 @@ export async function updateOrderLineReceived(
 
   if (fetchError) throw new Error(dbErrorMessage(fetchError));
   if (!lineRow) throw new Error("Línea no encontrada");
+
+  const order = await getOrderWithLines(db, lineRow.order_id);
+  if (!order) throw new Error("Pedido no encontrado");
+  if (!RECEIVED_EDITABLE_STATUSES.includes(order.order.status)) {
+    throw new Error("Solo se pueden anotar recibidas en pedido enviado o recibido");
+  }
 
   const { data, error } = await db
     .from("clothing_supplier_order_lines")
@@ -240,6 +315,15 @@ export async function updateOrderLineReceived(
     .eq("id", lineRow.order_id);
 
   return mapOrderLine(data);
+}
+
+export async function deleteDraftOrder(db: ClothingDb, orderId: string): Promise<void> {
+  const existing = await getOrderWithLines(db, orderId);
+  if (!existing) throw new Error("Pedido no encontrado");
+  if (existing.order.status !== "draft") {
+    throw new Error("Solo se puede eliminar un pedido en borrador");
+  }
+  await deleteOrdersByIds(db, [orderId]);
 }
 
 export async function deleteOrdersByIds(db: ClothingDb, ids: string[]): Promise<void> {

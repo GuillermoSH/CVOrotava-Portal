@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 
+import { DeleteDraftOrderButton } from "@/components/clothing/DeleteDraftOrderButton";
 import { OrderCockpit } from "@/components/clothing/OrderCockpit";
+import { OrderForm } from "@/components/clothing/OrderForm";
 import { OrderLinesSection } from "@/components/clothing/OrderLinesSection";
 import { OrderReceivingVerificationPanel } from "@/components/clothing/OrderReceivingVerificationPanel";
 import { OrderStatusBadge } from "@/components/clothing/OrderStatusBadge";
@@ -8,7 +10,7 @@ import { OrderStatusStepper } from "@/components/clothing/OrderStatusStepper";
 import { DashboardPage } from "@/components/layout/DashboardPage";
 import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
-import { enrichInventory, getOrderById } from "@/lib/clothing/snapshots";
+import { enrichInventory, getOrderById, getProductsSnapshot } from "@/lib/clothing/snapshots";
 
 async function ClothingOrderDetailContent({
   params,
@@ -17,9 +19,14 @@ async function ClothingOrderDetailContent({
 }) {
   await requireClothingReadAccess();
   const { id } = await params;
-  const [order, allLots] = await Promise.all([getOrderById(id), enrichInventory()]);
+  const [order, allLots, products] = await Promise.all([
+    getOrderById(id),
+    enrichInventory(),
+    getProductsSnapshot(),
+  ]);
   if (!order) notFound();
 
+  const isDraft = order.status === "draft";
   const orderLots = allLots.filter((lot) => lot.source_order_id === order.id);
   const showVerification =
     order.status === "ordered" ||
@@ -50,7 +57,7 @@ async function ClothingOrderDetailContent({
           </time>
         </div>
 
-        {order.notes ? (
+        {!isDraft && order.notes ? (
           <p className="ropa-panel__notes">{order.notes}</p>
         ) : null}
 
@@ -70,21 +77,38 @@ async function ClothingOrderDetailContent({
             orderLots={orderLots}
           />
         </div>
+
+        {isDraft ? (
+          <div className="ropa-panel__block flex flex-wrap gap-2 !border-0 pt-0">
+            <DeleteDraftOrderButton orderId={order.id} />
+          </div>
+        ) : null}
       </section>
 
-      <section className="flex flex-col gap-3">
-        {showVerification ? (
-          <OrderReceivingVerificationPanel
-            lines={order.lines}
-            editable={verificationEditable}
-          />
-        ) : (
-          <>
-            <h2 className="ropa-section-heading md:hidden">Líneas del pedido</h2>
-            <OrderLinesSection lines={order.lines} />
-          </>
-        )}
-      </section>
+      {isDraft ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="ropa-section-heading">Editar borrador</h2>
+          <p className="text-sm text-muted-foreground">
+            Puedes cambiar proveedor, notas y líneas mientras el pedido siga en borrador.
+            Al marcarlo como enviado, el contenido quedará bloqueado.
+          </p>
+          <OrderForm products={products} order={order} />
+        </section>
+      ) : (
+        <section className="flex flex-col gap-3">
+          {showVerification ? (
+            <OrderReceivingVerificationPanel
+              lines={order.lines}
+              editable={verificationEditable}
+            />
+          ) : (
+            <>
+              <h2 className="ropa-section-heading md:hidden">Líneas del pedido</h2>
+              <OrderLinesSection lines={order.lines} showReceived={false} />
+            </>
+          )}
+        </section>
+      )}
     </DashboardPage>
   );
 }

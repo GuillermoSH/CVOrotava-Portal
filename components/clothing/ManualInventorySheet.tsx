@@ -10,7 +10,12 @@ import { WarehouseCrate } from "@/components/clothing/WarehouseCrate";
 import { FormInput, FormSelect, FormTextarea } from "@/components/club/forms";
 import { createManualInventoryLotAction } from "@/lib/actions/clothing/inventory";
 import { boxHomeLabel, collectBoxHomes, flattenBoxNodes } from "@/lib/clothing/storageBoxes";
-import { formatSeasonShort, getCurrentSeason, getSeasonSelectOptions } from "@/lib/season";
+import {
+  formatSeasonShort,
+  getCurrentSeason,
+  getSeasonSelectOptions,
+  isProductEligibleForWarehouseSeason,
+} from "@/lib/season";
 import type {
   ClothingProduct,
   ClothingSize,
@@ -54,7 +59,9 @@ export function ManualInventorySheet({
   const seasonProducts = useMemo(
     () =>
       products.filter(
-        (product) => product.season === season && (product.is_active || product.id === productId),
+        (product) =>
+          (product.is_active || product.id === productId) &&
+          isProductEligibleForWarehouseSeason(product.season, season),
       ),
     [products, season, productId],
   );
@@ -144,7 +151,7 @@ export function ManualInventorySheet({
       open={open}
       onClose={handleClose}
       title="Añadir stock"
-      description="Selecciona temporada, prenda, talla y caja. Sirve también para años previos."
+      description="La temporada filtra las cajas del almacén. Puedes elegir prendas de esa temporada o de modelos anteriores."
       primaryAction={{
         label: "Guardar stock",
         pending,
@@ -157,22 +164,28 @@ export function ManualInventorySheet({
       }}
     >
       <div className="flex flex-col gap-4">
-        <FormSelect
-          label="Temporada"
-          name="manual-season"
-          id="manual-season"
-          value={season}
-          onChange={(e) => handleSeasonChange(e.target.value)}
-          options={seasonOptions.map((opt) => ({
-            value: opt.value,
-            label: opt.label,
-          }))}
-        />
+        <div>
+          <FormSelect
+            label="Temporada del almacén"
+            name="manual-season"
+            id="manual-season"
+            value={season}
+            onChange={(e) => handleSeasonChange(e.target.value)}
+            options={seasonOptions.map((opt) => ({
+              value: opt.value,
+              label: opt.label,
+            }))}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Define las cajas. Las prendas incluyen modelos de {formatSeasonShort(season)} y
+            temporadas anteriores.
+          </p>
+        </div>
 
         {seasonProducts.length === 0 ? (
           <p className="rounded-lg border border-dashed border-[var(--club-border)] px-3 py-3 text-sm text-muted-foreground">
-            No hay prendas en {formatSeasonShort(season)}. Crea la prenda en Prendas o elige otra
-            temporada.
+            No hay prendas activas para {formatSeasonShort(season)} ni temporadas anteriores. Crea
+            la prenda en Prendas.
           </p>
         ) : (
           <ProductPicker
@@ -180,6 +193,7 @@ export function ManualInventorySheet({
             value={productId}
             onChange={setProductId}
             id="manual-product"
+            showSeason
           />
         )}
 
