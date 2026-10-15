@@ -4,6 +4,7 @@ import {
   audienceForCategory,
   computeObligations,
   formatMonthGroup,
+  isOnceFeeOverdue,
   isSeasonMonthDue,
   obligationConcept,
   openObligations,
@@ -25,6 +26,7 @@ function line(
     amount: null,
     amount_extended: null,
     months: [],
+    due_date: null,
     sort_order: 0,
     ...partial,
   };
@@ -112,6 +114,25 @@ describe("isSeasonMonthDue", () => {
   });
 });
 
+describe("isOnceFeeOverdue", () => {
+  it("treats a missing due date as already overdue", () => {
+    expect(isOnceFeeOverdue(null, TODAY)).toBe(true);
+    expect(isOnceFeeOverdue(undefined, TODAY)).toBe(true);
+  });
+
+  it("is still on time on the due date itself", () => {
+    expect(isOnceFeeOverdue("2026-10-13", TODAY)).toBe(false);
+  });
+
+  it("is overdue the day after the due date", () => {
+    expect(isOnceFeeOverdue("2026-10-12", TODAY)).toBe(true);
+  });
+
+  it("is not overdue when the due date is in the future", () => {
+    expect(isOnceFeeOverdue("2026-11-01", TODAY)).toBe(false);
+  });
+});
+
 describe("computeObligations — base", () => {
   it("returns nothing without audience (player without team)", () => {
     expect(obligations(null)).toEqual([]);
@@ -193,6 +214,48 @@ describe("computeObligations — base", () => {
   it("closes matrícula with a single payment", () => {
     const result = obligations("base", [paid({ amount: 75, fee_code: "matricula" })]);
     expect(result.find((o) => o.key === "matricula")?.remaining).toBe(0);
+  });
+
+  it("keeps a once fee not overdue before its due date", () => {
+    const result = computeObligations({
+      season: SEASON,
+      audience: "base",
+      paysExtendedMonthly: false,
+      lines: [
+        line({
+          audience: "base",
+          code: "matricula",
+          label: "Matrícula",
+          kind: "once",
+          amount: 75,
+          due_date: "2026-11-01",
+        }),
+      ],
+      payments: [],
+      today: TODAY,
+    });
+    expect(result.find((o) => o.key === "matricula")?.overdue).toBe(false);
+  });
+
+  it("marks a once fee overdue after its due date", () => {
+    const result = computeObligations({
+      season: SEASON,
+      audience: "base",
+      paysExtendedMonthly: false,
+      lines: [
+        line({
+          audience: "base",
+          code: "matricula",
+          label: "Matrícula",
+          kind: "once",
+          amount: 75,
+          due_date: "2026-10-01",
+        }),
+      ],
+      payments: [],
+      today: TODAY,
+    });
+    expect(result.find((o) => o.key === "matricula")?.overdue).toBe(true);
   });
 });
 

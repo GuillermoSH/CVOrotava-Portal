@@ -481,7 +481,7 @@ export function PlayersPaymentsPageClient({
 
   return (
     <>
-      <div className="flex flex-col gap-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <p className="text-sm text-muted-foreground">
             {`${pendingCount} con pendiente · ${rows.length} jugadores · temporada ${season}`}
@@ -617,7 +617,7 @@ export function PlayersPaymentsPageClient({
                 vencido
               </span>
               <span className="pay-legend__item">
-                <span className="pay-cell pay-cell--upcoming">·</span>
+                <span className="pay-cell pay-cell--upcoming">25</span>
                 por llegar
               </span>
             </div>

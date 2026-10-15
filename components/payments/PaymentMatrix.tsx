@@ -80,7 +80,7 @@ type Optimistic = {
   cells: OptimisticCells;
 };
 
-const POPOVER_WIDTH = 272;
+const POPOVER_WIDTH = 304;
 
 function CellPopover({
   row,
@@ -248,11 +248,13 @@ function CellPopover({
                   method === lastMethod && "pay-popover__method--last",
                 )}
               >
-                <MethodIcon method={method} className="size-4" />
-                <span className="pay-popover__method-letter">
-                  {method === "transferencia" ? "T" : "E"}
+                <span className="pay-popover__method-top">
+                  <MethodIcon method={method} className="size-[1.125rem]" />
+                  <span className="pay-popover__method-letter">
+                    {method === "transferencia" ? "T" : "E"}
+                  </span>
                 </span>
-                <span>{PAYMENT_METHOD_LABELS[method]}</span>
+                <span className="pay-popover__method-name">{PAYMENT_METHOD_LABELS[method]}</span>
               </button>
             ))}
           </div>
@@ -318,8 +320,16 @@ const MatrixRow = memo(
             aria-label={`Seleccionar ${row.full_name}`}
           />
           <span className="pay-matrix__player-text">
-            <span className="pay-matrix__name">{row.full_name}</span>
-            <span className="pay-matrix__team">{row.team_name ?? "Sin equipo"}</span>
+            <span className="pay-matrix__name max-md:hidden">{row.full_name}</span>
+            <span
+              className="pay-matrix__name hidden max-md:block truncate"
+              title={row.full_name}
+            >
+              {row.short_name}
+            </span>
+            <span className="pay-matrix__team max-md:hidden">
+              {row.team_name ?? "Sin equipo"}
+            </span>
           </span>
         </th>
         {columns.map((column, c) => {
@@ -359,10 +369,19 @@ const MatrixRow = memo(
             ) : (
               "✓"
             );
+          } else if (cell.kind === "partial") {
+            content = formatEuros(cell.obligation?.paid ?? 0);
+          } else if (cell.kind === "due") {
+            content = formatEuros(cell.obligation?.remaining ?? 0);
+          } else if (cell.kind === "upcoming") {
+            content = (
+              <span className="pay-cell__upcoming-amount">
+                {formatEuros(cell.obligation?.remaining ?? 0)}
+              </span>
+            );
+          } else {
+            content = "·";
           }
-          else if (cell.kind === "partial") content = formatEuros(cell.obligation?.paid ?? 0);
-          else if (cell.kind === "due") content = formatEuros(cell.obligation?.remaining ?? 0);
-          else content = "·";
 
           return (
             <td key={column.key} className="pay-matrix__cell">

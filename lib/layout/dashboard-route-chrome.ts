@@ -26,6 +26,8 @@ export type DashboardRouteChrome = {
   subtitle?: string;
   back?: { href: string; label: string };
   sticky?: boolean | "tall" | "bulk";
+  /** En escritorio la página ocupa justo la altura disponible y el contenido scrollea dentro. */
+  fill?: boolean;
   skeleton: DashboardSkeletonKind;
   action?: { href: string; label: string };
 };
@@ -74,7 +76,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Pagos",
       subtitle:
         "Anota pagos ya recibidos (transferencia o efectivo) y consulta qué le falta a cada jugador.",
-      sticky: true,
+      fill: true,
       skeleton: "products",
     };
   }
@@ -194,6 +196,11 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
 }
 
 export function getDashboardFrameClassName(chrome: DashboardRouteChrome | null) {
+  const base = getBaseFrameClassName(chrome);
+  return chrome?.fill ? `${base} md:h-full md:min-h-0` : base;
+}
+
+function getBaseFrameClassName(chrome: DashboardRouteChrome | null) {
   if (chrome?.sticky === "bulk") {
     return "clothing-page-with-sticky clothing-page-with-sticky--bulk flex flex-col gap-4";
   }

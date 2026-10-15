@@ -179,13 +179,15 @@ export function OrderKanbanBoard({
       return;
     }
 
-    if (targetStatus === "returned_from_serigraphy") {
+    if (targetStatus === "returned_from_serigraphy" || targetStatus === "draft") {
       setConfirmStatus({ orderId, status: targetStatus });
       return;
     }
 
     applyStatus(orderId, targetStatus);
   }
+
+  const confirmIsDraft = confirmStatus?.status === "draft";
 
   return (
     <>
@@ -205,11 +207,16 @@ export function OrderKanbanBoard({
       <ClothingBottomSheet
         open={confirmStatus !== null}
         onClose={() => setConfirmStatus(null)}
-        title="Generar inventario"
-        description="Se crearán lotes pendientes de ubicar en almacén."
+        title={confirmIsDraft ? "Volver a borrador" : "Generar inventario"}
+        description={
+          confirmIsDraft
+            ? "El pedido dejará de estar marcado como enviado. Podrás editar el contenido; las unidades recibidas se pondrán a cero."
+            : "Se crearán lotes pendientes de ubicar en almacén."
+        }
         primaryAction={{
-          label: "Continuar",
+          label: confirmIsDraft ? "Volver a borrador" : "Continuar",
           pending,
+          variant: confirmIsDraft ? "destructive" : "primary",
           onClick: () => {
             if (!confirmStatus) return;
             applyStatus(confirmStatus.orderId, confirmStatus.status);

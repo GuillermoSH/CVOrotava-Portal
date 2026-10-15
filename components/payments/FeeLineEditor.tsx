@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/club/Button";
-import { FormInput, FormSelect } from "@/components/club/forms";
+import { FormDate, FormInput, FormSelect } from "@/components/club/forms";
 import { Label } from "@/components/club/Label";
 import { deleteFeeLineAction, saveFeeLineAction } from "@/lib/actions/payments/fees";
 import { SEASON_MONTH_ORDER, monthShort } from "@/lib/payments/fees";
@@ -58,6 +58,7 @@ export function FeeLineEditor({
   const [amount, setAmount] = useState(amountToInput(line?.amount ?? null));
   const [amountExtended, setAmountExtended] = useState(amountToInput(line?.amount_extended ?? null));
   const [months, setMonths] = useState<number[]>(line?.months ?? []);
+  const [dueDate, setDueDate] = useState(line?.due_date ?? "");
   const [error, setError] = useState<string | null>(null);
 
   const idBase = `fee-${audience}-${line?.id ?? "new"}`;
@@ -83,6 +84,7 @@ export function FeeLineEditor({
         amount_extended:
           showExtended && amountExtended.trim() !== "" ? amountExtended.replace(",", ".") : null,
         months: kind === "monthly" ? months : [],
+        due_date: kind === "once" && dueDate.trim() !== "" ? dueDate.trim() : null,
       });
       if (!result.ok) {
         setError(result.error);
@@ -187,7 +189,21 @@ export function FeeLineEditor({
             })}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="flex flex-col gap-1.5 sm:max-w-xs">
+          <FormDate
+            label="Fecha límite"
+            name={`${idBase}-due-date`}
+            id={`${idBase}-due-date`}
+            className="min-h-11"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Hasta esta fecha no cuenta como atrasado. Si la dejas vacía, se trata como ya vencido.
+          </p>
+        </div>
+      )}
 
       {error ? (
         <p className="text-sm text-destructive" role="alert">

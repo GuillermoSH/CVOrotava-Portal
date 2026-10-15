@@ -23,6 +23,18 @@ export const createOrderSchema = z.object({
   lines: z.array(orderLineSchema).min(1),
 });
 
+export const updateDraftOrderSchema = z.object({
+  order_id: z.string().uuid(),
+  supplier_name: z.string().min(1).max(120),
+  season: z.string().min(4).max(20),
+  notes: z.string().max(2000).optional(),
+  lines: z.array(orderLineSchema).min(1),
+});
+
+export const deleteDraftOrderSchema = z.object({
+  order_id: z.string().uuid(),
+});
+
 export const updateOrderStatusSchema = z.object({
   order_id: z.string().uuid(),
   status: z.enum(ORDER_STATUSES),

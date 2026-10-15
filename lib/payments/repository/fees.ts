@@ -5,7 +5,7 @@ import type { PaymentsDb } from "@/lib/payments/repository/client";
 import type { FeeAudience, FeeLineKind, SeasonFeeLine } from "@/lib/types/db";
 
 const FEE_LINE_SELECT =
-  "id, season, audience, code, label, kind, amount, amount_extended, months, sort_order";
+  "id, season, audience, code, label, kind, amount, amount_extended, months, due_date, sort_order";
 
 type SeasonFeeLineRow = {
   id: string;
@@ -17,6 +17,7 @@ type SeasonFeeLineRow = {
   amount: number | string | null;
   amount_extended: number | string | null;
   months: number[] | null;
+  due_date: string | null;
   sort_order: number;
 };
 
@@ -36,6 +37,7 @@ function mapFeeLine(row: SeasonFeeLineRow): SeasonFeeLine {
     amount: toNumber(row.amount),
     amount_extended: toNumber(row.amount_extended),
     months: row.months ?? [],
+    due_date: row.due_date ?? null,
     sort_order: row.sort_order,
   };
 }
@@ -65,6 +67,7 @@ export type UpsertFeeLineRecord = {
   amount: number | null;
   amount_extended: number | null;
   months: number[];
+  due_date: string | null;
 };
 
 /** Máximo sort_order de la audiencia: la línea nueva queda al final de su bloque. */
@@ -99,6 +102,7 @@ export async function upsertFeeLine(
     amount: input.amount,
     amount_extended: input.kind === "monthly" ? input.amount_extended : null,
     months: input.kind === "monthly" ? input.months : [],
+    due_date: input.kind === "once" ? input.due_date : null,
     updated_at: new Date().toISOString(),
   };
 
@@ -152,6 +156,7 @@ export async function copySeasonFeeLines(
       amount: line.amount,
       amount_extended: line.amount_extended,
       months: line.months,
+      due_date: line.due_date,
       sort_order: line.sort_order,
     })),
   );

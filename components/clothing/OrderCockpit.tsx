@@ -25,7 +25,7 @@ function nowGuidance(status: ClothingOrderStatus): {
     case "draft":
       return {
         title: "Confirmar y enviar el pedido",
-        body: "Revisa las líneas y marca el pedido como enviado al proveedor.",
+        body: "Edita el contenido abajo si hace falta; al marcarlo como enviado, las líneas quedarán bloqueadas.",
       };
     case "ordered":
       return {

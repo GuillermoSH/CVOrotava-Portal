@@ -14,6 +14,7 @@ import { Label } from "@/components/club/Label";
 import { PRODUCT_CATEGORY_LABELS } from "@/lib/clothing/constants";
 import { formatProductName, formatProductShort } from "@/lib/clothing/formatProduct";
 import { groupByProductCategory } from "@/lib/clothing/groupByCategory";
+import { formatSeasonShort } from "@/lib/season";
 import { cn } from "@/lib/utils";
 import type { ClothingProduct } from "@/lib/types/db";
 
@@ -34,11 +35,14 @@ export function ProductPicker({
   value,
   onChange,
   id = "product",
+  showSeason = false,
 }: {
   products: ClothingProduct[];
   value: string;
   onChange: (productId: string) => void;
   id?: string;
+  /** Muestra la temporada del modelo (p. ej. stock multi-temporada). */
+  showSeason?: boolean;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -58,8 +62,12 @@ export function ProductPicker({
     [filteredProducts],
   );
 
+  const defaultOpenCategory = groups[0]?.category ?? null;
+
   const labelText = selected
-    ? `${formatProductShort(selected)} (${PRODUCT_CATEGORY_LABELS[selected.category]})`
+    ? `${formatProductShort(selected)} (${PRODUCT_CATEGORY_LABELS[selected.category]}${
+        showSeason ? ` · ${formatSeasonShort(selected.season)}` : ""
+      })`
     : "Selecciona prenda…";
 
   const hasQuery = query.trim().length > 0;
@@ -68,14 +76,17 @@ export function ProductPicker({
     if (hasQuery) return true;
     if (groups.length === 1) return true;
     if (fold.mode === "manual") return fold.open === category;
-    return selected?.category === category;
+    if (selected) return selected.category === category;
+    return category === defaultOpenCategory;
   }
 
   function toggleGroup(category: string) {
     if (hasQuery || groups.length === 1) return;
     setFold((prev) => {
       const currentlyOpen =
-        prev.mode === "manual" ? prev.open : (selected?.category ?? null);
+        prev.mode === "manual"
+          ? prev.open
+          : (selected?.category ?? defaultOpenCategory);
       return {
         mode: "manual",
         open: currentlyOpen === category ? null : category,
@@ -160,6 +171,11 @@ export function ProductPicker({
                           <span>{formatProductName(product)}</span>
                           <ProductColorBadge color={product.color} className="shrink-0" />
                         </span>
+                        {showSeason ? (
+                          <span className="text-xs text-muted-foreground">
+                            Temp. {formatSeasonShort(product.season)}
+                          </span>
+                        ) : null}
                       </span>
                     </ClothingSheetOption>
                   ))}

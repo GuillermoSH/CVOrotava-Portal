@@ -54,7 +54,7 @@ function AudienceBlock({
       <div className="flex flex-col gap-3">
         {lines.map((line) => (
           <FeeLineEditor
-            key={`${line.id}:${line.amount}:${line.amount_extended}:${line.months.join(",")}:${line.label}`}
+            key={`${line.id}:${line.amount}:${line.amount_extended}:${line.months.join(",")}:${line.label}:${line.due_date ?? ""}`}
             season={season}
             audience={audience}
             line={line}

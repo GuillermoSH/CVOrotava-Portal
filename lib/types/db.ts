@@ -148,6 +148,11 @@ export type SeasonFeeLine = {
   amount_extended: number | null;
   /** Meses naturales (1–12); vacío en kind "once". */
   months: number[];
+  /**
+   * Fecha límite (YYYY-MM-DD) de pagos únicos. Null = sin plazo (se trata como ya vencido).
+   * No aplica a mensualidades (ahí el vencimiento es por mes de temporada).
+   */
+  due_date: string | null;
   sort_order: number;
 };
 

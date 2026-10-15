@@ -47,6 +47,7 @@ function row(
   return {
     id,
     full_name: id,
+    short_name: id,
     team_name: null,
     audience: "base",
     obligations,
@@ -184,6 +185,19 @@ describe("buildRowCells", () => {
     expect(cells.map((c) => c.kind)).toEqual(["paid", "paid", "none"]);
     expect(cells[0].payments.map((p) => p.id)).toEqual(["m"]);
     expect(cells[1].payments.map((p) => p.id)).toEqual(["oct"]);
+  });
+
+  it("attaches once-fee payments even if billing_month was set by mistake", () => {
+    const cells = buildRowCells(
+      row(
+        "a",
+        [obligation({ code: "matricula", paid: 75, remaining: 0 })],
+        [payment({ id: "m", fee_code: "matricula", billing_month: 10 })],
+      ),
+      columns.slice(0, 1),
+    );
+    expect(cells[0].kind).toBe("paid");
+    expect(cells[0].payments.map((p) => p.id)).toEqual(["m"]);
   });
 
   it("produces a stable signature that changes when a cell changes", () => {

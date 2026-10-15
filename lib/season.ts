@@ -48,6 +48,20 @@ export function buildSeasonId(startYear: number): SeasonId {
   return `${startYear}-${String(endShort).padStart(2, "0")}`;
 }
 
+/**
+ * Prenda elegible al apuntar stock en una temporada de almacén:
+ * misma temporada o anteriores (hasta `pastCount` años), nunca futuras.
+ */
+export function isProductEligibleForWarehouseSeason(
+  productSeason: SeasonId,
+  warehouseSeason: SeasonId,
+  pastCount = 4,
+): boolean {
+  const productYear = seasonStartYear(productSeason);
+  const warehouseYear = seasonStartYear(warehouseSeason);
+  return productYear <= warehouseYear && productYear >= warehouseYear - pastCount;
+}
+
 export type SeasonSelectOption = {
   value: SeasonId;
   label: string;

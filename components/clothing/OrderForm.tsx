@@ -10,10 +10,17 @@ import { FormInput, FormTextarea } from "@/components/club/forms";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { ProductPicker } from "@/components/clothing/ProductPicker";
 import { SizePicker } from "@/components/clothing/SizePicker";
-import { createSupplierOrder } from "@/lib/actions/clothing/orders";
+import {
+  createSupplierOrder,
+  updateDraftOrderAction,
+} from "@/lib/actions/clothing/orders";
 import { formatSeasonShort, getCurrentSeason } from "@/lib/season";
 import { appRoutes } from "@/lib/constants";
-import type { ClothingProduct, ClothingSize } from "@/lib/types/db";
+import type {
+  ClothingOrderWithLines,
+  ClothingProduct,
+  ClothingSize,
+} from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 
 type LineDraft = {
@@ -28,13 +35,32 @@ const emptyLine = (): LineDraft => ({
   quantityOrdered: "1",
 });
 
-export function OrderForm({ products }: { products: ClothingProduct[] }) {
+function linesFromOrder(order: ClothingOrderWithLines): LineDraft[] {
+  if (order.lines.length === 0) return [emptyLine()];
+  return order.lines.map((line) => ({
+    productId: line.product_id,
+    size: line.size,
+    quantityOrdered: String(line.quantity_ordered),
+  }));
+}
+
+export function OrderForm({
+  products,
+  order,
+}: {
+  products: ClothingProduct[];
+  /** Si se pasa, el formulario edita ese borrador. */
+  order?: ClothingOrderWithLines;
+}) {
+  const isEdit = Boolean(order);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [supplierName, setSupplierName] = useState("");
-  const [season, setSeason] = useState(getCurrentSeason);
-  const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
+  const [supplierName, setSupplierName] = useState(order?.supplier_name ?? "");
+  const [season, setSeason] = useState(order?.season ?? getCurrentSeason);
+  const [notes, setNotes] = useState(order?.notes ?? "");
+  const [lines, setLines] = useState<LineDraft[]>(() =>
+    order ? linesFromOrder(order) : [emptyLine()],
+  );
 
   if (products.length === 0) {
     return (
@@ -65,7 +91,7 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
   function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     startTransition(async () => {
-      const result = await createSupplierOrder({
+      const payload = {
         supplier_name: supplierName,
         season,
         notes: notes || undefined,
@@ -74,18 +100,30 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
           size: line.size as ClothingSize,
           quantity_ordered: Number(line.quantityOrdered),
         })),
-      });
+      };
+
+      const result = isEdit && order
+        ? await updateDraftOrderAction({ order_id: order.id, ...payload })
+        : await createSupplierOrder(payload);
 
       if (!result.ok) {
         appToast.error(result.error);
         return;
       }
 
-      appToast.success("Pedido creado");
-      router.push(appRoutes.clothing.orderDetail(result.orderId!));
+      appToast.success(isEdit ? "Borrador actualizado" : "Pedido creado");
+      if (!isEdit && result.orderId) {
+        router.push(appRoutes.clothing.orderDetail(result.orderId));
+      }
       router.refresh();
     });
   }
+
+  const submitLabel = pending
+    ? "Guardando…"
+    : isEdit
+      ? "Guardar cambios"
+      : "Crear borrador";
 
   return (
     <>
@@ -166,11 +204,11 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
                   id={`product-${index}`}
                 />
                 <div className="grid grid-cols-2 gap-3 sm:contents">
-                <SizePicker
-                  value={line.size}
-                  onChange={(size) => updateLine(index, { size })}
-                  id={`size-${index}`}
-                />
+                  <SizePicker
+                    value={line.size}
+                    onChange={(size) => updateLine(index, { size })}
+                    id={`size-${index}`}
+                  />
                   <FormInput
                     label="Cantidad"
                     name={`qty-${index}`}
@@ -215,14 +253,16 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
 
         <div className="clothing-toolbar hidden border-t border-[var(--club-border)] pt-6 md:flex">
           <Button type="submit" disabled={pending}>
-            {pending ? "Guardando…" : "Crear borrador"}
+            {submitLabel}
           </Button>
-          <Link
-            href={appRoutes.clothing.orders}
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Cancelar
-          </Link>
+          {!isEdit ? (
+            <Link
+              href={appRoutes.clothing.orders}
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Cancelar
+            </Link>
+          ) : null}
         </div>
       </form>
 
@@ -230,7 +270,7 @@ export function OrderForm({ products }: { products: ClothingProduct[] }) {
         actions={[
           {
             type: "button",
-            label: pending ? "Guardando…" : "Crear borrador",
+            label: submitLabel,
             pending,
             onClick: () => handleSubmit(),
           },

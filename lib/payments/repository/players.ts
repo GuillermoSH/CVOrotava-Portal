@@ -8,6 +8,8 @@ import type { SeasonId } from "@/lib/season";
 type PaymentPlayerRow = {
   id: string;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   pays_extended_monthly: boolean | null;
   team:
     | { id: string; name: string; category: string }
@@ -26,7 +28,7 @@ export async function listPlayersForPayments(
 ): Promise<PaymentPlayer[]> {
   const { data, error } = await db
     .from("players")
-    .select("id, full_name, pays_extended_monthly, team:teams(id, name, category)")
+    .select("id, full_name, first_name, last_name, pays_extended_monthly, team:teams(id, name, category)")
     .eq("season", season)
     .order("first_name", { ascending: true })
     .order("last_name", { ascending: true });
@@ -38,6 +40,8 @@ export async function listPlayersForPayments(
     return {
       id: row.id,
       full_name: row.full_name,
+      first_name: row.first_name,
+      last_name: row.last_name,
       pays_extended_monthly: Boolean(row.pays_extended_monthly),
       team: team ? { name: team.name, category: team.category } : null,
     };

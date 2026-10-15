@@ -106,12 +106,18 @@ export const KANBAN_STATUSES: OrderStatus[] = [
 
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   draft: ["ordered"],
-  ordered: ["received"],
+  /** `draft` = escape hatch (volver a borrador); no es el avance normal. */
+  ordered: ["received", "draft"],
   received: ["at_serigraphy"],
   at_serigraphy: ["returned_from_serigraphy"],
   returned_from_serigraphy: ["closed"],
   closed: [],
 };
+
+/** Avance lineal del pedido (excluye la marcha atrás a borrador). */
+export function getForwardOrderTransitions(status: OrderStatus): OrderStatus[] {
+  return ORDER_TRANSITIONS[status].filter((next) => next !== "draft");
+}
 
 export const LOCATION_TYPES = ["cabinet", "shelf", "box"] as const;
 export type LocationType = (typeof LOCATION_TYPES)[number];

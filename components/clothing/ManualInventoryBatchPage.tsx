@@ -27,7 +27,12 @@ import {
 } from "@/lib/clothing/manual-inventory-draft";
 import { boxHomeLabel, collectBoxHomes, flattenBoxNodes } from "@/lib/clothing/storageBoxes";
 import { appRoutes } from "@/lib/constants";
-import { formatSeasonShort, getCurrentSeason, getSeasonSelectOptions } from "@/lib/season";
+import {
+  formatSeasonShort,
+  getCurrentSeason,
+  getSeasonSelectOptions,
+  isProductEligibleForWarehouseSeason,
+} from "@/lib/season";
 import { appToast } from "@/lib/toast";
 import type {
   ClothingProduct,
@@ -95,7 +100,9 @@ export function ManualInventoryBatchPage({
   const seasonProducts = useMemo(
     () =>
       products.filter(
-        (product) => product.season === season && (product.is_active || product.id === productId),
+        (product) =>
+          (product.is_active || product.id === productId) &&
+          isProductEligibleForWarehouseSeason(product.season, season),
       ),
     [products, season, productId],
   );
@@ -367,7 +374,7 @@ export function ManualInventoryBatchPage({
             <div className="ropa-panel__block">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:gap-3">
                 <FormSelect
-                  label="Temporada"
+                  label="Temporada almacén"
                   name="batch-season"
                   id="batch-season"
                   value={season}
@@ -382,8 +389,8 @@ export function ManualInventoryBatchPage({
                 <div className="order-2 min-w-0 flex-1 md:order-1">
                   {seasonProducts.length === 0 ? (
                     <p className="rounded-[var(--radius-sm)] border border-dashed border-[var(--club-border)] px-3 py-3 text-sm text-muted-foreground">
-                      No hay prendas en {formatSeasonShort(season)}. Crea la prenda en Prendas o
-                      elige otra temporada.
+                      No hay prendas activas para {formatSeasonShort(season)} ni temporadas
+                      anteriores. Crea la prenda en Prendas.
                     </p>
                   ) : (
                     <ProductPicker
@@ -391,6 +398,7 @@ export function ManualInventoryBatchPage({
                       value={productId}
                       onChange={handleProductChange}
                       id="batch-product"
+                      showSeason
                     />
                   )}
                 </div>

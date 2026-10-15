@@ -69,14 +69,24 @@ function cellFrom(obligation: FeeObligation | null, payments: PlayerPaymentFact[
   return { kind, obligation, payments };
 }
 
-function paymentSlot(code: string | null, month: number | null): string {
-  return `${code ?? ""}|${month ?? ""}`;
+/**
+ * Cobros que pertenecen a la columna. En únicos se ignora `billing_month` (igual
+ * que `sumPaid`); en mensualidad hace falta el mes exacto.
+ */
+export function paymentsForColumn(
+  payments: readonly PlayerPaymentFact[],
+  column: Pick<MatrixColumn, "code" | "month">,
+): PlayerPaymentFact[] {
+  return payments.filter((p) => {
+    if (p.fee_code !== column.code) return false;
+    if (column.month == null) return true;
+    return p.billing_month === column.month;
+  });
 }
 
 /**
  * Celdas de una fila alineadas con `columns`, en una sola pasada (O(obligaciones +
- * cobros + columnas)). Los cobros de conceptos únicos se agrupan sin mes; los de
- * mensualidad, por mes.
+ * cobros + columnas)).
  */
 export function buildRowCells(
   row: PlayerFeeRow,
@@ -85,18 +95,10 @@ export function buildRowCells(
   const obligationByKey = new Map<string, FeeObligation>();
   for (const o of row.obligations) obligationByKey.set(o.key, o);
 
-  const paymentsBySlot = new Map<string, PlayerPaymentFact[]>();
-  for (const p of row.payments) {
-    const slot = paymentSlot(p.fee_code, p.billing_month);
-    const list = paymentsBySlot.get(slot);
-    if (list) list.push(p);
-    else paymentsBySlot.set(slot, [p]);
-  }
-
   return columns.map((column) =>
     cellFrom(
       obligationByKey.get(column.key) ?? null,
-      paymentsBySlot.get(paymentSlot(column.code, column.month)) ?? [],
+      paymentsForColumn(row.payments, column),
     ),
   );
 }
@@ -104,11 +106,7 @@ export function buildRowCells(
 /** Una celda suelta (popover); las filas usan `buildRowCells`. */
 export function matrixCell(row: PlayerFeeRow, column: MatrixColumn): MatrixCell {
   const obligation = row.obligations.find((o) => o.key === column.key) ?? null;
-  const payments = row.payments.filter(
-    (p) =>
-      p.fee_code === column.code && (column.month == null || p.billing_month === column.month),
-  );
-  return cellFrom(obligation, payments);
+  return cellFrom(obligation, paymentsForColumn(row.payments, column));
 }
 
 /** Fecha de cobro (ISO) más reciente entre los cobros de una celda, o null. */

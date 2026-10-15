@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { appToast } from "@/lib/toast";
 
 import { Button } from "@/components/club/Button";
+import { ConfirmDialog } from "@/components/club/ConfirmDialog";
 import {
   ClothingBottomSheet,
   ClothingSheetOption,
@@ -12,6 +13,7 @@ import {
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { updateOrderStatus } from "@/lib/actions/clothing/orders";
 import {
+  getForwardOrderTransitions,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TRANSITIONS,
 } from "@/lib/clothing/constants";
@@ -43,7 +45,10 @@ export function OrderStatusActions({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<ConfirmKind>(null);
   const [confirmNext, setConfirmNext] = useState<ClothingOrderStatus | null>(null);
-  const nextStatuses = ORDER_STATUS_TRANSITIONS[status];
+  const [reopenDraftOpen, setReopenDraftOpen] = useState(false);
+
+  const forwardStatuses = getForwardOrderTransitions(status);
+  const canReopenDraft = ORDER_STATUS_TRANSITIONS[status].includes("draft");
 
   function runTransition(next: ClothingOrderStatus) {
     startTransition(async () => {
@@ -52,10 +57,15 @@ export function OrderStatusActions({
         appToast.error(result.error);
         return;
       }
-      appToast.success(`Estado actualizado: ${ORDER_STATUS_LABELS[next]}`);
+      appToast.success(
+        next === "draft"
+          ? "Pedido vuelto a borrador"
+          : `Estado actualizado: ${ORDER_STATUS_LABELS[next]}`,
+      );
       setSheetOpen(false);
       setConfirmNext(null);
       setConfirmKind(null);
+      setReopenDraftOpen(false);
       router.refresh();
     });
   }
@@ -74,7 +84,7 @@ export function OrderStatusActions({
     runTransition(next);
   }
 
-  if (nextStatuses.length === 0) {
+  if (forwardStatuses.length === 0 && !canReopenDraft) {
     return (
       <p className="text-sm text-muted-foreground">
         Pedido {ORDER_STATUS_LABELS[status].toLowerCase()}. No hay más transiciones.
@@ -82,9 +92,11 @@ export function OrderStatusActions({
     );
   }
 
-  const primaryNext = nextStatuses[0];
-  const primaryLabel = transitionLabels[primaryNext] ?? ORDER_STATUS_LABELS[primaryNext];
-  const hasMultiple = nextStatuses.length > 1;
+  const primaryNext = forwardStatuses[0];
+  const primaryLabel = primaryNext
+    ? (transitionLabels[primaryNext] ?? ORDER_STATUS_LABELS[primaryNext])
+    : "Cambiar estado";
+  const hasMultiple = forwardStatuses.length > 1;
 
   const confirmTitle =
     confirmKind === "serigraphy_missing"
@@ -97,10 +109,17 @@ export function OrderStatusActions({
   const confirmPrimaryLabel =
     confirmKind === "serigraphy_missing" ? "Enviar igual" : "Continuar";
 
+  /** En borrador la ficha ya usa sticky para «Guardar cambios»; botones inline en móvil. */
+  const useInlineMobileActions = status === "draft";
+
   return (
     <>
-      <div className="hidden flex-wrap gap-2 md:flex">
-        {nextStatuses.map((next) => (
+      <div
+        className={
+          useInlineMobileActions ? "flex flex-wrap gap-2" : "hidden flex-wrap gap-2 md:flex"
+        }
+      >
+        {forwardStatuses.map((next) => (
           <Button
             key={next}
             type="button"
@@ -112,20 +131,48 @@ export function OrderStatusActions({
             {transitionLabels[next] ?? ORDER_STATUS_LABELS[next]}
           </Button>
         ))}
+        {canReopenDraft ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={pending}
+            onClick={() => setReopenDraftOpen(true)}
+          >
+            Volver a borrador
+          </Button>
+        ) : null}
       </div>
 
-      <div className="md:hidden">
-        <ClothingStickyActionBar
-          actions={[
-            {
-              type: "button",
-              label: hasMultiple ? "Cambiar estado" : primaryLabel,
-              pending,
-              onClick: () => setSheetOpen(true),
-            },
-          ]}
-        />
-      </div>
+      {!useInlineMobileActions ? (
+        <div className="md:hidden">
+          <ClothingStickyActionBar
+            actions={[
+              ...(primaryNext
+                ? [
+                    {
+                      type: "button" as const,
+                      label: hasMultiple ? "Cambiar estado" : primaryLabel,
+                      pending,
+                      onClick: () => setSheetOpen(true),
+                    },
+                  ]
+                : []),
+              ...(canReopenDraft
+                ? [
+                    {
+                      type: "button" as const,
+                      label: "Volver a borrador",
+                      pending,
+                      variant: "secondary" as const,
+                      onClick: () => setReopenDraftOpen(true),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </div>
+      ) : null}
 
       <ClothingBottomSheet
         open={sheetOpen}
@@ -134,7 +181,7 @@ export function OrderStatusActions({
         description="Elige el nuevo estado del pedido."
       >
         <div className="flex flex-col gap-2">
-          {nextStatuses.map((next) => (
+          {forwardStatuses.map((next) => (
             <ClothingSheetOption
               key={next}
               onSelect={() => handleTransition(next)}
@@ -167,6 +214,19 @@ export function OrderStatusActions({
             setConfirmNext(null);
           },
         }}
+      />
+
+      <ConfirmDialog
+        open={reopenDraftOpen}
+        onClose={() => {
+          if (!pending) setReopenDraftOpen(false);
+        }}
+        title="Volver a borrador"
+        description="El pedido dejará de estar marcado como enviado. Podrás editar el contenido; las unidades recibidas se pondrán a cero y tendrás que volver a confirmar el envío."
+        confirmLabel="Volver a borrador"
+        destructive
+        pending={pending}
+        onConfirm={() => runTransition("draft")}
       />
     </>
   );
