@@ -113,3 +113,32 @@ describe("player list URL filters", () => {
     expect(playerListSearchEqual("q=a", "q=b")).toBe(false);
   });
 });
+
+describe("facetas multi-valor", () => {
+  it("serializa y parsea varios valores por grupo, incl. «Sin equipo»", () => {
+    const multi: PlayerFilterState = {
+      query: "",
+      facets: [
+        { key: "category", value: "infantil", label: "Infantil" },
+        { key: "category", value: "cadete", label: "Cadete" },
+        { key: "team", value: "none", label: "Sin equipo" },
+      ],
+      statusFilter: "active",
+    };
+    const params = serializePlayerListSearchParams(multi);
+    expect(params.get("category")).toBe("infantil,cadete");
+    expect(params.get("team")).toBe("none");
+
+    const parsed = parsePlayerListSearchParams(params, []);
+    expect(parsed.facets.map((f) => `${f.key}:${f.value}`)).toEqual([
+      "category:infantil",
+      "category:cadete",
+      "team:none",
+    ]);
+  });
+
+  it("acepta el antiguo ?unassigned=1", () => {
+    const parsed = parsePlayerListSearchParams(new URLSearchParams("unassigned=1"), []);
+    expect(parsed.facets.map((f) => `${f.key}:${f.value}`)).toEqual(["team:none"]);
+  });
+});

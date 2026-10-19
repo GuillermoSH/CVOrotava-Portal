@@ -20,6 +20,7 @@ import {
 } from "@/lib/roster/player-filters";
 import type { RosterDb } from "@/lib/roster/repository/client";
 import { getCurrentSeason } from "@/lib/season";
+import { normalizeSearchText } from "@/lib/text/search";
 import type {
   PlayerContact,
   PlayerListItem,
@@ -41,11 +42,12 @@ const CONTACTS_EMBED = "contacts:player_contacts(phone, email, is_primary)";
 export type ListPlayersPageFilters = {
   query?: string;
   statusFilter?: "active" | "all";
-  category?: string;
-  gender?: string;
-  teamId?: string;
+  /** Cada lista se combina con «o»; entre grupos, con «y». */
+  categories?: string[];
+  genders?: string[];
+  teamIds?: string[];
   unassigned?: boolean;
-  checklist?: ChecklistFilter;
+  checklists?: ChecklistFilter[];
 };
 
 export type ListPlayersPageInput = {
@@ -77,16 +79,20 @@ const CHECKLIST_SQL_FILTERS: Partial<
   license_blocked: { licenseBlocked: true },
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function checklistNeedsPostFilter(checklist: ChecklistFilter | undefined): boolean {
   return checklist === "incomplete_profile" || checklist === "missing_matricula";
 }
 
+/** Un solo filtro de alta con columna directa se resuelve en SQL; varios se unen en memoria. */
+function checklistNeedsInMemory(checklists: ChecklistFilter[] | undefined): boolean {
+  if (!checklists || checklists.length === 0) return false;
+  return checklists.length > 1 || checklistNeedsPostFilter(checklists[0]);
+}
+
 function needsInMemoryPaging(filters: ListPlayersPageFilters): boolean {
-  return (
-    checklistNeedsPostFilter(filters.checklist) ||
-    filters.gender === "male" ||
-    filters.gender === "female"
-  );
+  return checklistNeedsInMemory(filters.checklists) || (filters.genders?.length ?? 0) > 0;
 }
 
 export type PlayerContactInput = {
@@ -130,7 +136,7 @@ export type PlayerWriteInput = {
 };
 
 function listSelect(filters: ListPlayersPageFilters): string {
-  const needsTeamInner = Boolean(filters.category) || filters.gender === "mixed";
+  const needsTeamInner = (filters.categories?.length ?? 0) > 0;
   const teamEmbed = needsTeamInner
     ? "team:teams!inner(id, name, category, gender, season)"
     : "team:teams(id, name, category, gender, season)";
@@ -152,24 +158,25 @@ function applyListFilters(
     q = q.eq("is_active", true);
   }
 
-  if (filters.unassigned) {
+  // Los ids acaban dentro de un filtro `or(...)`: solo uuids.
+  const teamIds = (filters.teamIds ?? []).filter((id) => UUID_RE.test(id));
+  if (filters.unassigned && teamIds.length > 0) {
+    q = q.or(`team_id.is.null,team_id.in.(${teamIds.join(",")})`);
+  } else if (filters.unassigned) {
     q = q.is("team_id", null);
-  } else if (filters.teamId) {
-    q = q.eq("team_id", filters.teamId);
+  } else if (teamIds.length > 0) {
+    q = q.in("team_id", teamIds);
   }
 
-  if (filters.category) {
-    q = q.eq("team.category", filters.category);
+  if (filters.categories?.length) {
+    q = q.in("team.category", filters.categories);
   }
 
-  // male/female se refinan en memoria (effectivePlayerGender); mixed sí en SQL.
-  if (filters.gender === "mixed") {
-    q = q.eq("team.gender", "mixed");
-  }
+  // Género (efectivo: jugador o equipo) se refina en memoria.
 
-  const checklist = filters.checklist;
-  if (checklist && !checklistNeedsPostFilter(checklist)) {
-    const sqlFilter = CHECKLIST_SQL_FILTERS[checklist];
+  const checklists = filters.checklists;
+  if (checklists?.length === 1 && !checklistNeedsPostFilter(checklists[0])) {
+    const sqlFilter = CHECKLIST_SQL_FILTERS[checklists[0]];
     if (sqlFilter && "column" in sqlFilter) {
       q = q.eq(sqlFilter.column, sqlFilter.value);
     } else if (sqlFilter && "complete" in sqlFilter) {
@@ -187,12 +194,13 @@ function applyListFilters(
 
   const search = filters.query?.trim();
   if (search) {
-    const escaped = search.replace(/[%_,.()]/g, " ").replace(/\s+/g, " ").trim();
+    // `search_text` = nombre + apellidos + DNI sin tildes y en minúsculas (columna generada).
+    const escaped = normalizeSearchText(search)
+      .replace(/[%_,.()]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (escaped) {
-      const pattern = `%${escaped}%`;
-      q = q.or(
-        `first_name.ilike.${pattern},last_name.ilike.${pattern},full_name.ilike.${pattern},dni.ilike.${pattern}`,
-      );
+      q = q.ilike("search_text", `%${escaped}%`);
     }
   }
 
@@ -278,17 +286,18 @@ export async function listPlayersPage(
   if (error) throw new Error(dbErrorMessage(error));
   let players = ((data ?? []) as PlayerRow[]).map((row) => mapPlayerListItem(row));
 
-  if (filters.checklist && checklistNeedsPostFilter(filters.checklist)) {
+  if (checklistNeedsInMemory(filters.checklists)) {
+    const checklists = filters.checklists!;
     players = players.filter((player) =>
-      matchesChecklistFilter(player, filters.checklist!, input.context),
+      checklists.some((filter) => matchesChecklistFilter(player, filter, input.context)),
     );
   }
 
-  if (filters.gender === "male" || filters.gender === "female") {
-    const g = filters.gender;
+  if (filters.genders?.length) {
+    const genders = filters.genders;
     players = players.filter((player) => {
       const effective = player.gender ?? player.team?.gender ?? null;
-      return effective === g;
+      return effective !== null && genders.includes(effective);
     });
   }
 

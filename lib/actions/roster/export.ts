@@ -54,7 +54,7 @@ export async function exportPlayersCsvAction(
       const filters = playerFilterStateToListFilters(
         input.filters ?? { query: "", facets: [], statusFilter: "active" },
       );
-      const needsMatricula = filters.checklist === "missing_matricula";
+      const needsMatricula = filters.checklists?.includes("missing_matricula") ?? false;
       const matriculaPaidPlayerIds = needsMatricula
         ? new Set(await getCachedPaidMatriculaIds(season))
         : undefined;

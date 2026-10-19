@@ -49,15 +49,16 @@ import {
 import {
   CHECKLIST_FILTER_LABELS,
   CHECKLIST_FILTER_ORDER,
-  formatFacetChipLabel,
+  formatFacetValueLabel,
   playerDetailHref,
   playerListSearchEqual,
   PLAYER_LIST_PAGE_SIZES,
   reconcileTeamFacet,
   removePlayerFacet,
   serializePlayerListSearchParams,
+  TEAM_FACET_NONE,
   teamsMatchingFacets,
-  upsertPlayerFacet,
+  togglePlayerFacet,
   type PlayerFacet,
   type PlayerFacetKey,
   type PlayerFilterState,
@@ -559,10 +560,13 @@ export function PlayersPageClient({
       {
         key: "team",
         label: "Equipo",
-        options: cascadedTeams.map((team) => ({
-          value: team.id,
-          label: team.name,
-        })),
+        options: [
+          ...cascadedTeams.map((team) => ({
+            value: team.id,
+            label: team.name,
+          })),
+          { value: TEAM_FACET_NONE, label: "Sin equipo" },
+        ],
       },
       {
         key: "checklist",
@@ -574,12 +578,6 @@ export function PlayersPageClient({
           value: filter,
           label: CHECKLIST_FILTER_LABELS[filter],
         })),
-      },
-      {
-        key: "unassigned",
-        label: "Sin equipo",
-        options: [{ value: "true", label: "Sin equipo" }],
-        instant: true,
       },
     ];
   }, [cascadedTeams, canWrite]);
@@ -596,19 +594,19 @@ export function PlayersPageClient({
     });
   }, [pageIds]);
 
-  function handleAddFacet(chip: { key: string; value: string; label: string }) {
+  function handleToggleFacet(chip: { key: string; value: string }) {
     const key = chip.key as PlayerFacetKey;
     setFacets((prev) => {
-      const next = upsertPlayerFacet(prev, {
+      const next = togglePlayerFacet(prev, {
         key,
         value: chip.value,
-        label: formatFacetChipLabel(key, chip.value, teams),
+        label: formatFacetValueLabel(key, chip.value, teams),
       });
       return reconcileTeamFacet(next, teams);
     });
   }
 
-  function handleRemoveFacet(key: string) {
+  function handleRemoveFacetGroup(key: string) {
     setFacets((prev) => reconcileTeamFacet(removePlayerFacet(prev, key as PlayerFacetKey), teams));
   }
 
@@ -932,10 +930,10 @@ export function PlayersPageClient({
             onQueryChange={setQuery}
             facets={facets}
             fields={facetFields}
-            onAddFacet={handleAddFacet}
-            onRemoveFacet={handleRemoveFacet}
+            onToggleFacet={handleToggleFacet}
+            onRemoveGroup={handleRemoveFacetGroup}
             onClear={handleClearFilters}
-            placeholder="Buscar nombre, DNI, teléfono… o filtrar"
+            placeholder="Buscar nombre, DNI, teléfono…"
             className="md:min-w-0 md:flex-1"
           />
           {showBajasToggle ? (

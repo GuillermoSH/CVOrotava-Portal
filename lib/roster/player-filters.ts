@@ -10,6 +10,7 @@ import {
 } from "@/lib/roster/constants";
 import { getPlayerOnboardingStatus } from "@/lib/roster/onboarding";
 import { isPlayerProfileIncomplete } from "@/lib/roster/profile-completeness";
+import { searchIncludes } from "@/lib/text/search";
 import type { PlayerListItem, Team } from "@/lib/types/db";
 
 function teamMatchesGenderFacet(team: Team, gender: string): boolean {
@@ -63,7 +64,10 @@ export type PlayerFilterContext = {
   matriculaPaidPlayerIds?: ReadonlySet<string>;
 };
 
-export type PlayerFacetKey = "category" | "gender" | "team" | "checklist" | "unassigned";
+export type PlayerFacetKey = "category" | "gender" | "team" | "checklist";
+
+/** Valor de la faceta `team` para «Sin equipo». */
+export const TEAM_FACET_NONE = "none";
 
 export type PlayerFacet = {
   key: PlayerFacetKey;
@@ -126,25 +130,24 @@ export function matchesChecklistFilter(
   }
 }
 
-function facetValue(facets: PlayerFacet[], key: PlayerFacetKey): string | undefined {
-  return facets.find((f) => f.key === key)?.value;
+/** Cada grupo admite varios valores (se combinan con «o»); los grupos entre sí con «y». */
+export function facetValues(facets: PlayerFacet[], key: PlayerFacetKey): string[] {
+  return facets.filter((f) => f.key === key).map((f) => f.value);
 }
 
 function matchesQuery(player: PlayerListItem, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const haystack = [
-    formatPlayerName(player),
-    player.full_name,
-    player.dni ?? "",
-    player.team?.name ?? "",
-    player.team ? formatTeamCategory(player.team.category) : "",
-    player.primary_phone ?? "",
-    player.primary_email ?? "",
-  ]
-    .join(" ")
-    .toLowerCase();
-  return haystack.includes(q);
+  return searchIncludes(
+    [
+      formatPlayerName(player),
+      player.full_name,
+      player.dni ?? "",
+      player.team?.name ?? "",
+      player.team ? formatTeamCategory(player.team.category) : "",
+      player.primary_phone ?? "",
+      player.primary_email ?? "",
+    ].join(" "),
+    query,
+  );
 }
 
 export function applyPlayerFacets(
@@ -152,20 +155,26 @@ export function applyPlayerFacets(
   { query, facets, statusFilter }: PlayerFilterState,
   context: PlayerFilterContext = {},
 ): PlayerListItem[] {
-  const category = facetValue(facets, "category");
-  const gender = facetValue(facets, "gender");
-  const teamId = facetValue(facets, "team");
-  const checklist = facetValue(facets, "checklist") as ChecklistFilter | undefined;
-  const unassigned = facetValue(facets, "unassigned") === "true";
+  const categories = facetValues(facets, "category");
+  const genders = facetValues(facets, "gender");
+  const teamValues = facetValues(facets, "team");
+  const checklists = facetValues(facets, "checklist") as ChecklistFilter[];
   const q = query.trim();
 
   return players.filter((player) => {
     if (statusFilter === "active" && !player.is_active && !q) return false;
-    if (category && player.team?.category !== category) return false;
-    if (gender && effectivePlayerGender(player) !== gender) return false;
-    if (unassigned && player.team_id !== null) return false;
-    if (teamId && player.team_id !== teamId) return false;
-    if (checklist && !matchesChecklistFilter(player, checklist, context)) return false;
+    if (categories.length > 0 && !categories.includes(player.team?.category ?? "")) return false;
+    if (genders.length > 0 && !genders.includes(effectivePlayerGender(player) ?? "")) return false;
+    if (teamValues.length > 0) {
+      const teamKey = player.team_id ?? TEAM_FACET_NONE;
+      if (!teamValues.includes(teamKey)) return false;
+    }
+    if (
+      checklists.length > 0 &&
+      !checklists.some((filter) => matchesChecklistFilter(player, filter, context))
+    ) {
+      return false;
+    }
     return matchesQuery(player, query);
   });
 }
@@ -204,114 +213,73 @@ export function applyPlayerFacetsExceptChecklist(
   );
 }
 
-export function upsertPlayerFacet(facets: PlayerFacet[], next: PlayerFacet): PlayerFacet[] {
-  let cleaned = facets.filter((f) => f.key !== next.key);
-
-  if (next.key === "team") {
-    cleaned = cleaned.filter((f) => f.key !== "unassigned");
-  }
-  if (next.key === "unassigned") {
-    cleaned = cleaned.filter((f) => f.key !== "team");
-  }
-
-  return [...cleaned, next];
+/** Añade el valor si no estaba; si ya estaba, lo quita. */
+export function togglePlayerFacet(facets: PlayerFacet[], next: PlayerFacet): PlayerFacet[] {
+  const exists = facets.some((f) => f.key === next.key && f.value === next.value);
+  if (exists) return facets.filter((f) => !(f.key === next.key && f.value === next.value));
+  return [...facets, next];
 }
 
+/** Quita el grupo entero (todos los valores de esa clave). */
 export function removePlayerFacet(facets: PlayerFacet[], key: PlayerFacetKey): PlayerFacet[] {
   return facets.filter((f) => f.key !== key);
 }
 
-/** Drop team facet if it no longer matches category/gender cascade. */
+/** Quita los equipos elegidos que ya no encajan con categoría/género. */
 export function reconcileTeamFacet(facets: PlayerFacet[], teams: Team[]): PlayerFacet[] {
-  const teamId = facetValue(facets, "team");
-  if (!teamId) return facets;
+  const categories = facetValues(facets, "category");
+  const genders = facetValues(facets, "gender");
 
-  const team = teams.find((t) => t.id === teamId);
-  if (!team) return removePlayerFacet(facets, "team");
-
-  const category = facetValue(facets, "category");
-  const gender = facetValue(facets, "gender");
-  if (category && team.category !== category) return removePlayerFacet(facets, "team");
-  if (gender && !teamMatchesGenderFacet(team, gender)) return removePlayerFacet(facets, "team");
-  return facets;
-}
-
-export function teamsMatchingFacets(teams: Team[], facets: PlayerFacet[]): Team[] {
-  const category = facetValue(facets, "category");
-  const gender = facetValue(facets, "gender");
-  return teams.filter((team) => {
-    if (category && team.category !== category) return false;
-    if (gender && !teamMatchesGenderFacet(team, gender)) return false;
+  return facets.filter((facet) => {
+    if (facet.key !== "team" || facet.value === TEAM_FACET_NONE) return true;
+    const team = teams.find((t) => t.id === facet.value);
+    if (!team) return false;
+    if (categories.length > 0 && !categories.includes(team.category)) return false;
+    if (genders.length > 0 && !genders.some((g) => teamMatchesGenderFacet(team, g))) return false;
     return true;
   });
 }
 
-function countInPool(pool: PlayerListItem[], predicate: (p: PlayerListItem) => boolean): number {
-  return pool.filter(predicate).length;
+export function teamsMatchingFacets(teams: Team[], facets: PlayerFacet[]): Team[] {
+  const categories = facetValues(facets, "category");
+  const genders = facetValues(facets, "gender");
+  return teams.filter((team) => {
+    if (categories.length > 0 && !categories.includes(team.category)) return false;
+    if (genders.length > 0 && !genders.some((g) => teamMatchesGenderFacet(team, g))) return false;
+    return true;
+  });
 }
 
-export type FacetOption = { value: string; label: string; count?: number };
+export const PLAYER_FACET_GROUP_LABELS: Record<PlayerFacetKey, string> = {
+  category: "Categoría",
+  gender: "Género",
+  team: "Equipo",
+  checklist: "Alta",
+};
 
-export function buildCategoryOptions(pool: PlayerListItem[]): FacetOption[] {
-  return TEAM_CATEGORIES.map((category) => ({
-    value: category,
-    label: formatTeamCategory(category),
-    count: countInPool(pool, (p) => p.team?.category === category),
-  })).filter((opt) => (opt.count ?? 0) > 0);
-}
-
-export function buildGenderOptions(pool: PlayerListItem[]): FacetOption[] {
-  return TEAM_GENDERS.map((gender) => ({
-    value: gender,
-    label: TEAM_GENDER_LABELS[gender as TeamGender],
-    count: countInPool(pool, (p) => effectivePlayerGender(p) === gender),
-  }));
-}
-
-export function buildTeamOptions(teams: Team[], pool: PlayerListItem[]): FacetOption[] {
-  return teams.map((team) => ({
-    value: team.id,
-    label: team.name,
-    count: countInPool(pool, (p) => p.team_id === team.id),
-  }));
-}
-
-export function buildChecklistOptions(
-  pool: PlayerListItem[],
-  context: PlayerFilterContext = {},
-): FacetOption[] {
-  return CHECKLIST_FILTER_ORDER.map((filter) => ({
-    value: filter,
-    label: CHECKLIST_FILTER_LABELS[filter],
-    count: countInPool(pool, (p) => matchesChecklistFilter(p, filter, context)),
-  }));
-}
-
-export function buildUnassignedOption(pool: PlayerListItem[]): FacetOption {
-  return {
-    value: "true",
-    label: "Sin equipo",
-    count: countInPool(pool, (p) => p.team_id === null),
-  };
-}
-
-export function formatFacetChipLabel(key: PlayerFacetKey, value: string, teams: Team[]): string {
+/** Etiqueta de un valor concreto (sin el nombre del grupo). */
+export function formatFacetValueLabel(
+  key: PlayerFacetKey,
+  value: string,
+  teams: Team[],
+): string {
   switch (key) {
     case "category":
-      return `Categoría: ${formatTeamCategory(value)}`;
+      return formatTeamCategory(value);
     case "gender":
-      return `Género: ${TEAM_GENDER_LABELS[value as TeamGender] ?? value}`;
-    case "team": {
-      const team = teams.find((t) => t.id === value);
-      return `Equipo: ${team?.name ?? value}`;
-    }
+      return TEAM_GENDER_LABELS[value as TeamGender] ?? value;
+    case "team":
+      if (value === TEAM_FACET_NONE) return "Sin equipo";
+      return teams.find((t) => t.id === value)?.name ?? value;
     case "checklist":
-      return `Alta: ${CHECKLIST_FILTER_LABELS[value as ChecklistFilter] ?? value}`;
-    case "unassigned":
-      return "Sin equipo";
+      return CHECKLIST_FILTER_LABELS[value as ChecklistFilter] ?? value;
     default:
       return value;
   }
+}
+
+function makeFacet(key: PlayerFacetKey, value: string, teams: Team[]): PlayerFacet {
+  return { key, value, label: formatFacetValueLabel(key, value, teams) };
 }
 
 function firstParam(
@@ -327,6 +295,16 @@ function firstParam(
   return value?.trim() || undefined;
 }
 
+/** Valores separados por coma de un parámetro (sin vacíos ni repetidos). */
+function listParam(
+  params: URLSearchParams | Record<string, string | string[] | undefined>,
+  key: string,
+): string[] {
+  const raw = firstParam(params, key);
+  if (!raw) return [];
+  return [...new Set(raw.split(",").map((v) => v.trim()).filter(Boolean))];
+}
+
 export function serializePlayerListSearchParams(
   state: PlayerFilterState,
   paging?: Partial<PlayerListPagingState> | null,
@@ -335,12 +313,9 @@ export function serializePlayerListSearchParams(
   const q = state.query.trim();
   if (q) params.set("q", q);
 
-  for (const facet of state.facets) {
-    if (facet.key === "unassigned") {
-      if (facet.value === "true") params.set("unassigned", "1");
-      continue;
-    }
-    if (facet.value) params.set(facet.key, facet.value);
+  for (const key of ["category", "gender", "team", "checklist"] as const) {
+    const values = facetValues(state.facets, key);
+    if (values.length > 0) params.set(key, values.join(","));
   }
 
   if (state.statusFilter === "all") params.set("status", "all");
@@ -384,49 +359,30 @@ export function parsePlayerListSearchParams(
 
   const facets: PlayerFacet[] = [];
 
-  const category = firstParam(params, "category");
-  if (category && (TEAM_CATEGORIES as readonly string[]).includes(category)) {
-    facets.push({
-      key: "category",
-      value: category,
-      label: formatFacetChipLabel("category", category, teams),
-    });
-  }
-
-  const gender = firstParam(params, "gender");
-  if (gender && (TEAM_GENDERS as readonly string[]).includes(gender)) {
-    facets.push({
-      key: "gender",
-      value: gender,
-      label: formatFacetChipLabel("gender", gender, teams),
-    });
-  }
-
-  const unassigned = firstParam(params, "unassigned");
-  if (unassigned === "1" || unassigned === "true") {
-    facets.push({
-      key: "unassigned",
-      value: "true",
-      label: formatFacetChipLabel("unassigned", "true", teams),
-    });
-  } else {
-    const teamId = firstParam(params, "team");
-    if (teamId) {
-      facets.push({
-        key: "team",
-        value: teamId,
-        label: formatFacetChipLabel("team", teamId, teams),
-      });
+  for (const value of listParam(params, "category")) {
+    if ((TEAM_CATEGORIES as readonly string[]).includes(value)) {
+      facets.push(makeFacet("category", value, teams));
     }
   }
 
-  const checklist = firstParam(params, "checklist");
-  if (checklist && checklist in CHECKLIST_FILTER_LABELS) {
-    facets.push({
-      key: "checklist",
-      value: checklist,
-      label: formatFacetChipLabel("checklist", checklist, teams),
-    });
+  for (const value of listParam(params, "gender")) {
+    if ((TEAM_GENDERS as readonly string[]).includes(value)) {
+      facets.push(makeFacet("gender", value, teams));
+    }
+  }
+
+  const teamValues = listParam(params, "team");
+  // Enlaces antiguos: ?unassigned=1
+  const legacyUnassigned = firstParam(params, "unassigned");
+  if (legacyUnassigned === "1" || legacyUnassigned === "true") teamValues.push(TEAM_FACET_NONE);
+  for (const value of new Set(teamValues)) {
+    facets.push(makeFacet("team", value, teams));
+  }
+
+  for (const value of listParam(params, "checklist")) {
+    if (value in CHECKLIST_FILTER_LABELS) {
+      facets.push(makeFacet("checklist", value, teams));
+    }
   }
 
   return {
@@ -447,35 +403,32 @@ export function parsePlayerListUrlState(
 }
 
 /** Facetas URL → filtros del repositorio. */
-export function playerFilterStateToListFilters(
-  state: PlayerFilterState,
-): {
+export function playerFilterStateToListFilters(state: PlayerFilterState): {
   query: string;
   statusFilter: "active" | "all";
-  category?: string;
-  gender?: string;
-  teamId?: string;
+  categories?: string[];
+  genders?: string[];
+  teamIds?: string[];
   unassigned?: boolean;
-  checklist?: ChecklistFilter;
+  checklists?: ChecklistFilter[];
 } {
-  const category = state.facets.find((f) => f.key === "category")?.value;
-  const gender = state.facets.find((f) => f.key === "gender")?.value;
-  const teamId = state.facets.find((f) => f.key === "team")?.value;
-  const unassigned = state.facets.find((f) => f.key === "unassigned")?.value === "true";
-  const checklistRaw = state.facets.find((f) => f.key === "checklist")?.value;
-  const checklist =
-    checklistRaw && checklistRaw in CHECKLIST_FILTER_LABELS
-      ? (checklistRaw as ChecklistFilter)
-      : undefined;
+  const categories = facetValues(state.facets, "category");
+  const genders = facetValues(state.facets, "gender");
+  const teamValues = facetValues(state.facets, "team");
+  const teamIds = teamValues.filter((v) => v !== TEAM_FACET_NONE);
+  const unassigned = teamValues.includes(TEAM_FACET_NONE);
+  const checklists = facetValues(state.facets, "checklist").filter(
+    (v): v is ChecklistFilter => v in CHECKLIST_FILTER_LABELS,
+  );
 
   return {
     query: state.query,
     statusFilter: state.statusFilter,
-    category,
-    gender,
-    teamId: unassigned ? undefined : teamId,
+    categories: categories.length > 0 ? categories : undefined,
+    genders: genders.length > 0 ? genders : undefined,
+    teamIds: teamIds.length > 0 ? teamIds : undefined,
     unassigned: unassigned || undefined,
-    checklist,
+    checklists: checklists.length > 0 ? checklists : undefined,
   };
 }
 

@@ -1,6 +1,7 @@
 import { PRODUCT_CATEGORY_LABELS } from "@/lib/clothing/constants";
 import { formatProductShort } from "@/lib/clothing/formatProduct";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
+import { searchIncludes } from "@/lib/text/search";
 import type { ClothingInventoryLot, ClothingProduct } from "@/lib/types/db";
 
 export function formatJerseyNumber(n: number): string {
@@ -47,17 +48,16 @@ export function lotMatchesQuery(
   const jersey = parseJerseySearch(q);
   if (jersey !== null && lot.jersey_number === jersey) return true;
 
-  const haystack = [
-    formatProductShort(lot.product),
-    lot.product.model,
-    PRODUCT_CATEGORY_LABELS[lot.product.category],
-    lot.product.category,
-    formatClothingSize(lot.size),
-    lot.jersey_number != null ? formatJerseyNumber(lot.jersey_number) : "",
-    lot.jersey_number != null ? String(lot.jersey_number) : "",
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(q);
+  return searchIncludes(
+    [
+      formatProductShort(lot.product),
+      lot.product.model,
+      PRODUCT_CATEGORY_LABELS[lot.product.category],
+      lot.product.category,
+      formatClothingSize(lot.size),
+      lot.jersey_number != null ? formatJerseyNumber(lot.jersey_number) : "",
+      lot.jersey_number != null ? String(lot.jersey_number) : "",
+    ].join(" "),
+    q,
+  );
 }

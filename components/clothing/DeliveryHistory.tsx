@@ -21,6 +21,7 @@ import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { formatJerseyNumber } from "@/lib/clothing/formatJersey";
 import { formatProductShort } from "@/lib/clothing/formatProduct";
 import { formatSeasonShort, getSeasonSelectOptions } from "@/lib/season";
+import { searchIncludes } from "@/lib/text/search";
 import type {
   ClothingDeliveryHistoryItem,
   ClothingInventoryLotWithDetails,
@@ -107,7 +108,7 @@ export function DeliveryHistory({
   ];
 
   const filtered = useMemo(() => {
-    const productQ = productQuery.trim().toLowerCase();
+    const productQ = productQuery.trim();
     const jerseyQ = jerseyQuery.trim().replace(/^#/, "");
 
     return deliveries.filter((item) => {
@@ -120,10 +121,8 @@ export function DeliveryHistory({
           formatProductShort(item.product),
           item.product.model,
           formatClothingSize(item.size),
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(productQ)) return false;
+        ].join(" ");
+        if (!searchIncludes(haystack, productQ)) return false;
       }
 
       if (jerseyQ) {

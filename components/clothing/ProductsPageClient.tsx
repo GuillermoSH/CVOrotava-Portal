@@ -38,6 +38,7 @@ import {
   PRODUCT_CATEGORY_LABELS,
 } from "@/lib/clothing/constants";
 import { formatProductShort } from "@/lib/clothing/formatProduct";
+import { searchIncludes } from "@/lib/text/search";
 import { formatSeasonShort, getCurrentSeason, getSeasonSelectOptions } from "@/lib/season";
 import {
   toFieldError,
@@ -163,23 +164,21 @@ export function ProductsPageClient({
   }, [products]);
 
   const visibleProducts = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return products.filter((product) => {
       if (seasonFilter !== "all" && product.season !== seasonFilter) return false;
       if (shopFilter === "shop" && !product.is_shop_item) return false;
-      if (!q) return true;
-      const haystack = [
-        formatProductShort(product),
-        product.model,
-        PRODUCT_CATEGORY_LABELS[product.category],
-        CLOTHING_BRAND_LABELS[product.brand],
-        CLOTHING_COLOR_LABELS[product.color],
-        product.season,
-        product.notes ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(q);
+      return searchIncludes(
+        [
+          formatProductShort(product),
+          product.model,
+          PRODUCT_CATEGORY_LABELS[product.category],
+          CLOTHING_BRAND_LABELS[product.brand],
+          CLOTHING_COLOR_LABELS[product.color],
+          product.season,
+          product.notes ?? "",
+        ].join(" "),
+        query,
+      );
     });
   }, [products, query, seasonFilter, shopFilter]);
 

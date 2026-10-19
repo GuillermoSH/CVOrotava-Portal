@@ -30,6 +30,7 @@ import {
 } from "@/lib/payments/fees";
 import { buildMatrixColumns } from "@/lib/payments/matrix";
 import type { PlayerFeeRow } from "@/lib/payments/player-fee-rows";
+import { searchIncludes } from "@/lib/text/search";
 import { appToast } from "@/lib/toast";
 
 type CommonFields = {
@@ -172,11 +173,9 @@ export function PlayersPaymentsPageClient({
   }, [rows]);
 
   const visibleRows = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return rows.filter((row) => {
       if (onlyPending && !overdueIds.has(row.id)) return false;
-      if (!q) return true;
-      return [row.full_name, row.team_name ?? ""].join(" ").toLowerCase().includes(q);
+      return searchIncludes(`${row.full_name} ${row.team_name ?? ""}`, query);
     });
   }, [rows, query, onlyPending, overdueIds]);
 
