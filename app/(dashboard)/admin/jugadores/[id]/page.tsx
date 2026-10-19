@@ -80,7 +80,8 @@ async function PlayerDetailContent({
       title={formatPlayerName(snapshot.player)}
       subtitle={snapshot.player.team?.name ?? "Sin equipo"}
       back={{ href: listHref, label: "Jugadores" }}
-      actions={
+      actions={null}
+      topActions={
         neighbors ? (
           <PlayerNeighborNav
             position={neighbors.position}
@@ -88,7 +89,7 @@ async function PlayerDetailContent({
             prev={neighborLink(neighbors.prev)}
             next={neighborLink(neighbors.next)}
           />
-        ) : null
+        ) : undefined
       }
     >
       <div className="flex flex-col gap-8">

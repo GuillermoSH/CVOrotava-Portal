@@ -8,25 +8,35 @@ export function PageHeader({
   title,
   subtitle,
   actions,
+  topActions,
   back,
   className,
 }: {
   title: string;
   subtitle?: ReactNode;
   actions?: ReactNode;
+  /** Controles en la fila superior, a la derecha del enlace «volver». */
+  topActions?: ReactNode;
   back?: { href: string; label: string };
   className?: string;
 }) {
   return (
     <header className={cn("flex flex-col gap-2", className)}>
-      {back ? (
-        <Link
-          href={back.href}
-          className="inline-flex min-h-11 w-fit items-center gap-0.5 text-sm font-medium text-brand transition-colors hover:text-brand/80 md:min-h-8"
-        >
-          <ChevronLeft className="size-4 shrink-0" aria-hidden />
-          {back.label}
-        </Link>
+      {back || topActions ? (
+        <div className="flex items-center justify-between gap-3">
+          {back ? (
+            <Link
+              href={back.href}
+              className="inline-flex min-h-11 w-fit items-center gap-0.5 text-sm font-medium text-brand transition-colors hover:text-brand/80 md:min-h-8"
+            >
+              <ChevronLeft className="size-4 shrink-0" aria-hidden />
+              {back.label}
+            </Link>
+          ) : (
+            <span />
+          )}
+          {topActions}
+        </div>
       ) : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="min-w-0">

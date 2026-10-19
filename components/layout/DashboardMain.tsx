@@ -24,6 +24,7 @@ export function DashboardMain({ children }: { children: React.ReactNode }) {
   const title = activeOverride?.title ?? routeChrome?.title;
   const subtitle = activeOverride?.subtitle ?? routeChrome?.subtitle;
   const back = activeOverride?.back ?? routeChrome?.back;
+  const topActions = activeOverride?.topActions;
   const actions =
     activeOverride && activeOverride.actions !== undefined
       ? activeOverride.actions
@@ -55,7 +56,7 @@ export function DashboardMain({ children }: { children: React.ReactNode }) {
       >
         <div className={getDashboardFrameClassName(routeChrome)}>
           {title ? (
-            <PageHeader title={title} subtitle={subtitle} back={back} actions={actions} />
+            <PageHeader title={title} subtitle={subtitle} back={back} actions={actions} topActions={topActions} />
           ) : null}
           {showPending ? (
             <DashboardBodySkeleton kind={routeChrome?.skeleton} action={routeChrome?.action} />
