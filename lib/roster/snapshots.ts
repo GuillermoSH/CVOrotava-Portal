@@ -8,6 +8,8 @@ import {
   listPlayersWithPrimaryPhone,
   type ListPlayersPageInput,
 } from "@/lib/roster/repository/players";
+import { formatPlayerName } from "@/lib/roster/constants";
+import type { PlayerNavItem } from "@/lib/roster/player-filters";
 import { getCurrentSeason } from "@/lib/season";
 import type { PlayerListItem, PlayerWithDetails, Team } from "@/lib/types/db";
 
@@ -51,6 +53,15 @@ export async function getPlayersListSnapshot(
     pageSize: pageResult.pageSize,
     inactiveCount,
   };
+}
+
+/** Jugadores de la lista (con sus filtros y orden, todas las páginas) para navegar entre fichas. */
+export async function getPlayerNavigationItems(
+  input: Omit<ListPlayersPageInput, "page" | "pageSize"> = {},
+): Promise<PlayerNavItem[]> {
+  const db = await getRosterDb();
+  const result = await listPlayersPage(db, { ...input, page: 1, pageSize: 0 });
+  return result.players.map((player) => ({ id: player.id, name: formatPlayerName(player) }));
 }
 
 export async function getPlayerDetailsSnapshot(

@@ -452,6 +452,36 @@ export function playerDetailHref(
   return qs ? `${base}?${qs}` : base;
 }
 
+export type PlayerNavItem = { id: string; name: string };
+
+export type PlayerNeighbor = PlayerNavItem & { page: number };
+
+export type PlayerNeighbors = {
+  /** Posición 1-based en la lista y total. */
+  position: number;
+  total: number;
+  prev: PlayerNeighbor | null;
+  next: PlayerNeighbor | null;
+};
+
+/** Vecino anterior/siguiente de `id` en `items`, con la página donde cae cada uno. */
+export function findPlayerNeighbors(
+  items: PlayerNavItem[],
+  id: string,
+  pageSize: number,
+): PlayerNeighbors | null {
+  const index = items.findIndex((item) => item.id === id);
+  if (index === -1) return null;
+  const pageOf = (i: number) => (pageSize > 0 ? Math.floor(i / pageSize) + 1 : 1);
+  return {
+    position: index + 1,
+    total: items.length,
+    prev: index > 0 ? { ...items[index - 1], page: pageOf(index - 1) } : null,
+    next:
+      index < items.length - 1 ? { ...items[index + 1], page: pageOf(index + 1) } : null,
+  };
+}
+
 /** Compare filter query strings ignoring param order. */
 export function playerListSearchEqual(a: string, b: string): boolean {
   const left = new URLSearchParams(a.startsWith("?") ? a.slice(1) : a);

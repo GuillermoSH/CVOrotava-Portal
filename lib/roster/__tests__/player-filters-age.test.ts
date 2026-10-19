@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { contactsForPlayerAge, isLegalAdult, usesSelfContact } from "@/lib/roster/age";
 import { isoToEsDate, parseFlexibleDate } from "@/lib/roster/dates";
 import {
+  findPlayerNeighbors,
   parsePlayerListSearchParams,
   playerDetailHref,
   playerListSearchEqual,
@@ -140,5 +141,27 @@ describe("facetas multi-valor", () => {
   it("acepta el antiguo ?unassigned=1", () => {
     const parsed = parsePlayerListSearchParams(new URLSearchParams("unassigned=1"), []);
     expect(parsed.facets.map((f) => `${f.key}:${f.value}`)).toEqual(["team:none"]);
+  });
+});
+
+describe("findPlayerNeighbors", () => {
+  const items = ["a", "b", "c", "d", "e"].map((id) => ({ id, name: id.toUpperCase() }));
+
+  it("devuelve anterior/siguiente con su página", () => {
+    const result = findPlayerNeighbors(items, "c", 2);
+    expect(result?.position).toBe(3);
+    expect(result?.total).toBe(5);
+    expect(result?.prev).toEqual({ id: "b", name: "B", page: 1 });
+    expect(result?.next).toEqual({ id: "d", name: "D", page: 2 });
+  });
+
+  it("sin vecino en los extremos y con «Todos» siempre en página 1", () => {
+    expect(findPlayerNeighbors(items, "a", 0)?.prev).toBeNull();
+    expect(findPlayerNeighbors(items, "e", 0)?.next).toBeNull();
+    expect(findPlayerNeighbors(items, "d", 0)?.next?.page).toBe(1);
+  });
+
+  it("null si el jugador no está en la lista", () => {
+    expect(findPlayerNeighbors(items, "z", 50)).toBeNull();
   });
 });
