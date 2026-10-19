@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { AppProviders } from "@/components/shared/AppProviders";
 import { CLUB_NAME, CLUB_NAME_SHORT } from "@/lib/brand/club";
+import { sidebarInitScript } from "@/lib/layout/sidebar-init-script";
 
 import "./globals.css";
 
@@ -36,6 +37,9 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full`}
     >
+      <head>
+        <script id="cvo-sidebar-init" dangerouslySetInnerHTML={{ __html: sidebarInitScript }} />
+      </head>
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <AppProviders>{children}</AppProviders>
         <Analytics />

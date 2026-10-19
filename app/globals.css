@@ -847,6 +847,15 @@ textarea.form-input {
   }
 }
 
+/* Ancho del menú lateral: lo fija `data-sidebar` del <html> (ver sidebarInitScript). */
+html {
+  --sidebar-width: 14rem;
+}
+
+html[data-sidebar="collapsed"] {
+  --sidebar-width: 4.5rem;
+}
+
 .shell-sidebar {
   border-right: 1px solid var(--club-border);
   background: color-mix(in srgb, var(--club-bg) 94%, transparent);
@@ -1015,8 +1024,9 @@ textarea.form-input {
   position: absolute;
   inset: 0;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--club-border);
-  background: var(--club-surface);
+  /* Tinte de marca: con el gris translúcido de antes el activo era casi igual al hover. */
+  border: 1px solid color-mix(in srgb, var(--club-brand) 32%, transparent);
+  background: var(--club-brand-soft);
 }
 
 .dock-link {

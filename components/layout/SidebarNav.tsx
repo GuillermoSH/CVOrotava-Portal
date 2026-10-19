@@ -84,7 +84,7 @@ export function SidebarNav({
   }
 
   return (
-    <nav aria-label="Principal" className={cn("mt-2", collapsed && "mt-0")}>
+    <nav aria-label="Principal" className={cn("-mx-0.5 overflow-x-clip px-0.5", collapsed ? "mt-0" : "mt-2")}>
       <ul className="flex flex-col gap-0.5">
         {items.map((item) => (
           <li key={item.href}>
@@ -93,12 +93,12 @@ export function SidebarNav({
               title={collapsed ? item.label : undefined}
               aria-current={item.active ? "page" : undefined}
               className={cn(
-                "nav-link",
+                "nav-link whitespace-nowrap",
                 item.active && "nav-link--active",
                 collapsed && "justify-center px-0 py-2.5",
               )}
             >
-              {item.active && !collapsed ? (
+              {item.active ? (
                 <motion.span
                   layoutId="sidebar-active"
                   className="nav-link__pill"
@@ -107,9 +107,9 @@ export function SidebarNav({
               ) : null}
               <item.icon
                 className={cn(
-                  "relative z-10 size-4 shrink-0",
+                  "relative z-10 shrink-0",
+                  collapsed ? "size-[1.125rem]" : "size-4",
                   item.active && "text-brand",
-                  collapsed && item.active && "rounded-md bg-[var(--club-surface)] p-1.5",
                 )}
                 aria-hidden
               />
