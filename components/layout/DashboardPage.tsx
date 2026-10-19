@@ -15,6 +15,8 @@ export type DashboardChromeOverride = {
   back?: { href: string; label: string };
   /** `null` oculta la acción de la ruta; `undefined` deja la del mapa. */
   actions?: ReactNode | null;
+  /** Controles en la fila superior, a la derecha del enlace «volver». */
+  topActions?: ReactNode;
 };
 
 type DashboardChromeContextValue = {
@@ -43,6 +45,7 @@ export function DashboardPage({
   subtitle,
   back,
   actions,
+  topActions,
   className,
   children,
 }: DashboardChromeOverride & {
@@ -53,9 +56,9 @@ export function DashboardPage({
 
   useLayoutEffect(() => {
     if (!setOverride) return;
-    setOverride({ title, subtitle, back, actions });
+    setOverride({ title, subtitle, back, actions, topActions });
     return () => setOverride(null);
-  }, [setOverride, title, subtitle, back, actions]);
+  }, [setOverride, title, subtitle, back, actions, topActions]);
 
   if (className) {
     return <div className={className}>{children}</div>;
