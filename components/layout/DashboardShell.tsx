@@ -13,7 +13,7 @@ import { SidebarUser } from "@/components/layout/SidebarUser";
 import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/club/Button";
 import { CLUB_NAME } from "@/lib/brand/club";
-import { readSidebarCollapsed, writeSidebarCollapsed } from "@/lib/layout/shell-storage";
+import { useSidebarCollapsed } from "@/lib/layout/shell-storage";
 import { cn } from "@/lib/utils";
 
 export function DashboardShell({
@@ -27,19 +27,7 @@ export function DashboardShell({
   homeHref: string;
   sidebarUser?: { name: string; role: string };
 }) {
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
-
-  React.useEffect(() => {
-    setSidebarCollapsed(readSidebarCollapsed());
-  }, []);
-
-  function toggleSidebar() {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      writeSidebarCollapsed(next);
-      return next;
-    });
-  }
+  const [sidebarCollapsed, toggleSidebar] = useSidebarCollapsed();
 
   return (
     <DashboardNavigationProvider>
@@ -47,67 +35,53 @@ export function DashboardShell({
       <MobileNavTop navTitle={navTitle} homeHref={homeHref} user={sidebarUser} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
+        {/* Como en Team-Manager: menú `fixed` con ancho por variable CSS y contenido desplazado por margen. */}
         <aside
           className={cn(
-            "shell-sidebar relative hidden min-h-0 shrink-0 flex-col transition-[width] duration-200 ease-out lg:flex",
-            sidebarCollapsed ? "w-[4.5rem] px-2 py-5" : "w-56 px-3 py-5",
+            "shell-sidebar fixed inset-y-0 left-0 z-30 hidden w-[var(--sidebar-width)] flex-col py-5 transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex",
+            sidebarCollapsed ? "px-2" : "px-3",
           )}
           aria-label="Navegación principal"
         >
-          {sidebarCollapsed ? (
-            <div className="flex shrink-0 flex-col items-center gap-3">
+          {/* Un solo árbol para ambos estados: así no se remonta nada al animar el ancho. */}
+          <div className="flex shrink-0 flex-col gap-1">
+            <div
+              className={cn(
+                "relative flex items-center justify-center",
+                sidebarCollapsed ? "flex-col gap-3" : "px-2 pb-2 pt-0.5",
+              )}
+            >
               <Link
                 href={homeHref}
                 className="flex rounded-lg p-1 transition-colors hover:bg-[var(--club-surface)]"
                 aria-label={`Inicio — ${CLUB_NAME}`}
               >
-                <Logo className="size-11 shrink-0" px={48} />
+                <Logo className={cn("shrink-0", sidebarCollapsed ? "size-11" : "size-12")} px={sidebarCollapsed ? 48 : 56} />
               </Link>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                className="shrink-0"
+                className={cn("shrink-0", !sidebarCollapsed && "absolute right-1 top-1/2 -translate-y-1/2")}
                 onClick={toggleSidebar}
-                aria-expanded={false}
-                aria-label="Expandir menú lateral"
+                aria-expanded={!sidebarCollapsed}
+                aria-label={sidebarCollapsed ? "Expandir menú lateral" : "Contraer menú lateral"}
               >
-                <ChevronsRight className="size-4" aria-hidden />
+                {sidebarCollapsed ? (
+                  <ChevronsRight className="size-4" aria-hidden />
+                ) : (
+                  <ChevronsLeft className="size-4" aria-hidden />
+                )}
               </Button>
             </div>
-          ) : (
-            <div className="flex shrink-0 flex-col gap-1">
-              <div className="relative flex items-center justify-center px-2 pb-2 pt-0.5">
-                <Link
-                  href={homeHref}
-                  className="flex rounded-lg p-1 transition-colors hover:bg-[var(--club-surface)]"
-                  aria-label={`Inicio — ${CLUB_NAME}`}
-                >
-                  <Logo className="size-12 shrink-0" px={56} />
-                </Link>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  className="absolute right-1 top-1/2 shrink-0 -translate-y-1/2"
-                  onClick={toggleSidebar}
-                  aria-expanded
-                  aria-label="Contraer menú lateral"
-                >
-                  <ChevronsLeft className="size-4" aria-hidden />
-                </Button>
-              </div>
-              <SidebarNav homeHref={homeHref} collapsed={false} />
-            </div>
-          )}
-
-          {sidebarCollapsed ? <SidebarNav homeHref={homeHref} collapsed /> : null}
+            <SidebarNav homeHref={homeHref} collapsed={sidebarCollapsed} />
+          </div>
 
           <div className="min-h-4 flex-1" aria-hidden />
           <SidebarUser user={sidebarUser} collapsed={sidebarCollapsed} />
         </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background lg:ml-[var(--sidebar-width)] lg:transition-[margin-left] lg:duration-200 lg:ease-out motion-reduce:lg:transition-none">
           <DashboardMain>{children}</DashboardMain>
         </div>
       </div>
