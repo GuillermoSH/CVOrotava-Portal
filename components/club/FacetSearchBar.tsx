@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { searchIncludes } from "@/lib/text/search";
 import { cn } from "@/lib/utils";
 
 export type FacetChip = {
@@ -21,39 +22,25 @@ export type FacetField = {
   key: string;
   label: string;
   options: FacetFieldOption[];
-  /** Selecting the field applies its first/only option immediately (e.g. “Sin equipo”). */
-  instant?: boolean;
 };
 
 type FacetSearchBarProps = {
   query: string;
   onQueryChange: (query: string) => void;
+  /** Valores elegidos; un mismo grupo (`key`) puede tener varios («o»). */
   facets: FacetChip[];
   fields: FacetField[];
-  onAddFacet: (facet: FacetChip) => void;
-  onRemoveFacet: (key: string) => void;
+  /** Marca o desmarca un valor. */
+  onToggleFacet: (facet: FacetChip) => void;
+  /** Quita todos los valores de un grupo. */
+  onRemoveGroup: (key: string) => void;
   onClear: () => void;
   placeholder?: string;
   className?: string;
 };
 
-function optionMatchesQuery(option: FacetFieldOption, q: string): boolean {
-  if (!q) return true;
-  return option.label.toLowerCase().includes(q);
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      role="presentation"
-      className="sticky top-0 z-10 border-b border-border bg-[color-mix(in_srgb,var(--club-surface-2)_88%,var(--club-drawer-bg))] px-3.5 py-2"
-    >
-      <p className="text-[11px] font-semibold leading-none tracking-[0.04em] text-[var(--club-fg-muted)]">
-        {children}
-      </p>
-    </div>
-  );
-}
+/** Con más opciones que esto, el popover muestra su propio buscador. */
+const OPTION_SEARCH_THRESHOLD = 8;
 
 function CountPill({ count }: { count: number }) {
   return (
@@ -63,40 +50,181 @@ function CountPill({ count }: { count: number }) {
   );
 }
 
+function OptionRow({
+  label,
+  count,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  count?: number;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onToggle}
+      className={cn(
+        "flex w-full min-h-10 cursor-pointer touch-manipulation items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--club-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+        checked && "bg-[var(--club-brand-soft)]",
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-4 shrink-0 items-center justify-center rounded border",
+          checked
+            ? "border-brand bg-brand text-primary-foreground"
+            : "border-[var(--club-border)]",
+        )}
+        aria-hidden
+      >
+        {checked ? <Check className="size-3" strokeWidth={3} /> : null}
+      </span>
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate text-sm text-foreground",
+          checked ? "font-semibold" : "font-medium",
+        )}
+      >
+        {label}
+      </span>
+      {count !== undefined ? <CountPill count={count} /> : null}
+    </button>
+  );
+}
+
+function FilterPill({
+  field,
+  selected,
+  open,
+  onOpenChange,
+  onToggle,
+  onClearGroup,
+}: {
+  field: FacetField;
+  selected: FacetChip[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onToggle: (option: FacetFieldOption) => void;
+  onClearGroup: () => void;
+}) {
+  const popoverId = useId();
+  const [optionQuery, setOptionQuery] = useState("");
+  const active = selected.length > 0;
+  const showSearch = field.options.length > OPTION_SEARCH_THRESHOLD;
+  const visible = field.options.filter((opt) => searchIncludes(opt.label, optionQuery));
+
+  const summary =
+    selected.length === 0
+      ? field.label
+      : selected.length === 1
+        ? `${field.label}: ${selected[0].label}`
+        : `${field.label}: ${selected[0].label} +${selected.length - 1}`;
+
+  return (
+    <div className="static sm:relative">
+      <div
+        className={cn(
+          "inline-flex min-h-9 max-w-full items-center rounded-full border text-xs font-semibold transition-colors",
+          active
+            ? "border-[color-mix(in_srgb,var(--club-brand)_35%,transparent)] bg-[var(--club-brand-soft)] text-brand"
+            : "border-[var(--club-border)] bg-[var(--club-surface-2)] text-foreground hover:bg-[var(--club-surface-hover)]",
+          open && "ring-2 ring-[color-mix(in_srgb,var(--club-brand)_22%,transparent)]",
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setOptionQuery("");
+            onOpenChange(!open);
+          }}
+          aria-expanded={open}
+          aria-controls={popoverId}
+          className={cn(
+            "inline-flex min-h-9 min-w-0 cursor-pointer touch-manipulation items-center gap-1.5 rounded-full pl-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            active ? "pr-1.5" : "pr-2.5",
+          )}
+        >
+          <span className="truncate">{summary}</span>
+          {active ? null : <ChevronDown className="size-3.5 shrink-0 opacity-70" aria-hidden />}
+        </button>
+        {active ? (
+          <button
+            type="button"
+            onClick={onClearGroup}
+            aria-label={`Quitar filtro ${field.label}`}
+            className="mr-1 inline-flex size-7 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full hover:bg-[color-mix(in_srgb,var(--club-brand)_16%,transparent)]"
+          >
+            <X className="size-3.5" aria-hidden />
+          </button>
+        ) : null}
+      </div>
+
+      {open ? (
+        <div
+          id={popoverId}
+          className="absolute left-0 right-0 top-full z-40 mt-1.5 overflow-hidden rounded-xl border border-border bg-[var(--club-drawer-bg)] shadow-[var(--club-shadow-card)] sm:right-auto sm:w-72"
+        >
+          {showSearch ? (
+            <div className="flex items-center gap-2 border-b border-border px-3">
+              <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <input
+                autoFocus
+                type="search"
+                value={optionQuery}
+                onChange={(e) => setOptionQuery(e.target.value)}
+                placeholder={`Buscar ${field.label.toLowerCase()}…`}
+                aria-label={`Buscar en ${field.label}`}
+                autoComplete="off"
+                className="min-h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+          ) : null}
+          <div role="group" aria-label={field.label} className="max-h-64 overflow-y-auto p-1.5">
+            {visible.length === 0 ? (
+              <p className="px-2.5 py-3 text-sm text-[var(--club-fg-muted)]">Sin resultados</p>
+            ) : (
+              visible.map((option) => (
+                <OptionRow
+                  key={option.value}
+                  label={option.label}
+                  count={option.count}
+                  checked={selected.some((f) => f.value === option.value)}
+                  onToggle={() => onToggle(option)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function FacetSearchBar({
   query,
   onQueryChange,
   facets,
   fields,
-  onAddFacet,
-  onRemoveFacet,
+  onToggleFacet,
+  onRemoveGroup,
   onClear,
-  placeholder = "Buscar o filtrar…",
+  placeholder = "Buscar…",
   className,
 }: FacetSearchBarProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listboxId = useId();
-  const [open, setOpen] = useState(false);
-  const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null);
-
+  const [openKey, setOpenKey] = useState<string | null>(null);
   const hasFilters = query.trim().length > 0 || facets.length > 0;
-  const q = query.trim().toLowerCase();
-  const activeField = fields.find((f) => f.key === activeFieldKey) ?? null;
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-        setActiveFieldKey(null);
-      }
+      if (!rootRef.current?.contains(event.target as Node)) setOpenKey(null);
     }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-        setActiveFieldKey(null);
-        inputRef.current?.blur();
-      }
+      if (event.key === "Escape") setOpenKey(null);
     }
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -106,263 +234,49 @@ export function FacetSearchBar({
     };
   }, []);
 
-  function addFacet(field: FacetField, option: FacetFieldOption) {
-    onAddFacet({
-      key: field.key,
-      value: option.value,
-      label: field.instant ? option.label : `${field.label}: ${option.label}`,
-    });
-    onQueryChange("");
-    setActiveFieldKey(null);
-    setOpen(false);
-    inputRef.current?.blur();
-  }
-
-  function selectField(field: FacetField) {
-    if (field.instant) {
-      const option = field.options[0];
-      if (option) addFacet(field, option);
-      return;
-    }
-    setActiveFieldKey(field.key);
-  }
-
-  const matchingCrossField = q
-    ? fields.flatMap((field) =>
-        field.instant
-          ? []
-          : field.options
-              .filter((opt) => optionMatchesQuery(opt, q))
-              .map((opt) => ({ field, option: opt })),
-      )
-    : [];
-
-  const visibleFields = q
-    ? fields.filter(
-        (field) =>
-          field.label.toLowerCase().includes(q) ||
-          field.options.some((opt) => optionMatchesQuery(opt, q)),
-      )
-    : fields;
-
-  const fieldOptions = activeField
-    ? activeField.options.filter((opt) => optionMatchesQuery(opt, q))
-    : [];
-
   return (
-    <div ref={rootRef} className={cn("relative w-full", className)}>
-      <div
-        className={cn(
-          "flex min-h-11 w-full flex-col gap-2 rounded-xl border border-border bg-[var(--club-surface-2)] px-2.5 py-2 transition-colors",
-          open &&
-            "border-[color-mix(in_srgb,var(--club-brand)_40%,transparent)] ring-2 ring-[color-mix(in_srgb,var(--club-brand)_18%,transparent)]",
-        )}
-        onClick={() => inputRef.current?.focus()}
-      >
-        {facets.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {facets.map((facet) => (
-              <button
-                key={`${facet.key}:${facet.value}`}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveFacet(facet.key);
-                }}
-                className="inline-flex min-h-9 max-w-full cursor-pointer touch-manipulation items-center gap-1.5 rounded-lg bg-[var(--club-brand-soft)] px-2.5 text-xs font-semibold text-brand ring-1 ring-inset ring-[color-mix(in_srgb,var(--club-brand)_28%,transparent)]"
-                aria-label={`Quitar filtro ${facet.label}`}
-              >
-                <span className="truncate">{facet.label}</span>
-                <X className="size-3.5 shrink-0 opacity-80" aria-hidden />
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="flex items-center gap-2">
-          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <input
-            ref={inputRef}
-            type="search"
-            value={query}
-            onChange={(e) => {
-              onQueryChange(e.target.value);
-              setOpen(true);
-              if (!e.target.value.trim()) setActiveFieldKey(null);
-            }}
-            onFocus={() => setOpen(true)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              e.preventDefault();
-              setOpen(false);
-              setActiveFieldKey(null);
-              inputRef.current?.blur();
-            }}
-            placeholder={placeholder}
-            aria-label="Buscar o filtrar jugadores"
-            aria-expanded={open}
-            aria-controls={listboxId}
-            role="combobox"
-            autoComplete="off"
-            className="min-h-9 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          />
-          {hasFilters ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClear();
-                setActiveFieldKey(null);
-                setOpen(false);
-              }}
-              className="inline-flex min-h-9 shrink-0 cursor-pointer touch-manipulation items-center gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-[var(--club-surface-hover)] hover:text-foreground"
-            >
-              Limpiar
-            </button>
-          ) : null}
-        </div>
+    <div ref={rootRef} className={cn("relative flex w-full flex-col gap-2", className)}>
+      <div className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-border bg-[var(--club-surface-2)] px-3 transition-colors focus-within:border-[color-mix(in_srgb,var(--club-brand)_40%,transparent)] focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--club-brand)_18%,transparent)]">
+        <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          onFocus={() => setOpenKey(null)}
+          placeholder={placeholder}
+          aria-label="Buscar jugadores"
+          autoComplete="off"
+          className="min-h-10 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+        />
       </div>
 
-      {open ? (
-        <div
-          id={listboxId}
-          role="listbox"
-          className="absolute left-0 right-0 z-40 mt-1.5 max-h-[min(70vh,22rem)] overflow-y-auto rounded-xl border border-border bg-[var(--club-drawer-bg)] shadow-[var(--club-shadow-card)]"
-        >
-          {query.trim() ? (
-            <button
-              type="button"
-              role="option"
-              className="flex w-full min-h-12 cursor-pointer items-center gap-3 border-b border-border px-3.5 py-3 text-left transition-colors hover:bg-[var(--club-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-              onClick={() => {
-                setOpen(false);
-                setActiveFieldKey(null);
-                inputRef.current?.blur();
-              }}
-            >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--club-brand-soft)] text-brand">
-                <Search className="size-4" aria-hidden />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">
-                  Buscar «{query.trim()}»
-                </span>
-                <span className="mt-0.5 block text-xs text-[var(--club-fg-muted)]">
-                  En nombre, DNI, equipo o teléfono
-                </span>
-              </span>
-            </button>
-          ) : null}
-
-          {activeField ? (
-            <div>
-              <button
-                type="button"
-                className="sticky top-0 z-10 flex w-full min-h-11 cursor-pointer items-center gap-2 border-b border-border bg-[color-mix(in_srgb,var(--club-brand-soft)_55%,var(--club-drawer-bg))] px-3 py-2.5 text-left transition-colors hover:bg-[var(--club-brand-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                onClick={() => setActiveFieldKey(null)}
-              >
-                <ChevronLeft className="size-4 shrink-0 text-brand" aria-hidden />
-                <span className="min-w-0">
-                  <span className="block text-[11px] font-medium leading-none text-[var(--club-fg-muted)]">
-                    Volver a filtros
-                  </span>
-                  <span className="mt-1 block text-sm font-semibold text-foreground">
-                    {activeField.label}
-                  </span>
-                </span>
-              </button>
-
-              {fieldOptions.length === 0 ? (
-                <p className="px-3.5 py-4 text-sm text-[var(--club-fg-muted)]">Sin opciones</p>
-              ) : (
-                <ul className="py-1">
-                  {fieldOptions.map((option) => (
-                    <li key={option.value}>
-                      <button
-                        type="button"
-                        role="option"
-                        className="flex w-full min-h-11 cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--club-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                        onClick={() => addFacet(activeField, option)}
-                      >
-                        <span className="text-sm font-medium text-foreground">{option.label}</span>
-                        {option.count !== undefined ? <CountPill count={option.count} /> : null}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : (
-            <div>
-              {matchingCrossField.length > 0 ? (
-                <div className="border-b border-border">
-                  <SectionLabel>Coincidencias</SectionLabel>
-                  <ul className="py-1">
-                    {matchingCrossField.slice(0, 8).map(({ field, option }) => (
-                      <li key={`${field.key}:${option.value}`}>
-                        <button
-                          type="button"
-                          role="option"
-                          className="flex w-full min-h-12 cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--club-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                          onClick={() => addFacet(field, option)}
-                        >
-                          <span className="min-w-0">
-                            <span className="block text-[11px] font-medium leading-none text-[var(--club-fg-muted)]">
-                              {field.label}
-                            </span>
-                            <span className="mt-1 block text-sm font-semibold text-foreground">
-                              {option.label}
-                            </span>
-                          </span>
-                          {option.count !== undefined ? <CountPill count={option.count} /> : null}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              <SectionLabel>Filtrar por</SectionLabel>
-              {visibleFields.length === 0 ? (
-                <p className="px-3.5 py-4 text-sm text-[var(--club-fg-muted)]">Sin filtros</p>
-              ) : (
-                <ul className="py-1">
-                  {visibleFields.map((field) => (
-                    <li key={field.key}>
-                      <button
-                        type="button"
-                        role="option"
-                        className="flex w-full min-h-12 cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--club-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                        onClick={() => selectField(field)}
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold text-foreground">
-                            {field.label}
-                          </span>
-                          <span className="mt-0.5 block text-xs text-[var(--club-fg-muted)]">
-                            {field.instant
-                              ? "Aplicar filtro"
-                              : `${field.options.length} ${field.options.length === 1 ? "opción" : "opciones"}`}
-                          </span>
-                        </span>
-                        {field.instant && field.options[0]?.count !== undefined ? (
-                          <CountPill count={field.options[0].count} />
-                        ) : null}
-                        {!field.instant ? (
-                          <ChevronRight
-                            className="size-4 shrink-0 text-[var(--club-fg-muted)]"
-                            aria-hidden
-                          />
-                        ) : null}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {fields.map((field) => (
+          <FilterPill
+            key={field.key}
+            field={field}
+            selected={facets.filter((f) => f.key === field.key)}
+            open={openKey === field.key}
+            onOpenChange={(next) => setOpenKey(next ? field.key : null)}
+            onToggle={(option) =>
+              onToggleFacet({ key: field.key, value: option.value, label: option.label })
+            }
+            onClearGroup={() => onRemoveGroup(field.key)}
+          />
+        ))}
+        {hasFilters ? (
+          <button
+            type="button"
+            onClick={() => {
+              onClear();
+              setOpenKey(null);
+            }}
+            className="inline-flex min-h-9 cursor-pointer touch-manipulation items-center rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-[var(--club-surface-hover)] hover:text-foreground"
+          >
+            Limpiar todo
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

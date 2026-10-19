@@ -10,6 +10,7 @@ import { registerPaymentAction } from "@/lib/actions/payments/register";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/payments/constants";
 import { obligationConcept, sortOpenObligations, type FeeObligation } from "@/lib/payments/fees";
 import type { PlayerFeeRow } from "@/lib/payments/player-fee-rows";
+import { searchIncludes } from "@/lib/text/search";
 import { appToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -19,13 +20,6 @@ const MAX_RESULTS = 6;
 function formatEuros(value: number): string {
   const rounded = Math.round(value * 100) / 100;
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2).replace(".", ",")} €`;
-}
-
-function normalize(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
 }
 
 /**
@@ -62,10 +56,9 @@ export function FlashPaymentSheet({
   const selectedObligation = options.find((o) => o.key === selectedKey) ?? null;
 
   const results = useMemo(() => {
-    const q = normalize(query.trim());
-    if (!q) return [];
+    if (!query.trim()) return [];
     return rows
-      .filter((row) => normalize(`${row.full_name} ${row.team_name ?? ""}`).includes(q))
+      .filter((row) => searchIncludes(`${row.full_name} ${row.team_name ?? ""}`, query))
       .slice(0, MAX_RESULTS);
   }, [rows, query]);
 

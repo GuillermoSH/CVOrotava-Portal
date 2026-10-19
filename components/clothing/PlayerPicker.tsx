@@ -9,16 +9,12 @@ import {
 } from "@/components/clothing/ClothingBottomSheet";
 import { Input } from "@/components/club/Input";
 import { Label } from "@/components/club/Label";
+import { searchIncludes } from "@/lib/text/search";
 import { cn } from "@/lib/utils";
 import type { PlayerWithTeam } from "@/lib/types/db";
 
 function playerMatches(player: PlayerWithTeam, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return (
-    player.full_name.toLowerCase().includes(q) ||
-    (player.team?.name.toLowerCase().includes(q) ?? false)
-  );
+  return searchIncludes(`${player.full_name} ${player.team?.name ?? ""}`, query);
 }
 
 export function PlayerPicker({

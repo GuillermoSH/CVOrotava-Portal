@@ -15,18 +15,20 @@ import { PRODUCT_CATEGORY_LABELS } from "@/lib/clothing/constants";
 import { formatProductName, formatProductShort } from "@/lib/clothing/formatProduct";
 import { groupByProductCategory } from "@/lib/clothing/groupByCategory";
 import { formatSeasonShort } from "@/lib/season";
+import { searchIncludes } from "@/lib/text/search";
 import { cn } from "@/lib/utils";
 import type { ClothingProduct } from "@/lib/types/db";
 
 function productMatches(product: ClothingProduct, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return (
-    formatProductName(product).toLowerCase().includes(q) ||
-    formatProductShort(product).toLowerCase().includes(q) ||
-    product.model.toLowerCase().includes(q) ||
-    product.brand.toLowerCase().includes(q) ||
-    PRODUCT_CATEGORY_LABELS[product.category].toLowerCase().includes(q)
+  return searchIncludes(
+    [
+      formatProductName(product),
+      formatProductShort(product),
+      product.model,
+      product.brand,
+      PRODUCT_CATEGORY_LABELS[product.category],
+    ].join(" "),
+    query,
   );
 }
 

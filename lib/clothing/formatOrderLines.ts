@@ -1,5 +1,6 @@
 import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { formatProductShort } from "@/lib/clothing/formatProduct";
+import { searchIncludes } from "@/lib/text/search";
 import type {
   ClothingOrderLineWithProduct,
   ClothingOrderWithLines,
@@ -16,19 +17,15 @@ export function formatOrderLineSummary(line: ClothingOrderLineWithProduct): stri
 }
 
 export function orderMatchesQuery(order: ClothingOrderWithLines, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-
-  const haystack = [
-    order.reference,
-    order.supplier_name,
-    order.season,
-    order.notes ?? "",
-    ...order.lines.map((line) => formatOrderLineSummary(line)),
-    ...order.lines.map((line) => line.product.model),
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(q);
+  return searchIncludes(
+    [
+      order.reference,
+      order.supplier_name,
+      order.season,
+      order.notes ?? "",
+      ...order.lines.map((line) => formatOrderLineSummary(line)),
+      ...order.lines.map((line) => line.product.model),
+    ].join(" "),
+    query,
+  );
 }
