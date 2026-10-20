@@ -857,10 +857,25 @@ html[data-sidebar="collapsed"] {
 }
 
 .shell-sidebar {
+  width: var(--sidebar-width);
   border-right: 1px solid var(--club-border);
   background: color-mix(in srgb, var(--club-bg) 94%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+/* Contenido junto al menú `fixed`: se desplaza por margen para no quedar debajo. */
+@media (min-width: 1024px) {
+  .shell-content {
+    margin-left: var(--sidebar-width);
+    transition: margin-left 200ms ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-content {
+    transition: none;
+  }
 }
 
 .shell-topbar {
