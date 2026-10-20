@@ -36,7 +36,17 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const { error } = await supabase.auth.getUser();
+
+  // Cookie de sesión huérfana (refresh token revocado o de otro proyecto): se borra
+  // para que no se reintente el refresh, y falle, en cada petición.
+  if (error?.code === "refresh_token_not_found") {
+    for (const { name } of request.cookies.getAll()) {
+      if (!name.startsWith("sb-")) continue;
+      request.cookies.delete(name);
+      supabaseResponse.cookies.delete(name);
+    }
+  }
 
   return supabaseResponse;
 }
