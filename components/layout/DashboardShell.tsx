@@ -38,7 +38,7 @@ export function DashboardShell({
         {/* Como en Team-Manager: menú `fixed` con ancho por variable CSS y contenido desplazado por margen. */}
         <aside
           className={cn(
-            "shell-sidebar fixed inset-y-0 left-0 z-30 hidden w-[var(--sidebar-width)] flex-col py-5 transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex",
+            "shell-sidebar fixed inset-y-0 left-0 z-30 hidden flex-col py-5 transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex",
             sidebarCollapsed ? "px-2" : "px-3",
           )}
           aria-label="Navegación principal"
@@ -81,7 +81,7 @@ export function DashboardShell({
           <SidebarUser user={sidebarUser} collapsed={sidebarCollapsed} />
         </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background lg:ml-[var(--sidebar-width)] lg:transition-[margin-left] lg:duration-200 lg:ease-out motion-reduce:lg:transition-none">
+        <div className="shell-content flex min-h-0 min-w-0 flex-1 flex-col bg-background">
           <DashboardMain>{children}</DashboardMain>
         </div>
       </div>
