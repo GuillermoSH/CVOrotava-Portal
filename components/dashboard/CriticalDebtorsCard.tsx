@@ -1,13 +1,10 @@
-"use client";
-
 import { Mail } from "lucide-react";
-import { useTransition } from "react";
-import { appToast } from "@/lib/toast";
+import Link from "next/link";
 
-import { notifyCriticalDebtors } from "@/lib/actions/notifications";
-import type { CriticalDebtor } from "@/lib/mocks/admin";
+import { appRoutes } from "@/lib/constants";
+import type { CriticalDebtor } from "@/lib/payments/dashboard-stats";
 
-import { Button } from "@/components/club/Button";
+import { buttonClassName } from "@/components/club/Button";
 import {
   Card,
   CardContent,
@@ -21,41 +18,16 @@ const eur = new Intl.NumberFormat("es-ES", {
   currency: "EUR",
 });
 
-export function CriticalDebtorsCard({
-  debtors,
-  emailConfigured,
-}: {
-  debtors: readonly CriticalDebtor[];
-  /** Cuando exista `RESEND_API_KEY`, el CTA puede habilitarse para integración futura. */
-  emailConfigured: boolean;
-}) {
-  const [isPending, startTransition] = useTransition();
+export function CriticalDebtorsCard({ debtors }: { debtors: readonly CriticalDebtor[] }) {
   const count = debtors.length;
   const totalBalance = debtors.reduce((acc, d) => acc + d.balance, 0);
-
-  const helperId = "critical-debtors-email-helper";
-
-  function handleNotify() {
-    startTransition(async () => {
-      const result = await notifyCriticalDebtors();
-      if (result.ok) {
-        appToast.success(`Enviados ${result.sent} avisos.`);
-        return;
-      }
-      if (result.reason === "email-not-configured") {
-        appToast.info("Envío de avisos pendiente de configurar Resend.");
-        return;
-      }
-      appToast.error("No hay destinatarios para avisar.");
-    });
-  }
 
   return (
     <Card size="sm" className="flex h-full flex-col">
       <CardHeader className="gap-1">
         <div className="flex items-baseline justify-between gap-2">
           <CardTitle className="text-sm font-semibold">Morosos críticos</CardTitle>
-          <span className="text-xs text-muted-foreground">≥ 2 cuotas</span>
+          <span className="text-xs text-muted-foreground">con pagos atrasados</span>
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col justify-center pt-0">
@@ -73,24 +45,14 @@ export function CriticalDebtorsCard({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex-col items-stretch gap-2 pt-0">
-        <Button
-          type="button"
-          variant="destructive"
-          size="sm"
-          className="w-full"
-          disabled={!emailConfigured || isPending}
-          aria-describedby={helperId}
-          onClick={handleNotify}
+      <CardFooter className="pt-0">
+        <Link
+          href={appRoutes.payments.reminders}
+          className={buttonClassName({ variant: "destructive", size: "sm", className: "w-full" })}
         >
           <Mail className="size-4" aria-hidden />
-          Avisar por correo
-        </Button>
-        <p id={helperId} className="text-center text-[11px] text-muted-foreground">
-          {emailConfigured
-            ? "Integración de correo preparada; envío real pendiente de activar."
-            : "Pendiente de configurar Resend (variable RESEND_API_KEY)."}
-        </p>
+          Avisos por correo
+        </Link>
       </CardFooter>
     </Card>
   );

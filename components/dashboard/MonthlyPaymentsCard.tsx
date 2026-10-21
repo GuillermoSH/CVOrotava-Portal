@@ -13,11 +13,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/club/Card";
+import { monthName } from "@/lib/payments/fees";
 
 export function MonthlyPaymentsCard({
+  month,
   paid,
   target,
 }: {
+  /** Mes natural (1–12) de las cuotas; null si este mes no toca cobrar mensualidad. */
+  month: number | null;
   paid: number;
   target: number;
 }) {
@@ -30,8 +34,10 @@ export function MonthlyPaymentsCard({
     <Card size="sm" className="flex h-full flex-col">
       <CardHeader className="gap-1">
         <div className="flex items-baseline justify-between gap-2">
-          <CardTitle className="text-sm font-semibold">Pagos este mes</CardTitle>
-          <span className="text-xs text-muted-foreground">Meta mensual</span>
+          <CardTitle className="text-sm font-semibold">Cuotas del mes</CardTitle>
+          <span className="text-xs capitalize text-muted-foreground">
+            {month ? monthName(month) : "Sin cuotas"}
+          </span>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -63,7 +69,7 @@ export function MonthlyPaymentsCard({
           </div>
         </div>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          {paid} / {target} realizados · {pct}%
+          {paid} / {target} cobradas · {pct}%
         </p>
       </CardContent>
     </Card>

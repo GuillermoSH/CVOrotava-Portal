@@ -79,12 +79,23 @@ export function seasonMonthYear(season: SeasonId, month: number): number {
   return month >= 9 ? start : start + 1;
 }
 
-/** Un mes está vencido cuando el calendario ya está en él o en uno posterior de la temporada. */
+/** Día del mes (incluido) a partir del cual una mensualidad se considera vencida. */
+export const MONTHLY_DUE_DAY = 10;
+
+/** Mensualidad vencida (aviso) desde el día `MONTHLY_DUE_DAY` de su mes. */
 export function isSeasonMonthDue(season: SeasonId, month: number, today: Date): boolean {
+  const year = seasonMonthYear(season, month);
+  const dueDate = new Date(year, month - 1, MONTHLY_DUE_DAY);
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return todayStart >= dueDate;
+}
+
+/** Mensualidad atrasada (crítica) cuando su mes ya ha terminado. */
+export function isSeasonMonthLate(season: SeasonId, month: number, today: Date): boolean {
   const year = seasonMonthYear(season, month);
   const todayKey = today.getFullYear() * 12 + today.getMonth();
   const monthKey = year * 12 + (month - 1);
-  return todayKey >= monthKey;
+  return todayKey > monthKey;
 }
 
 /** YYYY-MM-DD en calendario local (evita desfaces UTC al comparar con `due_date`). */
@@ -96,12 +107,22 @@ export function localDateKey(today: Date): string {
 }
 
 /**
- * Pago único atrasado tras la fecha límite (el día límite aún cuenta a tiempo).
- * Sin `due_date` → vencido (comportamiento histórico).
+ * Pago único vencido (aviso): desde el día `MONTHLY_DUE_DAY` del mes de `due_date`
+ * (solo cuenta el mes, no el día). Sin `due_date` → vencido (comportamiento histórico).
  */
 export function isOnceFeeOverdue(dueDate: string | null | undefined, today: Date): boolean {
   if (!dueDate) return true;
-  return localDateKey(today) > dueDate;
+  const [year, month] = dueDate.split("-").map(Number);
+  const dueFrom = new Date(year, month - 1, MONTHLY_DUE_DAY);
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return todayStart >= dueFrom;
+}
+
+/** Pago único atrasado (crítico) cuando el mes de `due_date` ha terminado; sin fecha → atrasado. */
+export function isOnceFeeLate(dueDate: string | null | undefined, today: Date): boolean {
+  if (!dueDate) return true;
+  const [year, month] = dueDate.split("-").map(Number);
+  return today.getFullYear() * 12 + today.getMonth() > year * 12 + (month - 1);
 }
 
 /** Importe unitario de una línea para un jugador; null si todavía no tiene importe. */
@@ -139,10 +160,15 @@ export type FeeObligation = {
   paid: number;
   remaining: number;
   /**
-   * Vencido / atrasado: únicos según `due_date` (o siempre si no hay fecha);
-   * mensualidades cuando el mes de temporada ya ha empezado.
+   * Vencido: únicos desde el día 10 del mes de `due_date` (o siempre si no hay fecha);
+   * mensualidades desde el día 10 de su mes.
    */
   overdue: boolean;
+  /**
+   * Atrasado (crítico): cuando el mes natural (de `due_date` en únicos, o el de la
+   * mensualidad) ya ha terminado; únicos sin fecha → siempre.
+   */
+  late: boolean;
 };
 
 export function obligationKey(code: string, month: number | null): string {
@@ -207,6 +233,7 @@ export function computeObligations({
         paid,
         remaining: Math.max(0, roundCents(amount - paid)),
         overdue: isOnceFeeOverdue(line.due_date, today),
+        late: isOnceFeeLate(line.due_date, today),
       });
       continue;
     }
@@ -223,6 +250,7 @@ export function computeObligations({
         paid,
         remaining: Math.max(0, roundCents(amount - paid)),
         overdue: isSeasonMonthDue(season, month, today),
+        late: isSeasonMonthLate(season, month, today),
       });
     }
   }

@@ -16,6 +16,8 @@ export type PaymentPlayer = {
   first_name?: string | null;
   last_name?: string | null;
   pays_extended_monthly: boolean;
+  /** Baja (false): conserva sus cobros pero no genera deuda ni avisos. Ausente = activo. */
+  is_active?: boolean;
   team: { name: string; category: string } | null;
 };
 
@@ -64,14 +66,17 @@ export function buildPlayerFeeRows({
       team_name: player.team?.name ?? null,
       audience,
       payments: [...payments],
-      obligations: computeObligations({
-        season,
-        audience,
-        paysExtendedMonthly: player.pays_extended_monthly,
-        lines,
-        payments,
-        today,
-      }),
+      obligations:
+        player.is_active === false
+          ? []
+          : computeObligations({
+              season,
+              audience,
+              paysExtendedMonthly: player.pays_extended_monthly,
+              lines,
+              payments,
+              today,
+            }),
       unassigned: unassignedPaidPayments(payments, lines),
     };
   });

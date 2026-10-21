@@ -57,6 +57,7 @@ export const appRoutes = {
   payments: {
     list: "/admin/pagos",
     fees: "/admin/pagos/tarifas",
+    reminders: "/admin/pagos/avisos",
     /** Redirige a tarifas; se mantiene por enlaces guardados. */
     concepts: "/admin/pagos/conceptos",
   },

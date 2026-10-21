@@ -4,8 +4,10 @@ import {
   audienceForCategory,
   computeObligations,
   formatMonthGroup,
+  isOnceFeeLate,
   isOnceFeeOverdue,
   isSeasonMonthDue,
+  isSeasonMonthLate,
   obligationConcept,
   openObligations,
   summarizeObligations,
@@ -109,8 +111,22 @@ describe("isSeasonMonthDue", () => {
   });
 
   it("resolves January of the season to the following calendar year", () => {
-    expect(isSeasonMonthDue(SEASON, 1, new Date(2027, 0, 5))).toBe(true);
+    expect(isSeasonMonthDue(SEASON, 1, new Date(2027, 0, 12))).toBe(true);
     expect(isSeasonMonthDue(SEASON, 1, new Date(2026, 11, 31))).toBe(false);
+  });
+});
+
+describe("isSeasonMonthDue / isSeasonMonthLate (día 10 y fin de mes)", () => {
+  it("vence el día 10 del propio mes, no antes", () => {
+    expect(isSeasonMonthDue(SEASON, 10, new Date(2026, 9, 9))).toBe(false);
+    expect(isSeasonMonthDue(SEASON, 10, new Date(2026, 9, 10))).toBe(true);
+  });
+
+  it("queda atrasada solo cuando el mes ha terminado", () => {
+    expect(isSeasonMonthLate(SEASON, 10, new Date(2026, 9, 31))).toBe(false);
+    expect(isSeasonMonthLate(SEASON, 10, new Date(2026, 10, 1))).toBe(true);
+    expect(isSeasonMonthLate(SEASON, 1, new Date(2027, 0, 20))).toBe(false);
+    expect(isSeasonMonthLate(SEASON, 1, new Date(2027, 1, 1))).toBe(true);
   });
 });
 
@@ -120,16 +136,21 @@ describe("isOnceFeeOverdue", () => {
     expect(isOnceFeeOverdue(undefined, TODAY)).toBe(true);
   });
 
-  it("is still on time on the due date itself", () => {
-    expect(isOnceFeeOverdue("2026-10-13", TODAY)).toBe(false);
+  it("is overdue from day 10 of the due month, whatever the day of the date", () => {
+    expect(isOnceFeeOverdue("2026-10-31", new Date(2026, 9, 9))).toBe(false);
+    expect(isOnceFeeOverdue("2026-10-31", new Date(2026, 9, 10))).toBe(true);
   });
 
-  it("is overdue the day after the due date", () => {
-    expect(isOnceFeeOverdue("2026-10-12", TODAY)).toBe(true);
-  });
-
-  it("is not overdue when the due date is in the future", () => {
+  it("is not overdue when the due month is in the future", () => {
     expect(isOnceFeeOverdue("2026-11-01", TODAY)).toBe(false);
+  });
+
+  it("is late only once the due month has ended", () => {
+    expect(isOnceFeeLate("2026-10-01", TODAY)).toBe(false);
+    expect(isOnceFeeLate("2026-09-15", TODAY)).toBe(true);
+    expect(isOnceFeeLate("2026-12-15", new Date(2026, 11, 31))).toBe(false);
+    expect(isOnceFeeLate("2026-12-15", new Date(2027, 0, 1))).toBe(true);
+    expect(isOnceFeeLate(null, TODAY)).toBe(true);
   });
 });
 

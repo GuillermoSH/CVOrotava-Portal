@@ -192,7 +192,7 @@ export function FeeLineEditor({
       ) : (
         <div className="flex flex-col gap-1.5 sm:max-w-xs">
           <FormDate
-            label="Fecha límite"
+            label="Mes de cobro"
             name={`${idBase}-due-date`}
             id={`${idBase}-due-date`}
             className="min-h-11"
@@ -200,7 +200,7 @@ export function FeeLineEditor({
             onChange={(e) => setDueDate(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            Hasta esta fecha no cuenta como atrasado. Si la dejas vacía, se trata como ya vencido.
+            Solo importa el mes: vence el día 10 de ese mes y queda atrasado al terminar. Si la dejas vacía, se trata como ya atrasado.
           </p>
         </div>
       )}
