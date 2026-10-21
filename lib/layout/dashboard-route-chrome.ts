@@ -90,6 +90,15 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     };
   }
 
+  if (pathname === appRoutes.payments.reminders) {
+    return {
+      title: "Avisos de pago",
+      subtitle: "Correos a las familias: aviso el día 10, último aviso a fin de mes y atrasados cada 7 días.",
+      back: { href: appRoutes.payments.list, label: "Pagos" },
+      skeleton: "products",
+    };
+  }
+
   if (pathname === appRoutes.clothing.hub) {
     return {
       title: "Ropa",

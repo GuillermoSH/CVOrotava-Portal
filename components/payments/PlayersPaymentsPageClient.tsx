@@ -489,6 +489,9 @@ export function PlayersPaymentsPageClient({
             <Link href={appRoutes.payments.fees} className="text-sm text-brand hover:underline">
               Tarifas
             </Link>
+            <Link href={appRoutes.payments.reminders} className="text-sm text-brand hover:underline">
+              Avisos
+            </Link>
             <button
               type="button"
               className="btn-primary min-h-10"

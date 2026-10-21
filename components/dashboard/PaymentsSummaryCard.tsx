@@ -12,9 +12,9 @@ const eur = new Intl.NumberFormat("es-ES", {
   currency: "EUR",
 });
 
-function pctOfYear(amount: number, yearTotal: number) {
-  if (yearTotal <= 0) return 0;
-  return Math.min(100, Math.round((amount / yearTotal) * 100));
+function pctOf(amount: number, total: number) {
+  if (total <= 0) return 0;
+  return Math.min(100, Math.round((amount / total) * 100));
 }
 
 function MiniBar({ pct, className }: { pct: number; className?: string }) {
@@ -29,34 +29,36 @@ function MiniBar({ pct, className }: { pct: number; className?: string }) {
 }
 
 export function PaymentsSummaryCard({
-  yearTotal,
+  seasonTotal,
   monthTotal,
-  clothingExpected,
+  overdueTotal,
+  overduePlayers,
 }: {
-  yearTotal: number;
+  seasonTotal: number;
   monthTotal: number;
-  clothingExpected: number;
+  overdueTotal: number;
+  overduePlayers: number;
 }) {
-  const pctMonth = pctOfYear(monthTotal, yearTotal);
-  const pctClothing = pctOfYear(clothingExpected, yearTotal);
+  const pctMonth = pctOf(monthTotal, seasonTotal);
+  const pctOverdue = pctOf(overdueTotal, seasonTotal + overdueTotal);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Resumen de pagos</CardTitle>
         <CardDescription>
-          Recaudación anual, mensual y previsión de tienda (reservas de ropa).
+          Cobros anotados de la temporada y lo vencido pendiente de cobro.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-8 md:grid-cols-3 md:gap-6">
           <div className="space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">Recaudación del año</p>
+            <p className="text-sm font-medium text-muted-foreground">Recaudado en la temporada</p>
             <p className="text-2xl font-semibold tabular-nums tracking-tight text-brand md:text-3xl">
-              {eur.format(yearTotal)}
+              {eur.format(seasonTotal)}
             </p>
             <MiniBar pct={100} />
-            <p className="text-xs text-muted-foreground">Referencia anual (100%)</p>
+            <p className="text-xs text-muted-foreground">Referencia de temporada (100%)</p>
           </div>
           <div className="space-y-3">
             <p className="text-sm font-medium text-muted-foreground">Recaudado en el mes</p>
@@ -65,17 +67,19 @@ export function PaymentsSummaryCard({
             </p>
             <MiniBar pct={pctMonth} />
             <p className="text-xs text-muted-foreground">
-              {pctMonth}% respecto al total anual
+              {pctMonth}% respecto al total de la temporada
             </p>
           </div>
           <div className="space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">Previsto por reservas de ropa</p>
+            <p className="text-sm font-medium text-muted-foreground">Vencido sin cobrar</p>
             <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground md:text-3xl">
-              {eur.format(clothingExpected)}
+              {eur.format(overdueTotal)}
             </p>
-            <MiniBar pct={pctClothing} />
+            <MiniBar pct={pctOverdue} />
             <p className="text-xs text-muted-foreground">
-              {pctClothing}% respecto al total anual (supuesto tienda)
+              {overduePlayers === 0
+                ? "Nadie con pagos vencidos"
+                : `${overduePlayers} ${overduePlayers === 1 ? "jugador/a" : "jugadores/as"} con pagos vencidos`}
             </p>
           </div>
         </div>
