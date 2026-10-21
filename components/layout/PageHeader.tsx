@@ -48,7 +48,7 @@ export function PageHeader({
           ) : null}
         </div>
         {actions ? (
-          <div className="flex w-full shrink-0 flex-col gap-2 max-md:has-[.clothing-toolbar:only-child]:hidden sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex w-full max-w-full shrink-0 flex-col gap-2 max-md:has-[.clothing-toolbar:only-child]:hidden sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             {actions}
           </div>
         ) : null}
