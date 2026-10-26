@@ -8,6 +8,7 @@ import { requirePortalRole } from "@/lib/auth/portal-access";
 import { getClothingHubKpis } from "@/lib/clothing/snapshots";
 import { getCachedSeasonFeeLines } from "@/lib/payments/cached-fees";
 import {
+  getCachedExemptPlayerIds,
   getCachedPaymentPlayers,
   getCachedSeasonPaymentFacts,
 } from "@/lib/payments/cached-payments";
@@ -19,10 +20,11 @@ import { getCurrentSeason } from "@/lib/season";
 async function loadPaymentsDashboard() {
   const season = getCurrentSeason();
   const today = new Date();
-  const [players, lines, paymentEntries] = await Promise.all([
+  const [players, lines, paymentEntries, exemptIds] = await Promise.all([
     getCachedPaymentPlayers(season),
     getCachedSeasonFeeLines(season),
     getCachedSeasonPaymentFacts(season),
+    getCachedExemptPlayerIds(season),
   ]);
 
   const rows = buildPlayerFeeRows({
@@ -31,6 +33,7 @@ async function loadPaymentsDashboard() {
     paymentsByPlayer: new Map(paymentEntries),
     season,
     today,
+    exemptPlayerIds: new Set(exemptIds),
   });
   return buildPaymentsDashboard({ rows, lines, today });
 }

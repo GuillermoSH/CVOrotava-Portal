@@ -2,11 +2,14 @@
 
 import { invalidatePayments } from "@/lib/cache/invalidate";
 import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
+import { EXEMPT_PLAYER_ERROR } from "@/lib/payments/constants";
 import { getPaymentsDb } from "@/lib/payments/repository/client";
+import { listExemptPlayerIds } from "@/lib/payments/repository/exemptions";
 import { createPayment, createPayments } from "@/lib/payments/repository/payments";
 import { registerBulkPaymentsSchema, registerPaymentSchema } from "@/lib/payments/schemas";
 import { getPlayerById, listPlayerUserIds } from "@/lib/roster/repository/players";
 import { getCurrentSeason } from "@/lib/season";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 export type BulkActionResult = { ok: true; created: number } | { ok: false; error: string };
@@ -22,6 +25,9 @@ export async function registerPaymentAction(input: unknown): Promise<ActionResul
     const db = await getPaymentsDb();
     const player = await getPlayerById(db, parsed.data.player_id);
     if (!player) return { ok: false, error: "Jugador no encontrado" };
+
+    const exempt = await listExemptPlayerIds(createServiceRoleClient(), getCurrentSeason());
+    if (exempt.has(player.id)) return { ok: false, error: EXEMPT_PLAYER_ERROR };
 
     const payment = await createPayment(db, {
       player_id: parsed.data.player_id,
@@ -62,6 +68,17 @@ export async function registerBulkPaymentsAction(input: unknown): Promise<BulkAc
     if (players.length === 0) return { ok: false, error: "Jugadores no encontrados" };
 
     const season = getCurrentSeason();
+    const exempt = await listExemptPlayerIds(createServiceRoleClient(), season);
+    const exemptCount = players.filter((player) => exempt.has(player.id)).length;
+    if (exemptCount > 0) {
+      return {
+        ok: false,
+        error:
+          exemptCount === 1
+            ? EXEMPT_PLAYER_ERROR
+            : `${exemptCount} jugadores están exentos de pagos esta temporada. Quita la exención en su ficha o no los incluyas.`,
+      };
+    }
     const feeCode = parsed.data.fee_code ?? null;
     const payments = await createPayments(
       db,
