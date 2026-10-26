@@ -22,6 +22,21 @@ export const registerPaymentSchema = z.object({
 
 export type RegisterPaymentInput = z.infer<typeof registerPaymentSchema>;
 
+/** Marcar a un jugador como exento de pagos en su temporada, con motivo opcional. */
+export const setExemptionSchema = z.object({
+  player_id: z.string().uuid("Jugador no válido"),
+  reason: z
+    .string()
+    .trim()
+    .max(200, "El motivo es demasiado largo")
+    .nullish()
+    .transform((value) => value || null),
+});
+
+export const removeExemptionSchema = z.object({
+  player_id: z.string().uuid("Jugador no válido"),
+});
+
 /** Registro en bloque: mismo concepto/fecha/método, importe propio de cada jugador. */
 export const registerBulkPaymentsSchema = z.object({
   entries: z

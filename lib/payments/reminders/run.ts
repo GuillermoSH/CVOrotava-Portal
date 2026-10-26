@@ -16,6 +16,7 @@ import {
 } from "@/lib/payments/reminders/repository";
 import { sendEmail } from "@/lib/payments/reminders/resend";
 import { buildPlayerFeeRows } from "@/lib/payments/player-fee-rows";
+import { listExemptPlayerIds } from "@/lib/payments/repository/exemptions";
 import { listSeasonFeeLines } from "@/lib/payments/repository/fees";
 import { listSeasonPaymentFacts } from "@/lib/payments/repository/payments";
 import { listPlayersForPayments } from "@/lib/payments/repository/players";
@@ -48,16 +49,24 @@ async function loadFeeRows({
   const db = createServiceRoleClient();
   const season = getCurrentSeason(today);
 
-  const [players, lines, facts, history] = await Promise.all([
+  const [players, lines, facts, history, exemptPlayerIds] = await Promise.all([
     listPlayersForPayments(db, season),
     listSeasonFeeLines(db, season),
     listSeasonPaymentFacts(db, season),
     historySince
       ? listReminderHistory(db, historySince)
       : Promise.resolve<ReminderHistoryEntry[]>([]),
+    listExemptPlayerIds(db, season),
   ]);
 
-  const rows = buildPlayerFeeRows({ players, lines, paymentsByPlayer: facts, season, today });
+  const rows = buildPlayerFeeRows({
+    players,
+    lines,
+    paymentsByPlayer: facts,
+    season,
+    today,
+    exemptPlayerIds,
+  });
   return { db, rows, history };
 }
 

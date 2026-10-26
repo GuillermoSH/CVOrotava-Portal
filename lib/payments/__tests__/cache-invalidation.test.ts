@@ -15,6 +15,7 @@ vi.mock("next/cache", () => ({
 const listPlayerIdsWithPaidMatricula = vi.fn();
 const listSeasonPaymentFacts = vi.fn();
 const listPlayersForPayments = vi.fn();
+const listExemptPlayerIds = vi.fn();
 
 vi.mock("@/lib/supabase/service-role", () => ({
   createServiceRoleClient: () => ({}),
@@ -25,6 +26,10 @@ vi.mock("@/lib/payments/repository/payments", () => ({
   listSeasonPaymentFacts: (...args: unknown[]) => listSeasonPaymentFacts(...args),
 }));
 
+vi.mock("@/lib/payments/repository/exemptions", () => ({
+  listExemptPlayerIds: (...args: unknown[]) => listExemptPlayerIds(...args),
+}));
+
 vi.mock("@/lib/payments/repository/players", () => ({
   listPlayersForPayments: (...args: unknown[]) => listPlayersForPayments(...args),
 }));
@@ -32,6 +37,7 @@ vi.mock("@/lib/payments/repository/players", () => ({
 import { paymentsTag, rosterSeasonTag } from "@/lib/cache/tags";
 import { invalidatePayments } from "@/lib/cache/invalidate";
 import {
+  getCachedExemptPlayerIds,
   getCachedPaidMatriculaIds,
   getCachedPaymentPlayers,
   getCachedSeasonPaymentFacts,
@@ -39,6 +45,7 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  listExemptPlayerIds.mockResolvedValue(new Set());
 });
 
 describe("invalidatePayments", () => {
@@ -56,6 +63,19 @@ describe("cached payment reads", () => {
     await expect(getCachedPaidMatriculaIds("2026-27")).resolves.toEqual(["a", "b"]);
     expect(cacheTag).toHaveBeenCalledWith(paymentsTag());
     expect(listPlayerIdsWithPaidMatricula).toHaveBeenCalledWith({}, "2026-27");
+  });
+
+  it("cuenta a los exentos como matrícula resuelta, sin duplicar", async () => {
+    listPlayerIdsWithPaidMatricula.mockResolvedValue(new Set(["a", "b"]));
+    listExemptPlayerIds.mockResolvedValue(new Set(["b", "c"]));
+    await expect(getCachedPaidMatriculaIds("2026-27")).resolves.toEqual(["a", "b", "c"]);
+    expect(listExemptPlayerIds).toHaveBeenCalledWith({}, "2026-27");
+  });
+
+  it("tags the exempt ids with the payments tag", async () => {
+    listExemptPlayerIds.mockResolvedValue(new Set(["x"]));
+    await expect(getCachedExemptPlayerIds("2026-27")).resolves.toEqual(["x"]);
+    expect(cacheTag).toHaveBeenCalledWith(paymentsTag());
   });
 
   it("returns season payments as serializable entries", async () => {

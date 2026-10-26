@@ -37,6 +37,11 @@ export type PlayerFeeRow = {
   team_name: string | null;
   audience: FeeAudience | null;
   obligations: FeeObligation[];
+  /**
+   * Exento de pagos esta temporada (`payment_exemptions`): sin obligaciones, deuda ni avisos, y
+   * fuera de la matriz y del registro de cobros. Se conservan sus cobros anotados.
+   */
+  exempt?: boolean;
   /** Cobros pagados de la temporada, para pintar método e historial por celda. */
   payments: PlayerPaymentFact[];
   /** Cobros anotados que no cierran ninguna línea (sin fee_code o cuota antigua sin mes). */
@@ -49,14 +54,18 @@ export function buildPlayerFeeRows({
   paymentsByPlayer,
   season,
   today,
+  exemptPlayerIds,
 }: {
   players: readonly PaymentPlayer[];
   lines: readonly SeasonFeeLine[];
   paymentsByPlayer: ReadonlyMap<string, readonly PlayerPaymentFact[]>;
   season: SeasonId;
   today: Date;
+  /** Jugadores exentos de la temporada (`payment_exemptions`). */
+  exemptPlayerIds?: ReadonlySet<string>;
 }): PlayerFeeRow[] {
   return players.map((player) => {
+    const exempt = exemptPlayerIds?.has(player.id) ?? false;
     const audience = audienceForCategory(player.team?.category);
     const payments = paymentsByPlayer.get(player.id) ?? [];
     return {
@@ -65,9 +74,10 @@ export function buildPlayerFeeRows({
       short_name: shortPlayerName(player),
       team_name: player.team?.name ?? null,
       audience,
+      exempt,
       payments: [...payments],
       obligations:
-        player.is_active === false
+        player.is_active === false || exempt
           ? []
           : computeObligations({
               season,

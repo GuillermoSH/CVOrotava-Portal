@@ -12,3 +12,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
  * temporada (ver lib/payments/fees.ts, gestionable desde /admin/pagos/tarifas).
  */
 export const OTHER_CONCEPT_VALUE = "__other__";
+
+/** Mensaje al intentar cobrar a un jugador exento (se desbloquea en su ficha). */
+export const EXEMPT_PLAYER_ERROR =
+  "Este jugador está exento de pagos esta temporada. Quita la exención en su ficha para registrar un cobro.";

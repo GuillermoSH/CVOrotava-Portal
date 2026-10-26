@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { PlayerClothingSection } from "@/components/clothing/PlayerClothingSection";
+import { PlayerExemptionSection } from "@/components/payments/PlayerExemptionSection";
 import { DashboardPage } from "@/components/layout/DashboardPage";
 import { PlayerForm } from "@/components/roster/PlayerForm";
 import { PlayerNeighborNav } from "@/components/roster/PlayerNeighborNav";
@@ -12,6 +13,7 @@ import {
 } from "@/lib/clothing/snapshots";
 import { requireRosterReadAccess } from "@/lib/roster/auth";
 import { getCachedPaidMatriculaIds } from "@/lib/payments/cached-payments";
+import { getExemption } from "@/lib/payments/repository/exemptions";
 import {
   findPlayerNeighbors,
   parsePlayerListUrlState,
@@ -21,6 +23,7 @@ import {
 } from "@/lib/roster/player-filters";
 import { getPlayerDetailsSnapshot, getPlayerNavigationItems } from "@/lib/roster/snapshots";
 import { getCurrentSeason } from "@/lib/season";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { formatPlayerName } from "@/lib/roster/constants";
 
 async function PlayerDetailContent({
@@ -47,7 +50,8 @@ async function PlayerDetailContent({
   const listFilters = playerFilterStateToListFilters(urlState);
   const needsMatricula = listFilters.checklists?.includes("missing_matricula") ?? false;
 
-  const [clothing, lots, storageTree, navItems] = await Promise.all([
+  const exemptionSeason = snapshot.player.season ?? getCurrentSeason();
+  const [clothing, lots, storageTree, navItems, exemption] = await Promise.all([
     enrichPlayerClothing(id),
     enrichInventory(),
     buildStorageTree(),
@@ -64,6 +68,10 @@ async function PlayerDetailContent({
         context: { matriculaPaidPlayerIds },
       });
     })(),
+    // Los entrenadores no ven nada económico.
+    canWrite
+      ? getExemption(createServiceRoleClient(), id, exemptionSeason)
+      : Promise.resolve(null),
   ]);
 
   const neighbors = findPlayerNeighbors(navItems, id, urlState.pageSize);
@@ -100,6 +108,14 @@ async function PlayerDetailContent({
           canDelete={canDelete}
           listHref={listHref}
         />
+        {canWrite ? (
+          <PlayerExemptionSection
+            playerId={id}
+            season={exemptionSeason}
+            exemption={exemption}
+            canEdit={canDelete}
+          />
+        ) : null}
         <PlayerClothingSection
           possession={clothing.possession}
           history={clothing.history}
