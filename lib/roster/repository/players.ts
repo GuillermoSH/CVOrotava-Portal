@@ -317,6 +317,33 @@ export async function listPlayersPage(
   };
 }
 
+/**
+ * Orden de la lista (todas las páginas) solo con id y nombre, para las flechas de la ficha.
+ * Select mínimo, sin contactos ni campos de trámites. Devuelve null si el filtro necesita
+ * post-filtrar en memoria (género / checklist): ahí hay que usar `listPlayersPage`.
+ */
+export async function listPlayerNavRows(
+  db: RosterDb,
+  input: Pick<ListPlayersPageInput, "season" | "sortDir" | "filters">,
+): Promise<{ id: string; first_name: string; last_name: string; full_name: string }[] | null> {
+  const filters: ListPlayersPageFilters = input.filters ?? {};
+  if (needsInMemoryPaging(filters)) return null;
+
+  const season = input.season ?? getCurrentSeason();
+  const ascending = (input.sortDir ?? "asc") === "asc";
+  // Mismo embed de equipo que la lista cuando se filtra por categoría (`team.category`).
+  const needsTeam = (filters.categories?.length ?? 0) > 0;
+  const select = `id, first_name, last_name, full_name${needsTeam ? ", team:teams!inner(category)" : ""}`;
+
+  const { data, error } = await applyListFilters(db.from("players").select(select), season, filters)
+    .order("first_name", { ascending })
+    .order("last_name", { ascending })
+    .order("id", { ascending: true });
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return (data ?? []) as { id: string; first_name: string; last_name: string; full_name: string }[];
+}
+
 export async function countInactivePlayers(
   db: RosterDb,
   season: string = getCurrentSeason(),
@@ -381,18 +408,16 @@ export async function getPlayerById(
   db: RosterDb,
   id: string,
 ): Promise<PlayerWithDetails | null> {
-  const { data, error } = await db
-    .from("players")
-    .select(PLAYER_DETAIL_SELECT)
-    .eq("id", id)
-    .maybeSingle();
+  // Jugador y contactos en paralelo: un viaje a la base de datos, no dos en serie.
+  const [{ data, error }, contacts] = await Promise.all([
+    db.from("players").select(PLAYER_DETAIL_SELECT).eq("id", id).maybeSingle(),
+    listContactsForPlayers(db, [id]),
+  ]);
 
   if (error) throw new Error(dbErrorMessage(error));
   if (!data) return null;
 
-  const player = mapPlayerWithTeam(data as PlayerRow);
-  const contacts = await listContactsForPlayers(db, [id]);
-  return { ...player, contacts };
+  return { ...mapPlayerWithTeam(data as PlayerRow), contacts };
 }
 
 /** Ficha completa + contactos para exportación / lotes (misma temporada). */

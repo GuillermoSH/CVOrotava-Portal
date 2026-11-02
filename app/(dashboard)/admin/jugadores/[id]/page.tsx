@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { PlayerClothingSection } from "@/components/clothing/PlayerClothingSection";
 import { PlayerExemptionSection } from "@/components/payments/PlayerExemptionSection";
@@ -6,6 +7,7 @@ import { DashboardPage } from "@/components/layout/DashboardPage";
 import { PlayerForm } from "@/components/roster/PlayerForm";
 import { PlayerNeighborNav } from "@/components/roster/PlayerNeighborNav";
 import { RuntimePage } from "@/components/shared/RuntimePage";
+import { Bone } from "@/components/shared/skeletons";
 import {
   buildStorageTree,
   enrichInventory,
@@ -25,6 +27,40 @@ import { getPlayerDetailsSnapshot, getPlayerNavigationItems } from "@/lib/roster
 import { getCurrentSeason } from "@/lib/season";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { formatPlayerName } from "@/lib/roster/constants";
+
+/** Ropa del jugador, inventario y árbol de almacén: pesan más que la ficha, así que streamean. */
+async function PlayerClothingLoader({
+  playerId,
+  canWrite,
+}: {
+  playerId: string;
+  canWrite: boolean;
+}) {
+  const [clothing, lots, storageTree] = await Promise.all([
+    enrichPlayerClothing(playerId),
+    enrichInventory(),
+    buildStorageTree(),
+  ]);
+
+  return (
+    <PlayerClothingSection
+      possession={clothing.possession}
+      history={clothing.history}
+      lots={lots}
+      storageTree={storageTree}
+      canWrite={canWrite}
+    />
+  );
+}
+
+function ClothingSectionFallback() {
+  return (
+    <section className="flex flex-col gap-3" aria-busy="true" aria-label="Cargando ropa">
+      <Bone className="h-6 w-40 rounded-md" />
+      <Bone className="h-32 w-full rounded-lg" />
+    </section>
+  );
+}
 
 async function PlayerDetailContent({
   params,
@@ -51,10 +87,8 @@ async function PlayerDetailContent({
   const needsMatricula = listFilters.checklists?.includes("missing_matricula") ?? false;
 
   const exemptionSeason = snapshot.player.season ?? getCurrentSeason();
-  const [clothing, lots, storageTree, navItems, exemption] = await Promise.all([
-    enrichPlayerClothing(id),
-    enrichInventory(),
-    buildStorageTree(),
+  // Solo lo que la cabecera de la ficha necesita antes de pintar; la ropa va aparte (Suspense).
+  const [navItems, exemption] = await Promise.all([
     (async () => {
       const season = snapshot.player.season ?? getCurrentSeason();
       const matriculaPaidPlayerIds =
@@ -116,13 +150,9 @@ async function PlayerDetailContent({
             canEdit={canDelete}
           />
         ) : null}
-        <PlayerClothingSection
-          possession={clothing.possession}
-          history={clothing.history}
-          lots={lots}
-          storageTree={storageTree}
-          canWrite={canWrite}
-        />
+        <Suspense fallback={<ClothingSectionFallback />}>
+          <PlayerClothingLoader playerId={id} canWrite={canWrite} />
+        </Suspense>
       </div>
     </DashboardPage>
   );
