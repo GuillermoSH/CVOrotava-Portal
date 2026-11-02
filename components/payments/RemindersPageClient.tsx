@@ -113,6 +113,7 @@ export function RemindersPageClient({
             items: selected.items,
             total: selected.total,
             instructions,
+            logoUrl: "/logo/email-logo.png",
           })
         : null,
     [selected, instructions],

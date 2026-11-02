@@ -147,6 +147,7 @@ export async function runPaymentReminders(today: Date = new Date()): Promise<Run
       items: plan.items,
       total: plan.total,
       instructions: config.instructions,
+      logoUrl: config.logoUrl,
     });
     const testMode = config.testTo != null;
     const to = testMode ? [config.testTo as string] : plan.recipients;
