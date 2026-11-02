@@ -159,6 +159,7 @@ type PlayerFormSnapshot = {
   photoConsent: boolean;
   inWhatsappGroup: boolean;
   paysExtendedMonthly: boolean;
+  paysAsSenior: boolean;
   medicalNotes: string;
   contacts: ContactDraft[];
   selfPhone: string;
@@ -364,6 +365,7 @@ export function PlayerForm({
   const [paysExtendedMonthly, setPaysExtendedMonthly] = useState(
     player?.pays_extended_monthly ?? false,
   );
+  const [paysAsSenior, setPaysAsSenior] = useState(player?.pays_as_senior ?? false);
   const [medicalNotes, setMedicalNotes] = useState(player?.medical_notes ?? "");
   const [contacts, setContacts] = useState<ContactDraft[]>(() => toFamilyDrafts(player?.contacts ?? []));
   const initialTeamCategory =
@@ -416,6 +418,7 @@ export function PlayerForm({
         photoConsent,
         inWhatsappGroup,
         paysExtendedMonthly,
+        paysAsSenior,
         medicalNotes,
         contacts,
         selfPhone,
@@ -446,6 +449,7 @@ export function PlayerForm({
       photoConsent,
       inWhatsappGroup,
       paysExtendedMonthly,
+      paysAsSenior,
       medicalNotes,
       contacts,
       selfPhone,
@@ -670,6 +674,7 @@ export function PlayerForm({
     }
     if (!appliesExtendedMonthlyFee(nextCategory)) {
       setPaysExtendedMonthly(false);
+      setPaysAsSenior(false);
     }
     applySelfContactMode(nextSelf, prevSelf);
   }
@@ -738,6 +743,7 @@ export function PlayerForm({
       photo_consent: photoConsent,
       in_whatsapp_group: inWhatsappGroup,
       pays_extended_monthly: paysExtendedMonthly,
+      pays_as_senior: paysAsSenior,
       medical_notes: medicalNotes || undefined,
       clothing_size: size || null,
       address: formatPlayerAddress(addressDraft) || undefined,
@@ -1465,6 +1471,15 @@ export function PlayerForm({
               checked={paysExtendedMonthly}
               disabled={readOnly}
               onChange={setPaysExtendedMonthly}
+            />
+            <ToggleRow
+              id="pays-as-senior"
+              compact
+              label="Paga como sénior"
+              hint="Para quien entrena siempre con séniors: sus cuotas salen de la tarifa sénior. Lo ya cobrado (matrícula, etc.) sigue contando; la equipación de base deja de exigirse."
+              checked={paysAsSenior}
+              disabled={readOnly}
+              onChange={setPaysAsSenior}
             />
           </section>
         ) : null}

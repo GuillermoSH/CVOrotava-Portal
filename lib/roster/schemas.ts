@@ -115,6 +115,7 @@ export const upsertPlayerSchema = z
       .transform(blankToUndefined)
       .transform((value) => (value && !isSpanishNationality(value) ? value : undefined)),
     pays_extended_monthly: z.boolean().optional().default(false),
+    pays_as_senior: z.boolean().optional().default(false),
     is_active: z.boolean().optional().default(true),
     contacts: z.array(playerContactInputSchema).min(1, "Indica un contacto").max(2),
   })

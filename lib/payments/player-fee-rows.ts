@@ -16,6 +16,8 @@ export type PaymentPlayer = {
   first_name?: string | null;
   last_name?: string | null;
   pays_extended_monthly: boolean;
+  /** Categoría base que paga como sénior: usa la tarifa senior en vez de la de base. */
+  pays_as_senior?: boolean;
   /** Baja (false): conserva sus cobros pero no genera deuda ni avisos. Ausente = activo. */
   is_active?: boolean;
   team: { name: string; category: string } | null;
@@ -66,7 +68,9 @@ export function buildPlayerFeeRows({
 }): PlayerFeeRow[] {
   return players.map((player) => {
     const exempt = exemptPlayerIds?.has(player.id) ?? false;
-    const audience = audienceForCategory(player.team?.category);
+    const categoryAudience = audienceForCategory(player.team?.category);
+    const audience =
+      categoryAudience === "base" && player.pays_as_senior ? "senior" : categoryAudience;
     const payments = paymentsByPlayer.get(player.id) ?? [];
     return {
       id: player.id,

@@ -30,11 +30,11 @@ import type {
 
 /** Ficha completa — create/update/detalle. */
 const PLAYER_DETAIL_SELECT =
-  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, photo_path, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, pays_extended_monthly, created_at, updated_at, team:teams(id, name, category, gender, season)";
+  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, photo_path, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, pays_extended_monthly, pays_as_senior, created_at, updated_at, team:teams(id, name, category, gender, season)";
 
 /** Listado admin — sin medical/nationality/photo_path/etc. */
 const PLAYER_LIST_SELECT =
-  "id, full_name, first_name, last_name, birth_date, team_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, pays_extended_monthly, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, team:teams(id, name, category, gender, season)";
+  "id, full_name, first_name, last_name, birth_date, team_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, pays_extended_monthly, pays_as_senior, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, team:teams(id, name, category, gender, season)";
 
 /** Contactos embebidos: teléfono/email principal sin una segunda consulta. */
 const CONTACTS_EMBED = "contacts:player_contacts(phone, email, is_primary)";
@@ -131,6 +131,7 @@ export type PlayerWriteInput = {
   birth_country?: string | null;
   nationality?: string | null;
   pays_extended_monthly?: boolean;
+  pays_as_senior?: boolean;
   is_active?: boolean;
   contacts?: PlayerContactInput[];
 };
@@ -548,6 +549,7 @@ function playerInsert(input: PlayerWriteInput) {
         ? input.nationality.trim()
         : null,
     pays_extended_monthly: input.pays_extended_monthly ?? false,
+    pays_as_senior: input.pays_as_senior ?? false,
     is_active: input.is_active ?? true,
   };
 }

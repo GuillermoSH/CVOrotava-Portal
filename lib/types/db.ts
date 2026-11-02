@@ -57,6 +57,8 @@ export type Player = {
   nationality: string | null;
   /** Cuota mensual ampliada (30 €) en categorías base; default false = 25 €. */
   pays_extended_monthly: boolean;
+  /** Categoría base que paga la tarifa de sénior (entrena siempre con séniors). */
+  pays_as_senior?: boolean;
 };
 
 export type PlayerGuardian = {
