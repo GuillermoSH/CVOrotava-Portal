@@ -52,8 +52,25 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+type InstructionBlock = { title: string; lines: string[] };
+
+/** `# Título` abre un bloque; el resto de líneas son sus puntos. Sin título = un solo bloque. */
+function parseInstructions(raw: string): InstructionBlock[] {
+  const blocks: InstructionBlock[] = [];
+  for (const line of raw.split("\n").map((l) => l.trim())) {
+    if (!line) continue;
+    if (line.startsWith("# ")) {
+      blocks.push({ title: line.slice(2).trim(), lines: [] });
+      continue;
+    }
+    if (blocks.length === 0) blocks.push({ title: "", lines: [] });
+    blocks[blocks.length - 1].lines.push(line);
+  }
+  return blocks;
+}
+
 const NOREPLY_NOTICE =
-  "Este mensaje se ha enviado automáticamente desde una dirección que no admite respuestas, por favor no contestes a este correo. Para cualquier duda, escríbenos por WhatsApp al 616 29 88 70.";
+  "Este mensaje se ha enviado automáticamente desde una dirección que no admite respuestas, por favor no contestes a este correo. Para cualquier duda, escríbenos por WhatsApp al 696 94 28 23.";
 
 export function renderReminderEmail({
   kind,
@@ -61,14 +78,11 @@ export function renderReminderEmail({
   items,
   total,
   instructions,
-  clubName = "CV Orotava",
+  clubName = "C.V. Orotava - Puerto de la Cruz",
   logoUrl = null,
 }: ReminderEmailInput): RenderedEmail {
   const subject = `${SUBJECT[kind]} — ${playerName}`;
-  const howToLines = instructions
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const sections = parseInstructions(instructions);
 
   const text = [
     "Hola,",
@@ -78,7 +92,17 @@ export function renderReminderEmail({
     `Jugador/a: ${playerName}`,
     ...items.map((i) => `- ${itemLabel(i)}: ${eur.format(i.remaining)}`),
     `Total pendiente: ${eur.format(total)}`,
-    ...(howToLines.length ? ["", "Cómo pagar:", ...howToLines.map((l) => `- ${l}`)] : []),
+    ...(sections.length
+      ? [
+          "",
+          "CÓMO PAGAR",
+          ...sections.flatMap((s) => [
+            "",
+            ...(s.title ? [`${s.title}:`] : []),
+            ...s.lines.map((l) => `- ${l}`),
+          ]),
+        ]
+      : []),
     "",
     `Un saludo,\n${clubName}`,
     "",
@@ -98,17 +122,21 @@ export function renderReminderEmail({
     ? `<td style="width:48px;padding-right:12px;vertical-align:middle;"><img src="${escapeHtml(logoUrl)}" width="48" height="48" alt="" style="display:block;border:0;"></td>`
     : "";
 
-  const howToHtml = howToLines.length
-    ? `<div style="margin-top:24px;padding:16px 18px;background:#ECECF1;border-radius:8px;">
-<p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#3F3F50;">Cómo pagar</p>
-${howToLines.map((l) => `<p style="margin:0 0 8px;font-size:14px;">${escapeHtml(l)}</p>`).join("")}
-</div>`
+  const howToHtml = sections.length
+    ? `<p style="margin:28px 0 10px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#3F3F50;">Cómo pagar</p>
+${sections
+  .map(
+    (s) => `<div style="margin:0 0 12px;padding:14px 16px;background:#ECECF1;border-left:4px solid #B91C1C;border-radius:6px;">
+${s.title ? `<p style="margin:0 0 6px;font-size:15px;font-weight:700;">${escapeHtml(s.title)}</p>` : ""}${s.lines.map((l) => `<p style="margin:0 0 6px;font-size:14px;">${escapeHtml(l)}</p>`).join("")}
+</div>`,
+  )
+  .join("\n")}`
     : "";
 
   const html = `<!doctype html>
 <html lang="es"><body style="margin:0;padding:24px 12px;background:#F0F0F4;font-family:Arial,Helvetica,sans-serif;color:#12121A;">
 <div style="max-width:560px;margin:0 auto;background:#F8F8FA;border-radius:12px;overflow:hidden;">
-<table role="presentation" style="width:100%;border-collapse:collapse;background:#B91C1C;"><tr><td style="padding:16px 24px;"><table role="presentation" style="border-collapse:collapse;"><tr>${logoHtml}<td style="vertical-align:middle;color:#F8F8FA;font-size:18px;font-weight:700;">${escapeHtml(clubName)}</td></tr></table></td></tr></table>
+<table role="presentation" style="width:100%;border-collapse:collapse;background:#12121A;"><tr><td style="padding:16px 24px;"><table role="presentation" style="border-collapse:collapse;"><tr>${logoHtml}<td style="vertical-align:middle;color:#F8F8FA;font-size:18px;font-weight:700;">${escapeHtml(clubName)}</td></tr></table></td></tr></table>
 <div style="padding:24px;font-size:15px;line-height:1.55;">
 <p style="margin:0 0 12px;">Hola,</p>
 <p style="margin:0 0 20px;">${escapeHtml(INTRO[kind])}</p>
