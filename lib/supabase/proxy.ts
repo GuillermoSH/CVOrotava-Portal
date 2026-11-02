@@ -36,7 +36,9 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const { error } = await supabase.auth.getUser();
+  // getClaims valida el JWT en local con las claves públicas del proyecto (sin viaje a Auth) y
+  // refresca la sesión si caducó. Con la firma antigua (secreto simétrico) cae a getUser.
+  const { error } = await supabase.auth.getClaims();
 
   // Cookie de sesión huérfana (refresh token revocado o de otro proyecto): se borra
   // para que no se reintente el refresh, y falle, en cada petición.

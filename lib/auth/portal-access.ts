@@ -25,18 +25,19 @@ export const requirePortalRole = cache(async (): Promise<UserRole> => {
   }
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims verifica la firma del JWT en local (sin viaje a Auth con claves asimétricas) y
+  // las consultas siguientes las vuelve a validar PostgREST con el mismo token.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
 
-  if (!user) {
+  if (!userId) {
     redirect(appRoutes.login);
   }
 
   const { data, error } = await supabase
     .from("user_app_roles")
     .select("role")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("app", "portal");
 
   if (error) {

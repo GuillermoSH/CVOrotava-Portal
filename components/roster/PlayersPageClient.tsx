@@ -322,6 +322,9 @@ function isPlayerListPageSize(value: number): value is PlayerListPageSize {
   return (PLAYER_LIST_PAGE_SIZES as readonly number[]).includes(value);
 }
 
+/** Espera tras la última tecla antes de buscar en servidor. */
+const SEARCH_DEBOUNCE_MS = 250;
+
 export function PlayersPageClient({
   players,
   total,
@@ -404,6 +407,21 @@ export function PlayersPageClient({
     [query, facets, statusFilter],
   );
 
+  // La URL (y con ella la consulta al servidor) sigue a la búsqueda con retardo: sin esto cada
+  // tecla relanzaba el render completo de la página. Borrar el texto aplica al instante.
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  useEffect(() => {
+    const delay = query.trim() === "" ? 0 : SEARCH_DEBOUNCE_MS;
+    const timer = setTimeout(() => setDebouncedQuery(query), delay);
+    return () => clearTimeout(timer);
+  }, [query]);
+  const urlFilterState = useMemo(
+    () => ({ query: debouncedQuery, facets, statusFilter }),
+    [debouncedQuery, facets, statusFilter],
+  );
+  // Texto escrito aún sin reflejar en los resultados que se están viendo.
+  const updatingResults = query.trim() !== (initialFilters?.query ?? "").trim();
+
   useEffect(() => {
     setPagePlayers(players);
   }, [players]);
@@ -423,9 +441,9 @@ export function PlayersPageClient({
       didMountFiltersRef.current = true;
       return;
     }
-    replaceListUrl(filterState, { page: 1, pageSize: safePageSize, sortDir });
+    replaceListUrl(urlFilterState, { page: 1, pageSize: safePageSize, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar filtros
-  }, [filterState]);
+  }, [urlFilterState]);
 
   function navigatePage(nextPage: number) {
     replaceListUrl(filterState, { page: nextPage, pageSize: safePageSize, sortDir });
@@ -1019,6 +1037,9 @@ export function PlayersPageClient({
                   ) : (
                     <p className="text-[13px] font-medium tabular-nums text-foreground">
                       {rangeLabel}
+                      {updatingResults ? (
+                        <span className="font-normal text-muted-foreground"> · actualizando…</span>
+                      ) : null}
                     </p>
                   )}
                   {hasSelection && canWrite ? (

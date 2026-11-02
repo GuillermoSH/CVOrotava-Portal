@@ -4,6 +4,7 @@ import { getCachedInactiveCount, getCachedTeams } from "@/lib/roster/cached";
 import { getRosterDb } from "@/lib/roster/repository/client";
 import {
   getPlayerById,
+  listPlayerNavRows,
   listPlayersPage,
   listPlayersWithPrimaryPhone,
   type ListPlayersPageInput,
@@ -60,6 +61,9 @@ export async function getPlayerNavigationItems(
   input: Omit<ListPlayersPageInput, "page" | "pageSize"> = {},
 ): Promise<PlayerNavItem[]> {
   const db = await getRosterDb();
+  const lean = await listPlayerNavRows(db, input);
+  if (lean) return lean.map((player) => ({ id: player.id, name: formatPlayerName(player) }));
+
   const result = await listPlayersPage(db, { ...input, page: 1, pageSize: 0 });
   return result.players.map((player) => ({ id: player.id, name: formatPlayerName(player) }));
 }
