@@ -11,7 +11,7 @@ export const PAYMENT_INSTRUCTION_SECTIONS: readonly PaymentInstructionSection[] 
       "IBAN: ES97 2100 6730 4122 0048 8666",
       "Titular: Club Voleibol Villa Orotava",
       "Concepto: mes y nombre completo del/a jugador/a",
-      "Envía foto o captura del comprobante por WhatsApp al 616 29 88 70. Si no se envía, el pago se entenderá como no realizado.",
+      "! Envía foto o captura del comprobante por WhatsApp al 616 29 88 70. Si no se envía, el pago se entenderá como no realizado.",
     ],
   },
   {
