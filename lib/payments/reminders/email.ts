@@ -99,12 +99,12 @@ export function renderReminderEmail({
           ...sections.flatMap((s) => [
             "",
             ...(s.title ? [`${s.title}:`] : []),
-            ...s.lines.map((l) => `- ${l}`),
+            ...s.lines.map((l) => (l.startsWith("! ") ? `- ¡IMPORTANTE! ${l.slice(2)}` : `- ${l}`)),
           ]),
         ]
       : []),
     "",
-    `Un saludo,\n${clubName}`,
+    `Saludos cordiales,\n${clubName}`,
     "",
     "---",
     NOREPLY_NOTICE,
@@ -127,7 +127,7 @@ export function renderReminderEmail({
 ${sections
   .map(
     (s) => `<div style="margin:0 0 12px;padding:14px 16px;background:#ECECF1;border-left:4px solid #B91C1C;border-radius:6px;">
-${s.title ? `<p style="margin:0 0 6px;font-size:15px;font-weight:700;">${escapeHtml(s.title)}</p>` : ""}${s.lines.map((l) => `<p style="margin:0 0 6px;font-size:14px;">${escapeHtml(l)}</p>`).join("")}
+${s.title ? `<p style="margin:0 0 6px;font-size:15px;font-weight:700;">${escapeHtml(s.title)}</p>` : ""}${s.lines.map(instructionLineHtml).join("")}
 </div>`,
   )
   .join("\n")}`
@@ -145,10 +145,24 @@ ${s.title ? `<p style="margin:0 0 6px;font-size:15px;font-weight:700;">${escapeH
 <table role="presentation" style="width:100%;border-collapse:collapse;font-size:15px;border-top:1px solid #E1E1E8;">${rows}
 <tr><td style="padding:12px 0 0;font-weight:700;font-size:16px;">Total pendiente</td><td style="padding:12px 0 0;text-align:right;font-weight:700;font-size:16px;white-space:nowrap;">${eur.format(total)}</td></tr></table>
 ${howToHtml}
-<p style="margin:24px 0 0;">Un saludo,<br>${escapeHtml(clubName)}</p>
+<p style="margin:24px 0 0;">Saludos cordiales,<br>${escapeHtml(clubName)}</p>
 </div>
 <div style="padding:14px 24px;background:#ECECF1;font-size:12px;line-height:1.5;color:#3F3F50;">${escapeHtml(NOREPLY_NOTICE)}</div>
 </div></body></html>`;
 
   return { subject, html, text };
+}
+
+const LABELED_LINE = /^(IBAN|Titular|Concepto):\s*(.*)$/;
+
+/** `! texto` = aviso destacado con icono. `IBAN:`/`Titular:`/`Concepto:` van subrayados. */
+function instructionLineHtml(line: string): string {
+  if (line.startsWith("! ")) {
+    return `<p style="margin:8px 0 6px;padding:10px 12px;background:#FDF3D7;border-radius:6px;font-size:14px;font-weight:600;color:#12121A;">&#9888;&#65039; ${escapeHtml(line.slice(2))}</p>`;
+  }
+  const match = LABELED_LINE.exec(line);
+  if (match) {
+    return `<p style="margin:0 0 6px;font-size:14px;"><span style="text-decoration:underline;font-weight:700;">${escapeHtml(match[1])}:</span> ${escapeHtml(match[2])}</p>`;
+  }
+  return `<p style="margin:0 0 6px;font-size:14px;">${escapeHtml(line)}</p>`;
 }
