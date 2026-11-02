@@ -15,10 +15,9 @@ import {
   Shirt,
   Trash2,
   UserRound,
-  Wallet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import type { FieldError } from "react-hook-form";
 
 import { Badge } from "@/components/club/Badge";
