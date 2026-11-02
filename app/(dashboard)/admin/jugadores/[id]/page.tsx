@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { PlayerClothingSection } from "@/components/clothing/PlayerClothingSection";
-import { PlayerExemptionSection } from "@/components/payments/PlayerExemptionSection";
 import { DashboardPage } from "@/components/layout/DashboardPage";
 import { PlayerForm } from "@/components/roster/PlayerForm";
 import { PlayerNeighborNav } from "@/components/roster/PlayerNeighborNav";
@@ -141,15 +140,12 @@ async function PlayerDetailContent({
           canWrite={canWrite}
           canDelete={canDelete}
           listHref={listHref}
+          exemption={
+            canWrite
+              ? { playerId: id, season: exemptionSeason, current: exemption, canEdit: canDelete }
+              : null
+          }
         />
-        {canWrite ? (
-          <PlayerExemptionSection
-            playerId={id}
-            season={exemptionSeason}
-            exemption={exemption}
-            canEdit={canDelete}
-          />
-        ) : null}
         <Suspense fallback={<ClothingSectionFallback />}>
           <PlayerClothingLoader playerId={id} canWrite={canWrite} />
         </Suspense>
