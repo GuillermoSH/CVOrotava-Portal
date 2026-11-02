@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getConfiguredSiteOrigin } from "@/lib/auth/app-origin";
 import { PAYMENT_INSTRUCTIONS } from "@/lib/payments/reminders/instructions";
 
 /**
@@ -9,6 +10,13 @@ import { PAYMENT_INSTRUCTIONS } from "@/lib/payments/reminders/instructions";
  *  - PAYMENT_REMINDERS_TEST_TO: si existe, todo correo real se redirige a esa dirección.
  *  - CRON_SECRET: protege /api/cron/payment-reminders.
  */
+/** Logo del correo: URL absoluta pública (sitio configurado o dominio de producción en Vercel). */
+function emailLogoUrl(): string | null {
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  const origin = getConfiguredSiteOrigin() || (vercel ? `https://${vercel}` : "");
+  return origin ? `${origin}/logo/email-logo.png` : null;
+}
+
 export function getReminderConfig() {
   const apiKey = process.env.RESEND_API_KEY?.trim() || null;
   const from = process.env.RESEND_FROM_EMAIL?.trim() || null;
@@ -18,6 +26,7 @@ export function getReminderConfig() {
     replyTo: process.env.RESEND_REPLY_TO?.trim() || null,
     emailConfigured: Boolean(apiKey && from),
     /** Cómo pagar: se edita en lib/payments/reminders/instructions.ts. */
+    logoUrl: emailLogoUrl(),
     instructions: PAYMENT_INSTRUCTIONS,
     enabled: process.env.PAYMENT_REMINDERS_ENABLED === "true",
     testTo: process.env.PAYMENT_REMINDERS_TEST_TO?.trim() || null,

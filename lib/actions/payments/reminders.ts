@@ -65,6 +65,7 @@ export async function sendTestReminderAction(input: {
       items: plan.items,
       total: plan.total,
       instructions: config.instructions,
+      logoUrl: config.logoUrl,
     });
     const result = await sendEmail({
       config,
