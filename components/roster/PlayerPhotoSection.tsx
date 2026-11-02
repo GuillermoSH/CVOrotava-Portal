@@ -94,9 +94,11 @@ export function PlayerPhotoSection({
     ? `${playerPhotoRoute(playerId, { inline: true })}&v=${cacheKey}`
     : null;
 
+  // Si la imagen ya terminó (cargó o falló) antes de hidratar, su onLoad/onError se perdió:
+  // `complete` evita dejar el loader puesto para siempre.
+  const previewImgRef = useRef<HTMLImageElement>(null);
   useEffect(() => {
-    if (previewSrc) setPreviewLoading(true);
-    else setPreviewLoading(false);
+    setPreviewLoading(Boolean(previewSrc) && !previewImgRef.current?.complete);
   }, [previewSrc]);
 
   const busy = pending || uploading || openingCrop;
@@ -319,6 +321,7 @@ export function PlayerPhotoSection({
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- route auth */}
             <img
+              ref={previewImgRef}
               src={previewSrc}
               alt=""
               className={cn(
