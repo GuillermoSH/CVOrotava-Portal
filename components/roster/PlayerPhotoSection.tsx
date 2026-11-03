@@ -371,12 +371,12 @@ export function PlayerPhotoSection({
         )}
 
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full max-w-64 gap-2">
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              className="size-8 min-h-8 !px-0"
+              className="h-8 min-h-8 flex-1 !px-0"
               aria-label={hasPhoto ? "Cambiar foto" : "Subir foto"}
               title={hasPhoto ? "Cambiar foto" : "Subir foto"}
               disabled={busy}
@@ -392,7 +392,7 @@ export function PlayerPhotoSection({
               type="button"
               variant="secondary"
               size="sm"
-              className="size-8 min-h-8 !px-0"
+              className="h-8 min-h-8 flex-1 !px-0"
               aria-label="Hacer foto con la cámara"
               title="Hacer foto con la cámara"
               disabled={busy}
@@ -405,7 +405,7 @@ export function PlayerPhotoSection({
                 <a
                   href={playerPhotoRoute(playerId)}
                   className={cn(
-                    "btn-secondary btn-sm inline-flex size-8 min-h-8 !px-0 items-center justify-center",
+                    "btn-secondary btn-sm inline-flex h-8 min-h-8 flex-1 !px-0 items-center justify-center",
                     busy && "pointer-events-none opacity-60",
                   )}
                   aria-label="Descargar foto"
@@ -422,7 +422,7 @@ export function PlayerPhotoSection({
                   type="button"
                   variant="destructive"
                   size="sm"
-                  className="size-8 min-h-8 !px-0"
+                  className="h-8 min-h-8 flex-1 !px-0"
                   aria-label="Quitar foto"
                   title="Quitar foto"
                   disabled={busy}
