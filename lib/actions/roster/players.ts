@@ -37,7 +37,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export type ActionResult =
   | { ok: true; id?: string; updated?: number }
-  | { ok: false; error: string };
+  | { ok: false; error: string; /** Campo de la ficha al que se refiere el error. */ field?: string };
 
 /** Un dorsal por jugador activo y equipo: si ya lo lleva otro, el mensaje dice quién. */
 async function jerseyConflictMessage(
@@ -119,7 +119,7 @@ export async function createPlayerAction(input: unknown): Promise<ActionResult> 
       teamId: parsed.data.team_id ?? null,
       jerseyNumber: parsed.data.jersey_number ?? null,
     });
-    if (jerseyError) return { ok: false, error: jerseyError };
+    if (jerseyError) return { ok: false, error: jerseyError, field: "jersey_number" };
 
     const player = await createPlayer(db, {
       ...parsed.data,
@@ -216,7 +216,7 @@ export async function updatePlayerAction(input: unknown): Promise<ActionResult> 
       jerseyNumber: parsed.data.jersey_number ?? null,
       excludePlayerId: parsed.data.id,
     });
-    if (jerseyError) return { ok: false, error: jerseyError };
+    if (jerseyError) return { ok: false, error: jerseyError, field: "jersey_number" };
 
     await updatePlayer(
       db,

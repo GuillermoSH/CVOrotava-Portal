@@ -1,6 +1,7 @@
 "use client";
 
 import { Shirt } from "lucide-react";
+import type { FieldError } from "react-hook-form";
 
 import { Button } from "@/components/club/Button";
 import { FormInput } from "@/components/club/forms";
@@ -18,7 +19,7 @@ import { SectionHeading } from "@/components/roster/ToggleRow";
 export function PlayerKitCard({
   jerseyNumber,
   onJerseyNumberChange,
-  jerseyShared,
+  jerseyError,
   generalSize,
   onGeneralSizeChange,
   garmentSizes,
@@ -29,8 +30,8 @@ export function PlayerKitCard({
 }: Readonly<{
   jerseyNumber: string;
   onJerseyNumberChange: (value: string) => void;
-  /** Otros jugadores del mismo equipo con este dorsal (aviso, no bloqueo). */
-  jerseyShared?: string[];
+  /** El dorsal ya lo lleva otro jugador del equipo: marca el campo y dice quién. */
+  jerseyError?: string;
   generalSize: ClothingSize | "";
   onGeneralSizeChange: (size: ClothingSize | "") => void;
   garmentSizes: Partial<Record<GarmentCategory, ClothingSize>>;
@@ -53,6 +54,7 @@ export function PlayerKitCard({
           maxLength={2}
           value={jerseyNumber}
           disabled={readOnly}
+          error={jerseyError ? ({ type: "manual", message: "" } as FieldError) : undefined}
           onChange={(event) => onJerseyNumberChange(event.target.value.replace(/\D/g, ""))}
           placeholder="—"
           className="min-h-11 text-lg font-semibold tabular-nums md:min-h-10"
@@ -67,9 +69,9 @@ export function PlayerKitCard({
         />
       </div>
 
-      {jerseyShared && jerseyShared.length > 0 ? (
-        <p className="text-xs text-[var(--club-warning-strong)]">
-          El {jerseyNumber} también lo llevan {jerseyShared.join(", ")} en este equipo.
+      {jerseyError ? (
+        <p role="alert" className="text-xs text-destructive">
+          {jerseyError}
         </p>
       ) : null}
 

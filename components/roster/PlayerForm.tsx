@@ -713,6 +713,10 @@ export function PlayerForm({
       const result = player ? await updatePlayerAction(payload) : await createPlayerAction(payload);
       if (!result.ok) {
         appToast.error(result.error);
+        if (result.field === "jersey_number") {
+          setFieldErrors({ jersey_number: result.error });
+          requestAnimationFrame(() => focusPlayerField("jersey_number"));
+        }
         return;
       }
       appToast.success(player ? "Ficha guardada" : "Jugador dado de alta");
@@ -1395,7 +1399,11 @@ export function PlayerForm({
           <PlayerKitCard
             className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5"
             jerseyNumber={jerseyNumber}
-            onJerseyNumberChange={setJerseyNumber}
+            jerseyError={fieldErrors.jersey_number}
+          onJerseyNumberChange={(value) => {
+            clearError("jersey_number");
+            setJerseyNumber(value);
+          }}
             generalSize={size}
             onGeneralSizeChange={setSize}
             garmentSizes={garmentSizes}
