@@ -181,55 +181,75 @@ function PlayersBody() {
   );
 }
 
-/** Misma estructura que la ficha: columna lateral (foto, equipo) y tarjetas de datos. */
-function PlayerFormBody() {
-  const panel = "flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:p-5";
+/** Barra superior de la ficha (misma altura y posición que la real): se queda también al cargar. */
+function PlayerBarBone() {
   return (
-    <div className="grid gap-4 lg:grid-cols-[19rem_minmax(0,1fr)] lg:items-start">
-      <aside className="flex flex-col gap-4">
-        <div className={panel}>
-          <Bone className="h-5 w-28" />
-          <Bone className="aspect-square w-full max-w-64 rounded-xl" />
-        </div>
-        <div className={panel}>
-          <Bone className="h-5 w-20" />
-          <FormFieldBone />
-        </div>
-      </aside>
-      <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
-        <div className={`${panel} xl:col-span-2`}>
-          <Bone className="h-5 w-24" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <FormFieldBone />
-            <FormFieldBone />
-            <FormFieldBone />
+    <div className="-mx-4 mb-6 flex h-14 items-center gap-2 border-b border-[var(--club-border)] bg-background px-4 md:-mx-6 md:gap-3 md:px-6">
+      <Bone className="size-9 shrink-0 rounded-lg" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <Bone className="h-5 w-44 max-w-full" />
+        <Bone className="h-3 w-28" />
+      </div>
+      <Bone className="hidden h-9 w-36 rounded-lg md:block" />
+      <Bone className="hidden h-9 w-24 rounded-lg md:block" />
+      <Bone className="hidden size-9 rounded-lg md:block" />
+      <Bone className="hidden h-9 w-28 rounded-lg md:block" />
+    </div>
+  );
+}
+
+/** Misma estructura que la ficha: columna lateral (foto, equipo) y secciones planas. */
+function PlayerFormBody({ withBar = false }: { withBar?: boolean }) {
+  const section =
+    "flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0";
+  return (
+    <div className={cn(withBar && "-mt-4 lg:-mt-6")}>
+      {withBar ? <PlayerBarBone /> : null}
+      <div className="grid gap-8 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-10">
+        <aside className="flex flex-col gap-8">
+          <div className={section}>
+            <Bone className="h-6 w-28" />
+            <Bone className="aspect-square w-full max-w-64 rounded-xl" />
+          </div>
+          <div className={section}>
+            <Bone className="h-6 w-20" />
             <FormFieldBone />
           </div>
-        </div>
-        <div className={`${panel} xl:col-span-2`}>
-          <Bone className="h-5 w-24" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <FormFieldBone />
-            <FormFieldBone />
-            <FormFieldBone />
-            <FormFieldBone />
+        </aside>
+        <div className="flex min-w-0 flex-col gap-8">
+          <div className={section}>
+            <Bone className="h-6 w-24" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormFieldBone />
+              <FormFieldBone />
+              <FormFieldBone />
+              <FormFieldBone />
+            </div>
           </div>
-        </div>
-        <div className={panel}>
-          <Bone className="h-5 w-32" />
-          <FormFieldBone />
-        </div>
-        <div className={panel}>
-          <Bone className="h-5 w-28" />
-          <Bone className="h-14 w-full rounded-xl" />
-        </div>
-        <div className={`${panel} xl:col-span-2`}>
-          <Bone className="h-5 w-28" />
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <FormFieldBone />
-            <FormFieldBone />
-            <FormFieldBone />
-            <FormFieldBone />
+          <div className={section}>
+            <Bone className="h-6 w-24" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormFieldBone />
+              <FormFieldBone />
+              <FormFieldBone />
+              <FormFieldBone />
+            </div>
+          </div>
+          <div className={section}>
+            <Bone className="h-6 w-36" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormFieldBone />
+              <FormFieldBone />
+            </div>
+          </div>
+          <div className={section}>
+            <Bone className="h-6 w-28" />
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <FormFieldBone />
+              <FormFieldBone />
+              <FormFieldBone />
+              <FormFieldBone />
+            </div>
           </div>
         </div>
       </div>
@@ -456,6 +476,7 @@ export function DashboardBodySkeleton({
     hub: <HubBody />,
     players: <PlayersBody />,
     "player-form": <PlayerFormBody />,
+    "player-detail": <PlayerFormBody withBar />,
     deliveries: <DeliveriesBody />,
     products: <ProductsBody />,
     warehouse: <WarehouseBody />,

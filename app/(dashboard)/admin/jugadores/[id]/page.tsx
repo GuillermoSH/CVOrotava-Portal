@@ -158,7 +158,7 @@ export default function PlayerDetailPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   return (
-    <RuntimePage kind="player-form">
+    <RuntimePage kind="player-detail">
       <PlayerDetailContent params={params} searchParams={searchParams} />
     </RuntimePage>
   );

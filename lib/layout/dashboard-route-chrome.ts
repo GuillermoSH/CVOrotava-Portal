@@ -11,6 +11,7 @@ export type DashboardSkeletonKind =
   | "hub"
   | "players"
   | "player-form"
+  | "player-detail"
   | "deliveries"
   | "products"
   | "warehouse"
@@ -70,7 +71,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       back: { href: appRoutes.players.list, label: "Jugadores" },
       sticky: true,
       hideHeader: true,
-      skeleton: "player-form",
+      skeleton: "player-detail",
     };
   }
 

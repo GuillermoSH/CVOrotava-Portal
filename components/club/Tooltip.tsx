@@ -102,6 +102,8 @@ export function Tooltip({ label, children }: TooltipProps) {
 
   const scheduleShow = useCallback(() => {
     window.clearTimeout(showTimer.current);
+    // Sin hover (pantallas táctiles) no hay tooltip.
+    if (!window.matchMedia("(hover: hover)").matches) return;
     if (group?.skipDelay) {
       show();
       return;
@@ -154,7 +156,10 @@ export function Tooltip({ label, children }: TooltipProps) {
           if (touchPointer.current) return;
           hide();
         }}
-        onFocusCapture={scheduleShow}
+        onFocusCapture={(e) => {
+          // Solo foco de teclado: un clic o un toque no deben abrirlo.
+          if ((e.target as HTMLElement).matches?.(":focus-visible")) scheduleShow();
+        }}
         onBlurCapture={hide}
       >
         {children}
