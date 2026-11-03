@@ -7,7 +7,9 @@ import {
   mapPlayerWithTeam,
   type PlayerRow,
 } from "@/lib/roster/mappers";
+import type { PlayerGarmentSizes } from "@/lib/roster/garment-sizes";
 import { omitPreservedFields } from "@/lib/roster/player-update";
+import { getPlayerGarmentSizes, replacePlayerGarmentSizes } from "@/lib/roster/repository/garment-sizes";
 import {
   docsDeliveredInputToIso,
   type PlayerListToggleField,
@@ -30,11 +32,11 @@ import type {
 
 /** Ficha completa — create/update/detalle. */
 const PLAYER_DETAIL_SELECT =
-  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, photo_path, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, pays_extended_monthly, pays_as_senior, created_at, updated_at, team:teams(id, name, category, gender, season)";
+  "id, full_name, first_name, last_name, birth_date, team_id, user_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, photo_path, in_whatsapp_group, medical_notes, clothing_size, address, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, nationality, pays_extended_monthly, pays_as_senior, jersey_number, created_at, updated_at, team:teams(id, name, category, gender, season)";
 
 /** Listado admin — sin medical/nationality/photo_path/etc. */
 const PLAYER_LIST_SELECT =
-  "id, full_name, first_name, last_name, birth_date, team_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, pays_extended_monthly, pays_as_senior, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, team:teams(id, name, category, gender, season)";
+  "id, full_name, first_name, last_name, birth_date, team_id, season, is_active, gender, dni, license_completed, registration_papers_received, docs_delivered_to_family, docs_delivered_at, photo_taken, photo_consent, in_whatsapp_group, pays_extended_monthly, pays_as_senior, jersey_number, address_street_type, address_street, address_number, address_door, address_postal_code, address_municipality, address_province, birth_country, team:teams(id, name, category, gender, season)";
 
 /** Contactos embebidos: teléfono/email principal sin una segunda consulta. */
 const CONTACTS_EMBED = "contacts:player_contacts(phone, email, is_primary)";
@@ -132,6 +134,9 @@ export type PlayerWriteInput = {
   nationality?: string | null;
   pays_extended_monthly?: boolean;
   pays_as_senior?: boolean;
+  jersey_number?: number | null;
+  /** Si viene, deja exactamente esas tallas por prenda; si no, no toca las existentes. */
+  garment_sizes?: PlayerGarmentSizes;
   is_active?: boolean;
   contacts?: PlayerContactInput[];
 };
@@ -410,15 +415,16 @@ export async function getPlayerById(
   id: string,
 ): Promise<PlayerWithDetails | null> {
   // Jugador y contactos en paralelo: un viaje a la base de datos, no dos en serie.
-  const [{ data, error }, contacts] = await Promise.all([
+  const [{ data, error }, contacts, garment_sizes] = await Promise.all([
     db.from("players").select(PLAYER_DETAIL_SELECT).eq("id", id).maybeSingle(),
     listContactsForPlayers(db, [id]),
+    getPlayerGarmentSizes(db, id),
   ]);
 
   if (error) throw new Error(dbErrorMessage(error));
   if (!data) return null;
 
-  return { ...mapPlayerWithTeam(data as PlayerRow), contacts };
+  return { ...mapPlayerWithTeam(data as PlayerRow), contacts, garment_sizes };
 }
 
 /** Ficha completa + contactos para exportación / lotes (misma temporada). */
@@ -550,6 +556,7 @@ function playerInsert(input: PlayerWriteInput) {
         : null,
     pays_extended_monthly: input.pays_extended_monthly ?? false,
     pays_as_senior: input.pays_as_senior ?? false,
+    jersey_number: input.jersey_number ?? null,
     is_active: input.is_active ?? true,
   };
 }
@@ -563,6 +570,9 @@ export async function createPlayer(db: RosterDb, input: PlayerWriteInput): Promi
 
   if (error) throw new Error(dbErrorMessage(error));
   await replaceContacts(db, data.id, input.contacts ?? []);
+  if (input.garment_sizes !== undefined) {
+    await replacePlayerGarmentSizes(db, data.id, input.garment_sizes);
+  }
   const player = await getPlayerById(db, data.id);
   if (!player) throw new Error("No se pudo leer el jugador creado");
   return player;
@@ -578,6 +588,9 @@ export async function updatePlayer(
   const { error } = await db.from("players").update(patch).eq("id", id);
   if (error) throw new Error(dbErrorMessage(error));
   await replaceContacts(db, id, input.contacts ?? []);
+  if (input.garment_sizes !== undefined) {
+    await replacePlayerGarmentSizes(db, id, input.garment_sizes);
+  }
   const player = await getPlayerById(db, id);
   if (!player) throw new Error("Jugador no encontrado");
   return player;

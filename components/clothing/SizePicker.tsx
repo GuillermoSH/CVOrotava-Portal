@@ -23,6 +23,7 @@ export function SizePicker({
   sizes,
   clearable = false,
   disabled = false,
+  label = "Talla",
 }: {
   value: ClothingSize | "";
   onChange: (size: ClothingSize | "") => void;
@@ -30,6 +31,8 @@ export function SizePicker({
   sizes?: ClothingSize[];
   clearable?: boolean;
   disabled?: boolean;
+  /** Etiqueta sobre el selector (por defecto «Talla»). */
+  label?: string;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const labelText = value ? CLOTHING_SIZE_LABELS[value] : "Selecciona talla…";
@@ -63,7 +66,7 @@ export function SizePicker({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-3">
-        <Label id={`${id}-label`}>Talla</Label>
+        <Label id={`${id}-label`}>{label}</Label>
         {clearable && value && !disabled ? (
           <button
             type="button"
@@ -95,7 +98,7 @@ export function SizePicker({
       <div className="hidden md:block">
         <Select
           id={id}
-          aria-label="Talla"
+          aria-label={label}
           value={value}
           onChange={(next) => onChange(next as ClothingSize)}
           options={selectOptions}

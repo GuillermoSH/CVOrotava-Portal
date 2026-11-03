@@ -50,6 +50,7 @@ export type PlayerRow = {
   nationality?: string | null;
   pays_extended_monthly?: boolean | null;
   pays_as_senior?: boolean | null;
+  jersey_number?: number | null;
   created_at?: string;
   updated_at?: string;
   teams?: TeamRow | TeamRow[] | null;
@@ -142,6 +143,7 @@ export function mapPlayer(row: PlayerRow): Player {
     nationality: row.nationality ?? null,
     pays_extended_monthly: Boolean(row.pays_extended_monthly),
     pays_as_senior: Boolean(row.pays_as_senior),
+    jersey_number: row.jersey_number ?? null,
   };
 }
 

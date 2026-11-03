@@ -288,7 +288,7 @@ export function PlayerPhotoSection({
       : null;
 
   return (
-    <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
+    <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
       <div className="flex min-w-0 items-center gap-2.5">
         <span
           aria-hidden
@@ -304,14 +304,14 @@ export function PlayerPhotoSection({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+      <div className="flex flex-col gap-3">
         {previewSrc ? (
           <button
             type="button"
             disabled={busy && !hasPhoto}
             onClick={openViewer}
             className={cn(
-              "relative flex size-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)] sm:size-36",
+              "relative flex w-full max-w-64 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)]",
               "aspect-square touch-manipulation transition-[box-shadow,transform] active:scale-[0.98]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               !busy && "hover:ring-2 hover:ring-[color-mix(in_srgb,var(--club-brand)_35%,transparent)]",
@@ -353,7 +353,7 @@ export function PlayerPhotoSection({
         ) : (
           <div
             className={cn(
-              "relative flex size-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)] sm:size-36",
+              "relative flex w-full max-w-64 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)]",
               "aspect-square",
             )}
             aria-busy={showLoader || undefined}

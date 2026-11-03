@@ -34,7 +34,9 @@ import { TeamCreateSheet } from "@/components/roster/TeamCreateSheet";
 import { PlayerPhotoSection } from "@/components/roster/PlayerPhotoSection";
 import { PlayerStatusActions } from "@/components/roster/PlayerStatusActions";
 import { PlayerFeeSection, type PlayerExemptionInfo, type PlayerFeeMode } from "@/components/roster/PlayerFeeSection";
+import { PlayerKitCard } from "@/components/roster/PlayerKitCard";
 import { SectionHeading, ToggleRow } from "@/components/roster/ToggleRow";
+import { GARMENT_CATEGORIES, type PlayerGarmentSizes } from "@/lib/roster/garment-sizes";
 import {
   createPlayerAction,
   deletePlayersAction,
@@ -161,6 +163,8 @@ type PlayerFormSnapshot = {
   inWhatsappGroup: boolean;
   paysExtendedMonthly: boolean;
   paysAsSenior: boolean;
+  jerseyNumber: string;
+  garmentSizes: PlayerGarmentSizes;
   medicalNotes: string;
   contacts: ContactDraft[];
   selfPhone: string;
@@ -263,6 +267,12 @@ export function PlayerForm({
     player?.pays_extended_monthly ?? false,
   );
   const [paysAsSenior, setPaysAsSenior] = useState(player?.pays_as_senior ?? false);
+  const [jerseyNumber, setJerseyNumber] = useState(
+    player?.jersey_number != null ? String(player.jersey_number) : "",
+  );
+  const [garmentSizes, setGarmentSizes] = useState<PlayerGarmentSizes>(
+    (player?.garment_sizes as PlayerGarmentSizes | undefined) ?? {},
+  );
   const feeMode: PlayerFeeMode = paysAsSenior ? "senior" : paysExtendedMonthly ? "extended" : "standard";
   function setFeeMode(next: PlayerFeeMode) {
     setPaysExtendedMonthly(next === "extended");
@@ -321,6 +331,8 @@ export function PlayerForm({
         inWhatsappGroup,
         paysExtendedMonthly,
         paysAsSenior,
+        jerseyNumber,
+        garmentSizes,
         medicalNotes,
         contacts,
         selfPhone,
@@ -352,6 +364,8 @@ export function PlayerForm({
       inWhatsappGroup,
       paysExtendedMonthly,
       paysAsSenior,
+      jerseyNumber,
+      garmentSizes,
       medicalNotes,
       contacts,
       selfPhone,
@@ -646,6 +660,8 @@ export function PlayerForm({
       in_whatsapp_group: inWhatsappGroup,
       pays_extended_monthly: paysExtendedMonthly,
       pays_as_senior: paysAsSenior,
+      jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+      garment_sizes: garmentSizes,
       medical_notes: medicalNotes || undefined,
       clothing_size: size || null,
       address: formatPlayerAddress(addressDraft) || undefined,
@@ -781,632 +797,642 @@ export function PlayerForm({
           </div>
         ) : null}
 
-        <section className="flex flex-col gap-3 md:gap-2.5">
-          <SectionHeading icon={UserRound} title="Identidad" />
-          <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
-            <FormInput
-              label="Nombre"
-              name="first_name"
-              className="min-h-11 md:min-h-10"
-              value={firstName}
-              disabled={readOnly}
-              required
-              error={toFieldError(fieldErrors, "first_name")}
-              onChange={(e) => {
-                setFirstName(e.target.value);
-                clearError("first_name");
+        <div className="grid gap-4 lg:grid-cols-[19rem_minmax(0,1fr)] lg:items-start">
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-16">
+          {canWrite && player ? (
+            <PlayerPhotoSection
+              playerId={player.id}
+              hasPhoto={Boolean(player.photo_path)}
+              playerName={`${firstName} ${lastName}`.trim() || player.full_name}
+              onPhotoConfirmed={(marked) => {
+                // La foto ya está en Storage + photo_path (y photo_taken si procedía).
+                // Solo sincronizamos el checklist local sin marcar la ficha como sucia.
+                if (!marked) return;
+                setPhotoTaken(true);
+                setSavedSnapshotKey(
+                  snapshotKey(
+                    buildFormSnapshot({
+                      ...currentSnapshot,
+                      photoTaken: true,
+                    }),
+                  ),
+                );
               }}
             />
-            <FormInput
-              label="Apellidos"
-              name="last_name"
-              className="min-h-11 md:min-h-10"
-              value={lastName}
-              disabled={readOnly}
-              required
-              error={toFieldError(fieldErrors, "last_name")}
-              onChange={(e) => {
-                setLastName(e.target.value);
-                clearError("last_name");
-              }}
-            />
-            <div className="flex flex-col gap-1.5">
-              <FormDate
-                label="Fecha de nacimiento"
-                name="birth_date"
-                className="min-h-11 md:min-h-10"
-                value={birthDate}
-                disabled={readOnly}
-                required
-                max={todayIsoDate()}
-                error={toFieldError(fieldErrors, "birth_date")}
-                onChange={(e) => handleBirthDateChange(e.target.value)}
-              />
-              <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                {birthDate ? (
-                  <>
-                    <Badge variant={isAdult ? "info" : "secondary"} className="text-[11px]">
-                      {isAdult ? "Mayor de edad" : "Menor"}
-                    </Badge>
-                    <span>
-                      {selfContact
-                        ? teamCategory === "junior" && !isAdult
-                          ? "En Júnior el teléfono y el email son los del jugador."
-                          : "El teléfono y el email son los del jugador."
-                        : "El contacto es de madre, padre o tutor."}
-                    </span>
-                  </>
-                ) : (
-                  "Si no hay fecha, la ficha se trata como menor."
-                )}
+          ) : null}
+          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
+            <SectionHeading icon={Shirt} title="Equipo" />
+            {teams.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Crea un equipo para asignar el equipo principal.</p>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                <div className="min-w-0 flex-1">
+                  <FormSelect
+                    label="Equipo principal"
+                    name="team_id"
+                    value={teamId}
+                    disabled={readOnly}
+                    onChange={(e) => handleTeamChange(e.target.value)}
+                    options={teamOptions}
+                    placeholder="Selecciona equipo…"
+                  />
+                </div>
+                {canWrite ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-11 min-h-11 w-fit shrink-0"
+                    onClick={() => setTeamSheetOpen(true)}
+                  >
+                    <Plus className="size-4" aria-hidden />
+                    Nuevo equipo
+                  </Button>
+                ) : null}
+              </div>
+            )}
+            {selectedTeam?.gender === "mixed" ? (
+              <p className="text-xs text-muted-foreground">
+                Equipo mixto: el sexo del jugador se define en Identidad
+                {gender ? ` (${PLAYER_GENDER_LABELS[gender]})` : ""}.
               </p>
-            </div>
-            <div className="flex flex-col gap-1.5">
+            ) : null}
+            {teams.length === 0 && canWrite ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-11 min-h-11 w-fit"
+                onClick={() => setTeamSheetOpen(true)}
+              >
+                <Plus className="size-4" aria-hidden />
+                Nuevo equipo
+              </Button>
+            ) : null}
+          </section>
+          </aside>
+          <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5 xl:col-span-2">
+            <SectionHeading icon={UserRound} title="Identidad" />
+            <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
               <FormInput
-                label="DNI / NIE"
-                name="dni"
-                className="min-h-11 uppercase md:min-h-10"
-                value={dni}
+                label="Nombre"
+                name="first_name"
+                className="min-h-11 md:min-h-10"
+                value={firstName}
                 disabled={readOnly}
                 required
-                error={toFieldError(fieldErrors, "dni")}
+                error={toFieldError(fieldErrors, "first_name")}
                 onChange={(e) => {
-                  setDni(e.target.value.toUpperCase());
-                  clearError("dni");
+                  setFirstName(e.target.value);
+                  clearError("first_name");
                 }}
               />
-              {isNie ? (
-                <p className="text-xs text-muted-foreground">
-                  NIE: indica país de nacimiento
-                  {nationality.trim() ? "" : " y la nacionalidad si no es española"}.
-                </p>
-              ) : null}
-            </div>
-            <div
-              id="gender"
-              tabIndex={-1}
-              className="flex flex-col gap-1.5 outline-none"
-            >
-              <Label className="text-sm font-medium text-foreground">
-                {genderRequired ? "Sexo *" : "Sexo"}
-              </Label>
-              <SegmentedControl
-                aria-label="Sexo del jugador"
-                size="sm"
-                value={gender}
-                options={PLAYER_GENDERS.map((item) => ({
-                  value: item,
-                  label: PLAYER_GENDER_LABELS[item],
-                }))}
-                onChange={(value) => {
-                  if (readOnly) return;
-                  setGender(value);
-                  clearError("gender");
+              <FormInput
+                label="Apellidos"
+                name="last_name"
+                className="min-h-11 md:min-h-10"
+                value={lastName}
+                disabled={readOnly}
+                required
+                error={toFieldError(fieldErrors, "last_name")}
+                onChange={(e) => {
+                  setLastName(e.target.value);
+                  clearError("last_name");
                 }}
               />
-              {genderRequired ? (
-                <p className="text-xs text-[var(--club-warning-strong)]">
-                  Obligatorio en equipo mixto.
-                </p>
-              ) : null}
-              {fieldErrors.gender ? (
-                <p className="text-xs text-destructive">{fieldErrors.gender}</p>
-              ) : null}
-            </div>
-            {showNieExtras ? (
-              <>
-                <FormInput
-                  label="País de nacimiento"
-                  name="birth_country"
+              <div className="flex flex-col gap-1.5">
+                <FormDate
+                  label="Fecha de nacimiento"
+                  name="birth_date"
                   className="min-h-11 md:min-h-10"
-                  value={birthCountry}
+                  value={birthDate}
                   disabled={readOnly}
-                  required={isNie}
-                  error={toFieldError(fieldErrors, "birth_country")}
+                  required
+                  max={todayIsoDate()}
+                  error={toFieldError(fieldErrors, "birth_date")}
+                  onChange={(e) => handleBirthDateChange(e.target.value)}
+                />
+                <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  {birthDate ? (
+                    <>
+                      <Badge variant={isAdult ? "info" : "secondary"} className="text-[11px]">
+                        {isAdult ? "Mayor de edad" : "Menor"}
+                      </Badge>
+                      <span>
+                        {selfContact
+                          ? teamCategory === "junior" && !isAdult
+                            ? "En Júnior el teléfono y el email son los del jugador."
+                            : "El teléfono y el email son los del jugador."
+                          : "El contacto es de madre, padre o tutor."}
+                      </span>
+                    </>
+                  ) : (
+                    "Si no hay fecha, la ficha se trata como menor."
+                  )}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <FormInput
+                  label="DNI / NIE"
+                  name="dni"
+                  className="min-h-11 uppercase md:min-h-10"
+                  value={dni}
+                  disabled={readOnly}
+                  required
+                  error={toFieldError(fieldErrors, "dni")}
                   onChange={(e) => {
-                    setBirthCountry(e.target.value);
-                    clearError("birth_country");
+                    setDni(e.target.value.toUpperCase());
+                    clearError("dni");
                   }}
                 />
-                <div className="flex flex-col gap-1.5">
+                {isNie ? (
+                  <p className="text-xs text-muted-foreground">
+                    NIE: indica país de nacimiento
+                    {nationality.trim() ? "" : " y la nacionalidad si no es española"}.
+                  </p>
+                ) : null}
+              </div>
+              <div
+                id="gender"
+                tabIndex={-1}
+                className="flex flex-col gap-1.5 outline-none"
+              >
+                <Label className="text-sm font-medium text-foreground">
+                  {genderRequired ? "Sexo *" : "Sexo"}
+                </Label>
+                <SegmentedControl
+                  aria-label="Sexo del jugador"
+                  size="sm"
+                  value={gender}
+                  options={PLAYER_GENDERS.map((item) => ({
+                    value: item,
+                    label: PLAYER_GENDER_LABELS[item],
+                  }))}
+                  onChange={(value) => {
+                    if (readOnly) return;
+                    setGender(value);
+                    clearError("gender");
+                  }}
+                />
+                {genderRequired ? (
+                  <p className="text-xs text-[var(--club-warning-strong)]">
+                    Obligatorio en equipo mixto.
+                  </p>
+                ) : null}
+                {fieldErrors.gender ? (
+                  <p className="text-xs text-destructive">{fieldErrors.gender}</p>
+                ) : null}
+              </div>
+              {showNieExtras ? (
+                <>
                   <FormInput
-                    label="Nacionalidad"
-                    name="nationality"
+                    label="País de nacimiento"
+                    name="birth_country"
                     className="min-h-11 md:min-h-10"
-                    placeholder="Si no es española"
-                    value={nationality}
+                    value={birthCountry}
                     disabled={readOnly}
-                    error={toFieldError(fieldErrors, "nationality")}
+                    required={isNie}
+                    error={toFieldError(fieldErrors, "birth_country")}
                     onChange={(e) => {
-                      setNationality(e.target.value);
-                      clearError("nationality");
+                      setBirthCountry(e.target.value);
+                      clearError("birth_country");
                     }}
                   />
-                  <p className="text-xs text-muted-foreground">Déjalo vacío si es española.</p>
+                  <div className="flex flex-col gap-1.5">
+                    <FormInput
+                      label="Nacionalidad"
+                      name="nationality"
+                      className="min-h-11 md:min-h-10"
+                      placeholder="Si no es española"
+                      value={nationality}
+                      disabled={readOnly}
+                      error={toFieldError(fieldErrors, "nationality")}
+                      onChange={(e) => {
+                        setNationality(e.target.value);
+                        clearError("nationality");
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">Déjalo vacío si es española.</p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </section>
+          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5 xl:col-span-2">
+            <SectionHeading icon={MapPin} title="Domicilio" />
+            <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
+              <FormSelect
+                label="Tipo de vía"
+                name="address_street_type"
+                value={streetType}
+                disabled={readOnly}
+                required
+                placeholder="Calle, avenida…"
+                options={streetTypeSelectOptions()}
+                error={toFieldError(fieldErrors, "address_street_type")}
+                onChange={(e) => {
+                  setStreetType(e.target.value);
+                  clearError("address_street_type");
+                }}
+              />
+              <FormInput
+                label="Vía"
+                name="address_street"
+                className="min-h-11 md:min-h-10"
+                placeholder="Nombre de la calle"
+                value={street}
+                disabled={readOnly}
+                required
+                error={toFieldError(fieldErrors, "address_street")}
+                onChange={(e) => {
+                  setStreet(e.target.value);
+                  clearError("address_street");
+                }}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-2.5">
+              <FormInput
+                label="Número"
+                name="address_number"
+                className="min-h-11 md:min-h-10"
+                placeholder="s/n"
+                value={streetNumber}
+                disabled={readOnly}
+                required
+                error={toFieldError(fieldErrors, "address_number")}
+                onChange={(e) => {
+                  setStreetNumber(e.target.value);
+                  clearError("address_number");
+                }}
+              />
+              <FormInput
+                label="Piso / puerta"
+                name="address_door"
+                className="min-h-11 md:min-h-10"
+                value={door}
+                disabled={readOnly}
+                onChange={(e) => setDoor(e.target.value)}
+              />
+              <FormInput
+                label="Código postal"
+                name="address_postal_code"
+                className="col-span-2 min-h-11 md:col-span-1 md:min-h-10"
+                inputMode="numeric"
+                maxLength={5}
+                value={postalCode}
+                disabled={readOnly}
+                required
+                error={toFieldError(fieldErrors, "address_postal_code")}
+                onChange={(e) => {
+                  setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5));
+                  clearError("address_postal_code");
+                }}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
+              <FormInput
+                label="Municipio"
+                name="address_municipality"
+                className="min-h-11 md:min-h-10"
+                value={municipality}
+                disabled={readOnly}
+                required
+                error={toFieldError(fieldErrors, "address_municipality")}
+                onChange={(e) => {
+                  setMunicipality(e.target.value);
+                  clearError("address_municipality");
+                }}
+              />
+              <FormSelect
+                label="Provincia"
+                name="address_province"
+                value={province}
+                disabled={readOnly}
+                required
+                placeholder="Provincia"
+                options={provinceSelectOptions(province)}
+                error={toFieldError(fieldErrors, "address_province")}
+                onChange={(e) => {
+                  setProvince(e.target.value);
+                  clearError("address_province");
+                }}
+              />
+            </div>
+            {legacyAddress ? (
+              <p className="text-xs text-muted-foreground">
+                Dirección anterior: {legacyAddress}. Se actualiza al rellenar los campos.
+              </p>
+            ) : null}
+          </section>
+          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
+            {selfContact ? (
+              <>
+                <SectionHeading icon={Phone} title="Contacto del jugador" />
+                <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
+                  <FormInput
+                    label="Teléfono"
+                    name="player-phone"
+                    className="min-h-11 md:min-h-10"
+                    type="tel"
+                    inputMode="tel"
+                    value={selfPhone}
+                    disabled={readOnly}
+                    required
+                    error={toFieldError(fieldErrors, "player-phone")}
+                    onChange={(e) => {
+                      setSelfPhone(e.target.value);
+                      clearError("player-phone");
+                    }}
+                  />
+                  <FormInput
+                    label="Email"
+                    name="player-email"
+                    className="min-h-11 md:min-h-10"
+                    type="email"
+                    value={selfEmail}
+                    disabled={readOnly}
+                    required
+                    error={toFieldError(fieldErrors, "player-email")}
+                    onChange={(e) => {
+                      setSelfEmail(e.target.value);
+                      clearError("player-email");
+                    }}
+                  />
                 </div>
               </>
-            ) : null}
-          </div>
-        </section>
-
-        {canWrite && player ? (
-          <PlayerPhotoSection
-            playerId={player.id}
-            hasPhoto={Boolean(player.photo_path)}
-            playerName={`${firstName} ${lastName}`.trim() || player.full_name}
-            onPhotoConfirmed={(marked) => {
-              // La foto ya está en Storage + photo_path (y photo_taken si procedía).
-              // Solo sincronizamos el checklist local sin marcar la ficha como sucia.
-              if (!marked) return;
-              setPhotoTaken(true);
-              setSavedSnapshotKey(
-                snapshotKey(
-                  buildFormSnapshot({
-                    ...currentSnapshot,
-                    photoTaken: true,
-                  }),
-                ),
-              );
-            }}
-          />
-        ) : null}
-
-        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
-          <SectionHeading icon={MapPin} title="Domicilio" />
-          <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
-            <FormSelect
-              label="Tipo de vía"
-              name="address_street_type"
-              value={streetType}
-              disabled={readOnly}
-              required
-              placeholder="Calle, avenida…"
-              options={streetTypeSelectOptions()}
-              error={toFieldError(fieldErrors, "address_street_type")}
-              onChange={(e) => {
-                setStreetType(e.target.value);
-                clearError("address_street_type");
-              }}
-            />
-            <FormInput
-              label="Vía"
-              name="address_street"
-              className="min-h-11 md:min-h-10"
-              placeholder="Nombre de la calle"
-              value={street}
-              disabled={readOnly}
-              required
-              error={toFieldError(fieldErrors, "address_street")}
-              onChange={(e) => {
-                setStreet(e.target.value);
-                clearError("address_street");
-              }}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-2.5">
-            <FormInput
-              label="Número"
-              name="address_number"
-              className="min-h-11 md:min-h-10"
-              placeholder="s/n"
-              value={streetNumber}
-              disabled={readOnly}
-              required
-              error={toFieldError(fieldErrors, "address_number")}
-              onChange={(e) => {
-                setStreetNumber(e.target.value);
-                clearError("address_number");
-              }}
-            />
-            <FormInput
-              label="Piso / puerta"
-              name="address_door"
-              className="min-h-11 md:min-h-10"
-              value={door}
-              disabled={readOnly}
-              onChange={(e) => setDoor(e.target.value)}
-            />
-            <FormInput
-              label="Código postal"
-              name="address_postal_code"
-              className="col-span-2 min-h-11 md:col-span-1 md:min-h-10"
-              inputMode="numeric"
-              maxLength={5}
-              value={postalCode}
-              disabled={readOnly}
-              required
-              error={toFieldError(fieldErrors, "address_postal_code")}
-              onChange={(e) => {
-                setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5));
-                clearError("address_postal_code");
-              }}
-            />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
-            <FormInput
-              label="Municipio"
-              name="address_municipality"
-              className="min-h-11 md:min-h-10"
-              value={municipality}
-              disabled={readOnly}
-              required
-              error={toFieldError(fieldErrors, "address_municipality")}
-              onChange={(e) => {
-                setMunicipality(e.target.value);
-                clearError("address_municipality");
-              }}
-            />
-            <FormSelect
-              label="Provincia"
-              name="address_province"
-              value={province}
-              disabled={readOnly}
-              required
-              placeholder="Provincia"
-              options={provinceSelectOptions(province)}
-              error={toFieldError(fieldErrors, "address_province")}
-              onChange={(e) => {
-                setProvince(e.target.value);
-                clearError("address_province");
-              }}
-            />
-          </div>
-          {legacyAddress ? (
-            <p className="text-xs text-muted-foreground">
-              Dirección anterior: {legacyAddress}. Se actualiza al rellenar los campos.
-            </p>
-          ) : null}
-        </section>
-
-        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
-          <SectionHeading icon={Shirt} title="Equipo y talla" />
-          {teams.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Crea un equipo para asignar el equipo principal.</p>
-          ) : (
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end">
-              <div className="min-w-0 flex-1">
-                <FormSelect
-                  label="Equipo principal"
-                  name="team_id"
-                  value={teamId}
-                  disabled={readOnly}
-                  onChange={(e) => handleTeamChange(e.target.value)}
-                  options={teamOptions}
-                  placeholder="Selecciona equipo…"
-                />
-              </div>
-              {canWrite ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="h-11 min-h-11 w-fit shrink-0"
-                  onClick={() => setTeamSheetOpen(true)}
-                >
-                  <Plus className="size-4" aria-hidden />
-                  Nuevo equipo
-                </Button>
-              ) : null}
-            </div>
-          )}
-          {selectedTeam?.gender === "mixed" ? (
-            <p className="text-xs text-muted-foreground">
-              Equipo mixto: el sexo del jugador se define en Identidad
-              {gender ? ` (${PLAYER_GENDER_LABELS[gender]})` : ""}.
-            </p>
-          ) : null}
-          {teams.length === 0 && canWrite ? (
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-11 min-h-11 w-fit"
-              onClick={() => setTeamSheetOpen(true)}
-            >
-              <Plus className="size-4" aria-hidden />
-              Nuevo equipo
-            </Button>
-          ) : null}
-          <SizePicker
-            value={size}
-            onChange={setSize}
-            id="player-size"
-            clearable={canWrite}
-            disabled={readOnly}
-          />
-        </section>
-
-        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
-          {selfContact ? (
-            <>
-              <SectionHeading icon={Phone} title="Contacto del jugador" />
-              <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
-                <FormInput
-                  label="Teléfono"
-                  name="player-phone"
-                  className="min-h-11 md:min-h-10"
-                  type="tel"
-                  inputMode="tel"
-                  value={selfPhone}
-                  disabled={readOnly}
-                  required
-                  error={toFieldError(fieldErrors, "player-phone")}
-                  onChange={(e) => {
-                    setSelfPhone(e.target.value);
-                    clearError("player-phone");
-                  }}
-                />
-                <FormInput
-                  label="Email"
-                  name="player-email"
-                  className="min-h-11 md:min-h-10"
-                  type="email"
-                  value={selfEmail}
-                  disabled={readOnly}
-                  required
-                  error={toFieldError(fieldErrors, "player-email")}
-                  onChange={(e) => {
-                    setSelfEmail(e.target.value);
-                    clearError("player-email");
-                  }}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <SectionHeading
-                icon={Phone}
-                title="Contacto familiar"
-                action={
-                  canWrite && contacts.length < 2 ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="min-h-10 shrink-0"
-                      onClick={() =>
-                        setContacts((prev) => [
-                          ...prev,
-                          {
-                            ...emptyContact(),
-                            relationship: prev[0]?.relationship === "madre" ? "padre" : "madre",
-                          },
-                        ])
-                      }
-                    >
-                      <Plus className="size-4" aria-hidden />
-                      Añadir
-                    </Button>
-                  ) : null
-                }
-              />
-
-              {contacts.map((contact, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "flex flex-col gap-3 rounded-xl border px-3 py-3 md:gap-2.5 md:px-3.5 md:py-3",
-                    toFieldError(fieldErrors, `contact-name-${index}`) ||
-                      toFieldError(fieldErrors, `contact-phone-${index}`) ||
-                      toFieldError(fieldErrors, `contact-email-${index}`)
-                      ? "border-destructive/40"
-                      : "border-[var(--club-border)]",
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-foreground">
-                      {index === 0 ? "Contacto principal" : "Segundo contacto"}
-                    </p>
-                    {canWrite && contacts.length > 1 ? (
+            ) : (
+              <>
+                <SectionHeading
+                  icon={Phone}
+                  title="Contacto familiar"
+                  action={
+                    canWrite && contacts.length < 2 ? (
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="secondary"
                         size="sm"
-                        className="min-h-9 text-muted-foreground hover:text-destructive"
-                        onClick={() => setContacts((prev) => prev.filter((_, i) => i !== index))}
-                        aria-label="Quitar contacto"
+                        className="min-h-10 shrink-0"
+                        onClick={() =>
+                          setContacts((prev) => [
+                            ...prev,
+                            {
+                              ...emptyContact(),
+                              relationship: prev[0]?.relationship === "madre" ? "padre" : "madre",
+                            },
+                          ])
+                        }
                       >
-                        <Trash2 className="size-4" aria-hidden />
+                        <Plus className="size-4" aria-hidden />
+                        Añadir
                       </Button>
-                    ) : null}
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2 md:gap-2.5">
-                    <FormInput
-                      label="Nombre"
-                      name={`contact-name-${index}`}
-                      className="min-h-11 md:min-h-10"
-                      value={contact.full_name}
-                      disabled={readOnly}
-                      required
-                      error={toFieldError(fieldErrors, `contact-name-${index}`)}
-                      onChange={(e) => updateContact(index, { full_name: e.target.value })}
-                    />
-                    <div className="flex flex-col gap-1.5">
-                      <Label required>Parentesco</Label>
-                      {readOnly ? (
-                        <p className="flex min-h-10 items-center text-sm text-foreground">
-                          {GUARDIAN_RELATIONSHIP_LABELS[contact.relationship]}
-                        </p>
-                      ) : (
-                        <SegmentedControl
-                          aria-label={`Parentesco del contacto ${index + 1}`}
-                          value={contact.relationship}
-                          onChange={(value) => updateContact(index, { relationship: value })}
-                          options={GUARDIAN_RELATIONSHIPS.map((item) => ({
-                            value: item,
-                            label: GUARDIAN_RELATIONSHIP_LABELS[item],
-                          }))}
-                        />
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
-                    <FormInput
-                      label="Teléfono"
-                      name={`contact-phone-${index}`}
-                      className="min-h-11 md:min-h-10"
-                      type="tel"
-                      inputMode="tel"
-                      value={contact.phone}
-                      disabled={readOnly}
-                      required
-                      error={toFieldError(fieldErrors, `contact-phone-${index}`)}
-                      onChange={(e) => updateContact(index, { phone: e.target.value })}
-                    />
-                    <FormInput
-                      label="Email"
-                      name={`contact-email-${index}`}
-                      className="min-h-11 md:min-h-10"
-                      type="email"
-                      value={contact.email}
-                      disabled={readOnly}
-                      required
-                      error={toFieldError(fieldErrors, `contact-email-${index}`)}
-                      onChange={(e) => updateContact(index, { email: e.target.value })}
-                    />
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </section>
-
-        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <SectionHeading icon={ClipboardCheck} title="Alta federativa" />
-            <div className="flex items-center gap-2">
-              <Badge variant={onboarding.isComplete ? "success" : "warning"} className="text-[11px]">
-                {onboarding.summary}
-                {showDocsDate && docsDateLabel ? ` · Docs ${docsDateLabel}` : null}
-              </Badge>
-              {altaCollapsible ? (
-                <button
-                  type="button"
-                  className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-[var(--club-surface-2)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-expanded={showAltaSteps}
-                  onClick={() => setAltaExpanded((open) => !open)}
-                >
-                  {showAltaSteps ? "Ocultar" : "Ver pasos"}
-                  <ChevronDown
-                    className={cn("size-3.5 transition-transform", showAltaSteps && "rotate-180")}
-                    aria-hidden
-                  />
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          {showAltaSteps ? (
-            <ol className="flex flex-col gap-2 md:gap-1.5">
-              <li>
-                <ToggleRow
-                  id="docs"
-                  step={1}
-                  compact
-                  label="Docs entregados"
-                  hint="Se los damos al jugador / familia"
-                  checked={docsDelivered}
-                  disabled={readOnly}
-                  onChange={handleDocsDeliveredChange}
-                  trailing={
-                    showDocsDate ? (
-                      <Input
-                        id="docs_delivered_at"
-                        name="docs_delivered_at"
-                        type="date"
-                        aria-label="Fecha de entrega de docs"
-                        className="min-h-9 w-[9.75rem] px-2 text-xs md:min-h-8 md:w-[10.5rem]"
-                        value={docsDeliveredAt}
-                        disabled={readOnly}
-                        onChange={(e) => setDocsDeliveredAt(e.target.value)}
-                      />
                     ) : null
                   }
                 />
-              </li>
-              <li>
-                <ToggleRow
-                  id="papers"
-                  step={2}
-                  compact
-                  label="Papeles recibidos"
-                  hint="Vuelven rellenos al club"
-                  checked={papersReceived}
-                  disabled={readOnly}
-                  onChange={setPapersReceived}
-                />
-              </li>
-              <li>
-                <ToggleRow
-                  id="photo"
-                  step={3}
-                  compact
-                  label="Foto hecha"
-                  hint="Para la ficha / licencia"
-                  checked={photoTaken}
-                  disabled={readOnly}
-                  onChange={setPhotoTaken}
-                />
-              </li>
-              <li>
-                <ToggleRow
-                  id="license"
-                  step={4}
-                  compact
-                  label="Licencia realizada"
-                  hint="Federativa de la temporada"
-                  checked={licenseCompleted}
-                  disabled={readOnly}
-                  onChange={setLicenseCompleted}
-                />
-              </li>
-            </ol>
-          ) : null}
-        </section>
 
-        <PlayerFeeSection
-          mode={feeMode}
-          onModeChange={setFeeMode}
-          showTariff={appliesExtendedMonthlyFee(teamCategory)}
-          readOnly={readOnly}
-          exemption={exemption ?? null}
-        />
+                {contacts.map((contact, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "flex flex-col gap-3 rounded-xl border px-3 py-3 md:gap-2.5 md:px-3.5 md:py-3",
+                      toFieldError(fieldErrors, `contact-name-${index}`) ||
+                        toFieldError(fieldErrors, `contact-phone-${index}`) ||
+                        toFieldError(fieldErrors, `contact-email-${index}`)
+                        ? "border-destructive/40"
+                        : "border-[var(--club-border)]",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-foreground">
+                        {index === 0 ? "Contacto principal" : "Segundo contacto"}
+                      </p>
+                      {canWrite && contacts.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="min-h-9 text-muted-foreground hover:text-destructive"
+                          onClick={() => setContacts((prev) => prev.filter((_, i) => i !== index))}
+                          aria-label="Quitar contacto"
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                        </Button>
+                      ) : null}
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 md:gap-2.5">
+                      <FormInput
+                        label="Nombre"
+                        name={`contact-name-${index}`}
+                        className="min-h-11 md:min-h-10"
+                        value={contact.full_name}
+                        disabled={readOnly}
+                        required
+                        error={toFieldError(fieldErrors, `contact-name-${index}`)}
+                        onChange={(e) => updateContact(index, { full_name: e.target.value })}
+                      />
+                      <div className="flex flex-col gap-1.5">
+                        <Label required>Parentesco</Label>
+                        {readOnly ? (
+                          <p className="flex min-h-10 items-center text-sm text-foreground">
+                            {GUARDIAN_RELATIONSHIP_LABELS[contact.relationship]}
+                          </p>
+                        ) : (
+                          <SegmentedControl
+                            aria-label={`Parentesco del contacto ${index + 1}`}
+                            value={contact.relationship}
+                            onChange={(value) => updateContact(index, { relationship: value })}
+                            options={GUARDIAN_RELATIONSHIPS.map((item) => ({
+                              value: item,
+                              label: GUARDIAN_RELATIONSHIP_LABELS[item],
+                            }))}
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
+                      <FormInput
+                        label="Teléfono"
+                        name={`contact-phone-${index}`}
+                        className="min-h-11 md:min-h-10"
+                        type="tel"
+                        inputMode="tel"
+                        value={contact.phone}
+                        disabled={readOnly}
+                        required
+                        error={toFieldError(fieldErrors, `contact-phone-${index}`)}
+                        onChange={(e) => updateContact(index, { phone: e.target.value })}
+                      />
+                      <FormInput
+                        label="Email"
+                        name={`contact-email-${index}`}
+                        className="min-h-11 md:min-h-10"
+                        type="email"
+                        value={contact.email}
+                        disabled={readOnly}
+                        required
+                        error={toFieldError(fieldErrors, `contact-email-${index}`)}
+                        onChange={(e) => updateContact(index, { email: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </section>
+          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <SectionHeading icon={ClipboardCheck} title="Alta federativa" />
+              <div className="flex items-center gap-2">
+                <Badge variant={onboarding.isComplete ? "success" : "warning"} className="text-[11px]">
+                  {onboarding.summary}
+                  {showDocsDate && docsDateLabel ? ` · Docs ${docsDateLabel}` : null}
+                </Badge>
+                {altaCollapsible ? (
+                  <button
+                    type="button"
+                    className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-[var(--club-surface-2)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-expanded={showAltaSteps}
+                    onClick={() => setAltaExpanded((open) => !open)}
+                  >
+                    {showAltaSteps ? "Ocultar" : "Ver pasos"}
+                    <ChevronDown
+                      className={cn("size-3.5 transition-transform", showAltaSteps && "rotate-180")}
+                      aria-hidden
+                    />
+                  </button>
+                ) : null}
+              </div>
+            </div>
 
-        <section className="flex flex-col gap-2 border-t border-[var(--club-border)] pt-5 md:pt-4">
-          <SectionHeading icon={MessageCircle} title="Grupo y fotos" />
-          <div className="grid gap-2 md:grid-cols-2 md:gap-2.5">
-            <ToggleRow
-              id="whatsapp"
-              compact
-              label="En grupo WhatsApp"
-              checked={inWhatsappGroup}
-              disabled={readOnly}
-              onChange={setInWhatsappGroup}
-            />
-            <ToggleRow
-              id="photo-consent"
-              compact
-              label="Autoriza fotos"
-              hint="Redes, cartel, material del club"
-              checked={photoConsent}
-              disabled={readOnly}
-              onChange={setPhotoConsent}
-            />
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
-          <SectionHeading icon={HeartPulse} title="Salud" />
-          <FormTextarea
-            label="Enfermedades o patologías detectadas"
-            name="medical_notes"
-            rows={3}
-            maxLength={2000}
-            className="min-h-[5.5rem] resize-none md:min-h-[5rem]"
-            placeholder="Alergias, asma, lesiones… Lo ve dirección y cuerpo técnico."
-            value={medicalNotes}
-            disabled={readOnly}
-            onChange={(e) => setMedicalNotes(e.target.value)}
+            {showAltaSteps ? (
+              <ol className="flex flex-col gap-2 md:gap-1.5">
+                <li>
+                  <ToggleRow
+                    id="docs"
+                    step={1}
+                    compact
+                    label="Docs entregados"
+                    hint="Se los damos al jugador / familia"
+                    checked={docsDelivered}
+                    disabled={readOnly}
+                    onChange={handleDocsDeliveredChange}
+                    trailing={
+                      showDocsDate ? (
+                        <Input
+                          id="docs_delivered_at"
+                          name="docs_delivered_at"
+                          type="date"
+                          aria-label="Fecha de entrega de docs"
+                          className="min-h-9 w-[9.75rem] px-2 text-xs md:min-h-8 md:w-[10.5rem]"
+                          value={docsDeliveredAt}
+                          disabled={readOnly}
+                          onChange={(e) => setDocsDeliveredAt(e.target.value)}
+                        />
+                      ) : null
+                    }
+                  />
+                </li>
+                <li>
+                  <ToggleRow
+                    id="papers"
+                    step={2}
+                    compact
+                    label="Papeles recibidos"
+                    hint="Vuelven rellenos al club"
+                    checked={papersReceived}
+                    disabled={readOnly}
+                    onChange={setPapersReceived}
+                  />
+                </li>
+                <li>
+                  <ToggleRow
+                    id="photo"
+                    step={3}
+                    compact
+                    label="Foto hecha"
+                    hint="Para la ficha / licencia"
+                    checked={photoTaken}
+                    disabled={readOnly}
+                    onChange={setPhotoTaken}
+                  />
+                </li>
+                <li>
+                  <ToggleRow
+                    id="license"
+                    step={4}
+                    compact
+                    label="Licencia realizada"
+                    hint="Federativa de la temporada"
+                    checked={licenseCompleted}
+                    disabled={readOnly}
+                    onChange={setLicenseCompleted}
+                  />
+                </li>
+              </ol>
+            ) : null}
+          </section>
+          <PlayerKitCard
+            className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5 xl:col-span-2"
+            jerseyNumber={jerseyNumber}
+            onJerseyNumberChange={setJerseyNumber}
+            generalSize={size}
+            onGeneralSizeChange={setSize}
+            garmentSizes={garmentSizes}
+            onGarmentSizeChange={(category, next) =>
+              setGarmentSizes((prev) => {
+                const { [category]: _removed, ...rest } = prev;
+                return next ? { ...rest, [category]: next } : rest;
+              })
+            }
+            onApplyGeneralToAll={() => {
+              if (!size) return;
+              setGarmentSizes(Object.fromEntries(GARMENT_CATEGORIES.map((c) => [c, size])) as PlayerGarmentSizes);
+            }}
+            readOnly={readOnly}
           />
-        </section>
+          <PlayerFeeSection
+            mode={feeMode}
+            onModeChange={setFeeMode}
+            showTariff={appliesExtendedMonthlyFee(teamCategory)}
+            readOnly={readOnly}
+            exemption={exemption ?? null}
+          />
+          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
+            <SectionHeading icon={MessageCircle} title="Grupo y fotos" />
+            <div className="grid gap-2 md:grid-cols-2 md:gap-2.5">
+              <ToggleRow
+                id="whatsapp"
+                compact
+                label="En grupo WhatsApp"
+                checked={inWhatsappGroup}
+                disabled={readOnly}
+                onChange={setInWhatsappGroup}
+              />
+              <ToggleRow
+                id="photo-consent"
+                compact
+                label="Autoriza fotos"
+                hint="Redes, cartel, material del club"
+                checked={photoConsent}
+                disabled={readOnly}
+                onChange={setPhotoConsent}
+              />
+            </div>
+          </section>
+          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5 xl:col-span-2">
+            <SectionHeading icon={HeartPulse} title="Salud" />
+            <FormTextarea
+              label="Enfermedades o patologías detectadas"
+              name="medical_notes"
+              rows={3}
+              maxLength={2000}
+              className="min-h-[5.5rem] resize-none md:min-h-[5rem]"
+              placeholder="Alergias, asma, lesiones… Lo ve dirección y cuerpo técnico."
+              value={medicalNotes}
+              disabled={readOnly}
+              onChange={(e) => setMedicalNotes(e.target.value)}
+            />
+          </section>
+          </div>
+        </div>
 
       </form>
 

@@ -181,37 +181,58 @@ function PlayersBody() {
   );
 }
 
+/** Misma estructura que la ficha: columna lateral (foto, equipo) y tarjetas de datos. */
 function PlayerFormBody() {
+  const panel = "flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:p-5";
   return (
-    <div className="flex flex-col gap-8">
-      <FormSection title="Identidad">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormFieldBone />
-          <FormFieldBone />
-          <FormFieldBone />
+    <div className="grid gap-4 lg:grid-cols-[19rem_minmax(0,1fr)] lg:items-start">
+      <aside className="flex flex-col gap-4">
+        <div className={panel}>
+          <Bone className="h-5 w-28" />
+          <Bone className="aspect-square w-full max-w-64 rounded-xl" />
+        </div>
+        <div className={panel}>
+          <Bone className="h-5 w-20" />
           <FormFieldBone />
         </div>
-        <FormFieldBone wide />
-      </FormSection>
-      <FormSection title="Equipo y talla">
-        <FormFieldBone />
-        <FormFieldBone />
-      </FormSection>
-      <FormSection title="Trámites">
-        <Bone className="h-14 w-full rounded-xl" />
-        <Bone className="h-14 w-full rounded-xl" />
-      </FormSection>
-      <FormSection title="Salud">
-        <FormFieldBone wide />
-      </FormSection>
-      <FormSection title="Contacto familiar">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormFieldBone />
-          <FormFieldBone />
-          <FormFieldBone />
+      </aside>
+      <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+        <div className={`${panel} xl:col-span-2`}>
+          <Bone className="h-5 w-24" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormFieldBone />
+            <FormFieldBone />
+            <FormFieldBone />
+            <FormFieldBone />
+          </div>
+        </div>
+        <div className={`${panel} xl:col-span-2`}>
+          <Bone className="h-5 w-24" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormFieldBone />
+            <FormFieldBone />
+            <FormFieldBone />
+            <FormFieldBone />
+          </div>
+        </div>
+        <div className={panel}>
+          <Bone className="h-5 w-32" />
           <FormFieldBone />
         </div>
-      </FormSection>
+        <div className={panel}>
+          <Bone className="h-5 w-28" />
+          <Bone className="h-14 w-full rounded-xl" />
+        </div>
+        <div className={`${panel} xl:col-span-2`}>
+          <Bone className="h-5 w-28" />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <FormFieldBone />
+            <FormFieldBone />
+            <FormFieldBone />
+            <FormFieldBone />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
