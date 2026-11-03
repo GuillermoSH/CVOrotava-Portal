@@ -9,8 +9,12 @@ import {
   previewRemindersAction,
   sendTestReminderAction,
 } from "@/lib/actions/payments/reminders";
-import { REMINDER_KIND_LABELS, renderReminderEmail } from "@/lib/payments/reminders/email";
-import type { OwingPlayer, ReminderKind } from "@/lib/payments/reminders/plan";
+import {
+  REMINDER_KIND_LABELS,
+  renderReminderEmail,
+  renderReminderGroupEmail,
+} from "@/lib/payments/reminders/email";
+import { groupByDestination, type OwingPlayer, type ReminderKind } from "@/lib/payments/reminders/plan";
 import type { PlannedReminder } from "@/lib/payments/reminders/run";
 import { formatOwingForWhatsapp } from "@/lib/payments/reminders/whatsapp-list";
 import { appToast } from "@/lib/toast";
@@ -104,20 +108,23 @@ export function RemindersPageClient({
     return out;
   }, [plans]);
 
-  const email = useMemo(
-    () =>
-      selected
-        ? renderReminderEmail({
-            kind: selected.kind,
-            playerName: selected.playerName,
-            items: selected.items,
-            total: selected.total,
-            instructions,
-            logoUrl: "/logo/email-logo.png",
-          })
-        : null,
-    [selected, instructions],
-  );
+  // Los jugadores con el mismo destino salen juntos en un solo correo, como en el envío real.
+  const groups = useMemo(() => groupByDestination(plans), [plans]);
+  const groupOf = (playerId: string) => groups.find((g) => g.plans.some((p) => p.playerId === playerId)) ?? null;
+
+  const email = useMemo(() => {
+    if (!selected) return null;
+    const options = { instructions, logoUrl: "/logo/email-logo.png" };
+    const group = groups.find((g) => g.plans.some((p) => p.playerId === selected.playerId));
+    if (group) return renderReminderGroupEmail(group, options);
+    return renderReminderEmail({
+      kind: selected.kind,
+      playerName: selected.playerName,
+      items: selected.items,
+      total: selected.total,
+      ...options,
+    });
+  }, [selected, groups, instructions]);
 
   function load(next: string) {
     setDate(next);
@@ -210,7 +217,7 @@ export function RemindersPageClient({
         <p className="text-sm text-muted-foreground">
           {plans.length === 0
             ? "Ese día no sale ningún aviso."
-            : `${plans.length} avisos · ${counts.aviso} día 10 · ${counts.ultimo_aviso} fin de mes · ${counts.atrasado} atrasados · ${noEmail} sin correo`}
+            : `${plans.length} avisos en ${groups.length} correos · ${counts.aviso} día 10 · ${counts.ultimo_aviso} fin de mes · ${counts.atrasado} atrasados · ${noEmail} sin correo`}
         </p>
 
         {plans.length > 0 ? (
@@ -237,6 +244,15 @@ export function RemindersPageClient({
                       ) : (
                         <span className="truncate">{p.recipients.join(", ")}</span>
                       )}
+                      {(groupOf(p.playerId)?.plans.length ?? 1) > 1 ? (
+                        <span className="text-foreground">
+                          Junto con{" "}
+                          {groupOf(p.playerId)
+                            ?.plans.filter((o) => o.playerId !== p.playerId)
+                            .map((o) => o.playerName)
+                            .join(", ")}
+                        </span>
+                      ) : null}
                     </span>
                   </button>
                 </li>

@@ -2,7 +2,8 @@
 
 import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
 import { getReminderConfig } from "@/lib/payments/reminders/config";
-import { renderReminderEmail } from "@/lib/payments/reminders/email";
+import { renderReminderEmail, renderReminderGroupEmail } from "@/lib/payments/reminders/email";
+import { groupByDestination } from "@/lib/payments/reminders/plan";
 import { sendEmail } from "@/lib/payments/reminders/resend";
 import { buildReminderPreview, type ReminderPreview } from "@/lib/payments/reminders/run";
 import { createClient } from "@/lib/supabase/server";
@@ -59,14 +60,18 @@ export async function sendTestReminderAction(input: {
     const plan = plans.find((p) => p.playerId === input.playerId);
     if (!plan) return { ok: false, error: "Ese jugador no tiene aviso en esa fecha" };
 
-    const email = renderReminderEmail({
-      kind: plan.kind,
-      playerName: plan.playerName,
-      items: plan.items,
-      total: plan.total,
-      instructions: config.instructions,
-      logoUrl: config.logoUrl,
-    });
+    // Igual que el envío real: los hermanos con el mismo destino van juntos en un correo.
+    const group = groupByDestination(plans).find((g) => g.plans.some((p) => p.playerId === plan.playerId));
+    const email = group
+      ? renderReminderGroupEmail(group, { instructions: config.instructions, logoUrl: config.logoUrl })
+      : renderReminderEmail({
+          kind: plan.kind,
+          playerName: plan.playerName,
+          items: plan.items,
+          total: plan.total,
+          instructions: config.instructions,
+          logoUrl: config.logoUrl,
+        });
     const result = await sendEmail({
       config,
       to: [to],

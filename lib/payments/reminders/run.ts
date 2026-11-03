@@ -1,12 +1,15 @@
 import "server-only";
 
-import { renderReminderEmail } from "@/lib/payments/reminders/email";
+import { createHash } from "node:crypto";
+
+import { renderReminderGroupEmail } from "@/lib/payments/reminders/email";
 import { getReminderConfig } from "@/lib/payments/reminders/config";
 import {
   applyDailyCap,
   listOwing,
   planReminders,
-  prioritizePlans,
+  groupByDestination,
+  prioritizeGroups,
   type OwingPlayer,
   type ReminderHistoryEntry,
   type ReminderKind,
@@ -130,19 +133,33 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export type RunSummary = {
   mode: "disabled" | "not-configured" | "dry-run" | "sent";
+  /** Avisos planificados, uno por jugador. */
   planned: number;
-  /** Avisos planificados por tipo. */
+  /** Avisos planificados por tipo (por jugador). */
   byKind: Record<ReminderKind, number>;
-  /** Con correo y sin enviar en este pase (tope diario, cuota del proveedor o tiempo): salen en el siguiente. */
+  /** Correos que saldrían: los jugadores con el mismo destino van juntos en uno. */
+  emails: number;
+  /** Correos con destino y sin enviar en este pase (tope diario, cuota del proveedor o tiempo): salen en el siguiente. */
   deferred: number;
   dailyLimit: number;
   /** Correos de avisos ya enviados hoy antes de este pase. */
   alreadySentToday: number;
+  /** Correos enviados / fallidos en este pase. */
   sent: number;
   failed: number;
+  /** Jugadores con aviso pero sin ningún correo registrado. */
   noEmail: number;
   redirectedTo: string | null;
 };
+
+/** Clave de idempotencia de un correo: mismos jugadores, tipos e importes el mismo día = mismo envío. */
+function emailIdempotencyKey(plans: readonly PlannedReminder[], sentOn: string): string {
+  const fingerprint = [...plans]
+    .map((p) => `${p.playerId}:${p.kind}:${p.total}`)
+    .sort()
+    .join("|");
+  return `reminder-${createHash("sha1").update(fingerprint).digest("hex")}-${sentOn}`;
+}
 
 /** Cron diario: calcula los avisos de hoy y los envía (solo si PAYMENT_REMINDERS_ENABLED). */
 export async function runPaymentReminders(
@@ -158,26 +175,28 @@ export async function runPaymentReminders(
   const byKind: Record<ReminderKind, number> = { aviso: 0, ultimo_aviso: 0, atrasado: 0 };
   for (const plan of allPlans) byKind[plan.kind] += 1;
 
+  // Un correo por destino: los hermanos con los mismos tutores se juntan en un solo mensaje.
+  const groups = prioritizeGroups(groupByDestination(allPlans));
+
   // Cuota diaria del proveedor: se descuenta lo ya enviado hoy y lo que no cabe queda para el
   // siguiente pase (las reglas de plan.ts vuelven a proponerlo: atrasado y aviso se recuperan).
   // En modo prueba nada se registra, así que no hay nada que descontar.
   const alreadySentToday = testMode ? 0 : await countEmailsSentOn(db, sentOn);
   const remaining = Math.max(0, config.dailyLimit - alreadySentToday);
-  const cost = (plan: PlannedReminder) => (testMode ? 1 : plan.recipients.length);
+  const cost = (group: (typeof groups)[number]) => (testMode ? 1 : group.recipients.length);
 
-  const withEmail = prioritizePlans(allPlans.filter((p) => cost(p) > 0));
-  const { send } = applyDailyCap(withEmail, { remaining, cost });
-  const plans =
-    options.limit != null && options.limit >= 0 ? send.slice(0, options.limit) : send;
+  const { send } = applyDailyCap(groups, { remaining, cost });
+  const batch = options.limit != null && options.limit >= 0 ? send.slice(0, options.limit) : send;
 
   const summary: RunSummary = {
     mode: "sent",
     planned: allPlans.length,
     byKind,
+    emails: groups.length,
     sent: 0,
     failed: 0,
     noEmail: allPlans.filter((p) => p.recipients.length === 0).length,
-    deferred: withEmail.length - plans.length,
+    deferred: groups.length - batch.length,
     dailyLimit: config.dailyLimit,
     alreadySentToday,
     redirectedTo: config.testTo,
@@ -190,29 +209,25 @@ export async function runPaymentReminders(
   const started = Date.now();
   let attempted = 0;
 
-  for (const plan of plans) {
+  for (const group of batch) {
     // Presupuesto de tiempo: lo que falte lo recoge el reintento de la misma tarde.
     if (Date.now() - started > RUN_BUDGET_MS) break;
     const turnStart = Date.now();
 
-    const email = renderReminderEmail({
-      kind: plan.kind,
-      playerName: plan.playerName,
-      items: plan.items,
-      total: plan.total,
+    const email = renderReminderGroupEmail(group, {
       instructions: config.instructions,
       logoUrl: config.logoUrl,
     });
-    const to = testMode ? [config.testTo as string] : plan.recipients;
+    const to = testMode ? [config.testTo as string] : group.recipients;
     const outgoing = testMode
-      ? { ...email, subject: `[PRUEBA → ${plan.recipients.join(", ") || "sin correo"}] ${email.subject}` }
+      ? { ...email, subject: `[PRUEBA → ${group.recipients.join(", ")}] ${email.subject}` }
       : email;
 
     const result = await sendEmail({
       config,
       to,
       email: outgoing,
-      idempotencyKey: testMode ? undefined : `reminder-${plan.playerId}-${plan.kind}-${sentOn}`,
+      idempotencyKey: testMode ? undefined : emailIdempotencyKey(group.plans, sentOn),
     });
     attempted += 1;
 
@@ -227,24 +242,27 @@ export async function runPaymentReminders(
     else summary.failed += 1;
 
     // En modo prueba no se registra: no debe bloquear ni espaciar los avisos reales.
+    // Un correo combinado deja una fila por jugador (el antirrepetido es por jugador y tipo).
     if (!testMode) {
-      await logReminder(db, {
-        player_id: plan.playerId,
-        kind: plan.kind,
-        sent_on: sentOn,
-        recipients: plan.recipients,
-        items: plan.items,
-        total: plan.total,
-        status: result.ok ? "sent" : "failed",
-        provider_id: result.ok ? result.id : null,
-        error: result.ok ? null : result.error,
-      });
+      for (const plan of group.plans) {
+        await logReminder(db, {
+          player_id: plan.playerId,
+          kind: plan.kind,
+          sent_on: sentOn,
+          recipients: group.recipients,
+          items: plan.items,
+          total: plan.total,
+          status: result.ok ? "sent" : "failed",
+          provider_id: result.ok ? result.id : null,
+          error: result.ok ? null : result.error,
+        });
+      }
     }
 
     const wait = MIN_GAP_MS - (Date.now() - turnStart);
     if (wait > 0) await sleep(wait);
   }
 
-  summary.deferred = withEmail.length - attempted;
+  summary.deferred = groups.length - attempted;
   return summary;
 }
