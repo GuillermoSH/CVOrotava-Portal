@@ -288,30 +288,17 @@ export function PlayerPhotoSection({
       : null;
 
   return (
-    <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-5 md:gap-2.5 md:pt-4">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span
-          aria-hidden
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--club-surface-2)] text-muted-foreground"
-        >
-          <Camera className="size-4" strokeWidth={1.75} />
-        </span>
-        <div className="min-w-0">
-          <h2 className="section-title">Foto de ficha</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Para reconocer al jugador. Independiente de «Autoriza fotos».
-          </p>
-        </div>
-      </div>
+    <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
+      <h2 className="section-title">Foto de ficha</h2>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+      <div className="flex items-start justify-center gap-3 md:flex-col md:items-stretch md:justify-start">
         {previewSrc ? (
           <button
             type="button"
             disabled={busy && !hasPhoto}
             onClick={openViewer}
             className={cn(
-              "relative flex size-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)] sm:size-36",
+              "relative flex min-w-0 max-w-72 flex-1 items-center justify-center overflow-hidden md:w-full md:max-w-64 md:flex-none rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)]",
               "aspect-square touch-manipulation transition-[box-shadow,transform] active:scale-[0.98]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               !busy && "hover:ring-2 hover:ring-[color-mix(in_srgb,var(--club-brand)_35%,transparent)]",
@@ -353,7 +340,7 @@ export function PlayerPhotoSection({
         ) : (
           <div
             className={cn(
-              "relative flex size-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)] sm:size-36",
+              "relative flex min-w-0 max-w-72 flex-1 items-center justify-center overflow-hidden md:w-full md:max-w-64 md:flex-none rounded-xl border border-[var(--club-border)] bg-[var(--club-surface-2)]",
               "aspect-square",
             )}
             aria-busy={showLoader || undefined}
@@ -383,62 +370,69 @@ export function PlayerPhotoSection({
           </div>
         )}
 
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 flex-none flex-col gap-2 md:flex-1">
+          <div className="flex flex-col gap-2 md:w-full md:max-w-64 md:flex-row">
             <Button
               type="button"
               variant="secondary"
               size="sm"
+              className="size-11 min-h-11 shrink-0 !px-0 md:size-auto md:h-8 md:min-h-8 md:flex-1"
+              aria-label={hasPhoto ? "Cambiar foto" : "Subir foto"}
+              title={hasPhoto ? "Cambiar foto" : "Subir foto"}
               disabled={busy}
               onClick={() => fileRef.current?.click()}
             >
               {openingCrop ? (
                 <Loader2 className="size-3.5 animate-spin" aria-hidden />
               ) : (
-                <ImagePlus className="size-3.5" aria-hidden />
+                <ImagePlus className="size-4" aria-hidden />
               )}
-              {hasPhoto ? "Cambiar" : "Subir"}
             </Button>
             <Button
               type="button"
               variant="secondary"
               size="sm"
+              className="size-11 min-h-11 shrink-0 !px-0 md:size-auto md:h-8 md:min-h-8 md:flex-1"
+              aria-label="Hacer foto con la cámara"
+              title="Hacer foto con la cámara"
               disabled={busy}
               onClick={() => cameraRef.current?.click()}
             >
-              <Camera className="size-3.5" aria-hidden />
-              Cámara
+              <Camera className="size-4" aria-hidden />
             </Button>
             {hasPhoto ? (
               <>
                 <a
                   href={playerPhotoRoute(playerId)}
                   className={cn(
-                    "btn-secondary btn-sm inline-flex items-center gap-1.5",
+                    "btn-secondary btn-sm inline-flex size-11 min-h-11 shrink-0 !px-0 md:size-auto md:h-8 md:min-h-8 md:flex-1 items-center justify-center",
                     busy && "pointer-events-none opacity-60",
                   )}
+                  aria-label="Descargar foto"
+                  title="Descargar foto"
                   download
                   aria-disabled={busy || undefined}
                   onClick={(e) => {
                     if (busy) e.preventDefault();
                   }}
                 >
-                  <Download className="size-3.5" aria-hidden />
-                  Descargar
+                  <Download className="size-4" aria-hidden />
                 </a>
                 <Button
                   type="button"
                   variant="destructive"
                   size="sm"
+                  className="size-11 min-h-11 shrink-0 !px-0 md:size-auto md:h-8 md:min-h-8 md:flex-1"
+                  aria-label="Quitar foto"
+                  title="Quitar foto"
                   disabled={busy}
                   onClick={handleRemove}
                 >
                   {pending ? (
                     <Loader2 className="size-3.5 animate-spin" aria-hidden />
                   ) : (
-                    <Trash2 className="size-3.5" aria-hidden />
+                    <Trash2 className="size-4" aria-hidden />
                   )}
-                  Quitar
                 </Button>
               </>
             ) : null}

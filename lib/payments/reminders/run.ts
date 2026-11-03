@@ -7,6 +7,7 @@ import {
   planReminders,
   type OwingPlayer,
   type ReminderHistoryEntry,
+  type ReminderKind,
   type ReminderPlan,
 } from "@/lib/payments/reminders/plan";
 import {
@@ -110,9 +111,18 @@ export async function buildReminderPreview({ today }: { today: Date }): Promise<
   return { plans, owing: listOwing({ rows }) };
 }
 
+export type RunOptions = {
+  /** Calcula y cuenta los avisos de hoy sin enviar nada ni registrar nada. */
+  dryRun?: boolean;
+  /** Envía como mucho N avisos (para probar el envío real con un solo correo). */
+  limit?: number;
+};
+
 export type RunSummary = {
-  mode: "disabled" | "not-configured" | "sent";
+  mode: "disabled" | "not-configured" | "dry-run" | "sent";
   planned: number;
+  /** Avisos planificados por tipo. */
+  byKind: Record<ReminderKind, number>;
   sent: number;
   failed: number;
   noEmail: number;
@@ -120,18 +130,27 @@ export type RunSummary = {
 };
 
 /** Cron diario: calcula los avisos de hoy y los envía (solo si PAYMENT_REMINDERS_ENABLED). */
-export async function runPaymentReminders(today: Date = new Date()): Promise<RunSummary> {
+export async function runPaymentReminders(
+  today: Date = new Date(),
+  options: RunOptions = {},
+): Promise<RunSummary> {
   const config = getReminderConfig();
-  const plans = await buildReminderPlan({ today });
+  const allPlans = await buildReminderPlan({ today });
+  const plans =
+    options.limit != null && options.limit >= 0 ? allPlans.slice(0, options.limit) : allPlans;
+  const byKind: Record<ReminderKind, number> = { aviso: 0, ultimo_aviso: 0, atrasado: 0 };
+  for (const plan of allPlans) byKind[plan.kind] += 1;
   const summary: RunSummary = {
     mode: "sent",
-    planned: plans.length,
+    planned: allPlans.length,
+    byKind,
     sent: 0,
     failed: 0,
-    noEmail: plans.filter((p) => p.recipients.length === 0).length,
+    noEmail: allPlans.filter((p) => p.recipients.length === 0).length,
     redirectedTo: config.testTo,
   };
 
+  if (options.dryRun) return { ...summary, mode: "dry-run" };
   if (!config.enabled) return { ...summary, mode: "disabled" };
   if (!config.emailConfigured) return { ...summary, mode: "not-configured" };
 

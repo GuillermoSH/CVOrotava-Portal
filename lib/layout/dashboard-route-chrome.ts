@@ -11,6 +11,7 @@ export type DashboardSkeletonKind =
   | "hub"
   | "players"
   | "player-form"
+  | "player-detail"
   | "deliveries"
   | "products"
   | "warehouse"
@@ -26,6 +27,8 @@ export type DashboardRouteChrome = {
   subtitle?: string;
   back?: { href: string; label: string };
   sticky?: boolean | "tall" | "bulk";
+  /** La página pinta su propia cabecera (p. ej. barra fija con acciones): el shell no la repite. */
+  hideHeader?: boolean;
   /** En escritorio la página ocupa justo la altura disponible y el contenido scrollea dentro. */
   fill?: boolean;
   skeleton: DashboardSkeletonKind;
@@ -67,7 +70,8 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Ficha del jugador",
       back: { href: appRoutes.players.list, label: "Jugadores" },
       sticky: true,
-      skeleton: "player-form",
+      hideHeader: true,
+      skeleton: "player-detail",
     };
   }
 

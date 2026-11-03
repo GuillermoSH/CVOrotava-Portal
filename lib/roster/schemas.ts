@@ -1,3 +1,4 @@
+import { GARMENT_CATEGORIES } from "@/lib/roster/garment-sizes";
 import { z } from "zod";
 import { PRESERVABLE_PLAYER_FIELDS } from "@/lib/roster/player-update";
 
@@ -115,6 +116,11 @@ export const upsertPlayerSchema = z
       .transform(blankToUndefined)
       .transform((value) => (value && !isSpanishNationality(value) ? value : undefined)),
     pays_extended_monthly: z.boolean().optional().default(false),
+    pays_as_senior: z.boolean().optional().default(false),
+    jersey_number: z.number().int().min(0, "El dorsal va de 0 a 99").max(99, "El dorsal va de 0 a 99").nullable().optional(),
+    garment_sizes: z
+      .partialRecord(z.enum(GARMENT_CATEGORIES), z.enum(CLOTHING_SIZES))
+      .optional(),
     is_active: z.boolean().optional().default(true),
     contacts: z.array(playerContactInputSchema).min(1, "Indica un contacto").max(2),
   })

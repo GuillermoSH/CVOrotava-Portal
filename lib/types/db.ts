@@ -57,6 +57,10 @@ export type Player = {
   nationality: string | null;
   /** Cuota mensual ampliada (30 €) en categorías base; default false = 25 €. */
   pays_extended_monthly: boolean;
+  /** Categoría base que paga la tarifa de sénior (entrena siempre con séniors). */
+  pays_as_senior?: boolean;
+  /** Dorsal de la temporada (0-99). */
+  jersey_number?: number | null;
 };
 
 export type PlayerGuardian = {
@@ -91,6 +95,8 @@ export type PlayerListItem = PlayerWithTeam & {
 
 export type PlayerWithDetails = PlayerWithTeam & {
   contacts: PlayerContact[];
+  /** Talla de cada prenda (tarjeta de tallaje); solo se carga en la ficha. */
+  garment_sizes?: Partial<Record<string, ClothingSize>>;
 };
 
 export type UserAppRole = {
