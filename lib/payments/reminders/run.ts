@@ -3,19 +3,22 @@ import "server-only";
 import { renderReminderEmail } from "@/lib/payments/reminders/email";
 import { getReminderConfig } from "@/lib/payments/reminders/config";
 import {
+  applyDailyCap,
   listOwing,
   planReminders,
+  prioritizePlans,
   type OwingPlayer,
   type ReminderHistoryEntry,
   type ReminderKind,
   type ReminderPlan,
 } from "@/lib/payments/reminders/plan";
 import {
+  countEmailsSentOn,
   listContactEmails,
   listReminderHistory,
   logReminder,
 } from "@/lib/payments/reminders/repository";
-import { sendEmail } from "@/lib/payments/reminders/resend";
+import { isQuotaExhausted, sendEmail } from "@/lib/payments/reminders/resend";
 import { buildPlayerFeeRows } from "@/lib/payments/player-fee-rows";
 import { listExemptPlayerIds } from "@/lib/payments/repository/exemptions";
 import { listSeasonFeeLines } from "@/lib/payments/repository/fees";
@@ -118,11 +121,23 @@ export type RunOptions = {
   limit?: number;
 };
 
+/** Margen para que la función no pase de su tiempo máximo (60 s): lo que falte sale en el reintento. */
+const RUN_BUDGET_MS = 48_000;
+/** Resend admite 2 peticiones por segundo: se espacian los envíos. */
+const MIN_GAP_MS = 520;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export type RunSummary = {
   mode: "disabled" | "not-configured" | "dry-run" | "sent";
   planned: number;
   /** Avisos planificados por tipo. */
   byKind: Record<ReminderKind, number>;
+  /** Con correo y sin enviar en este pase (tope diario, cuota del proveedor o tiempo): salen en el siguiente. */
+  deferred: number;
+  dailyLimit: number;
+  /** Correos de avisos ya enviados hoy antes de este pase. */
+  alreadySentToday: number;
   sent: number;
   failed: number;
   noEmail: number;
@@ -135,11 +150,26 @@ export async function runPaymentReminders(
   options: RunOptions = {},
 ): Promise<RunSummary> {
   const config = getReminderConfig();
+  const db = createServiceRoleClient();
+  const sentOn = dateKey(today);
+  const testMode = config.testTo != null;
+
   const allPlans = await buildReminderPlan({ today });
-  const plans =
-    options.limit != null && options.limit >= 0 ? allPlans.slice(0, options.limit) : allPlans;
   const byKind: Record<ReminderKind, number> = { aviso: 0, ultimo_aviso: 0, atrasado: 0 };
   for (const plan of allPlans) byKind[plan.kind] += 1;
+
+  // Cuota diaria del proveedor: se descuenta lo ya enviado hoy y lo que no cabe queda para el
+  // siguiente pase (las reglas de plan.ts vuelven a proponerlo: atrasado y aviso se recuperan).
+  // En modo prueba nada se registra, así que no hay nada que descontar.
+  const alreadySentToday = testMode ? 0 : await countEmailsSentOn(db, sentOn);
+  const remaining = Math.max(0, config.dailyLimit - alreadySentToday);
+  const cost = (plan: PlannedReminder) => (testMode ? 1 : plan.recipients.length);
+
+  const withEmail = prioritizePlans(allPlans.filter((p) => cost(p) > 0));
+  const { send } = applyDailyCap(withEmail, { remaining, cost });
+  const plans =
+    options.limit != null && options.limit >= 0 ? send.slice(0, options.limit) : send;
+
   const summary: RunSummary = {
     mode: "sent",
     planned: allPlans.length,
@@ -147,6 +177,9 @@ export async function runPaymentReminders(
     sent: 0,
     failed: 0,
     noEmail: allPlans.filter((p) => p.recipients.length === 0).length,
+    deferred: withEmail.length - plans.length,
+    dailyLimit: config.dailyLimit,
+    alreadySentToday,
     redirectedTo: config.testTo,
   };
 
@@ -154,11 +187,13 @@ export async function runPaymentReminders(
   if (!config.enabled) return { ...summary, mode: "disabled" };
   if (!config.emailConfigured) return { ...summary, mode: "not-configured" };
 
-  const db = createServiceRoleClient();
-  const sentOn = dateKey(today);
+  const started = Date.now();
+  let attempted = 0;
 
   for (const plan of plans) {
-    if (plan.recipients.length === 0 && !config.testTo) continue;
+    // Presupuesto de tiempo: lo que falte lo recoge el reintento de la misma tarde.
+    if (Date.now() - started > RUN_BUDGET_MS) break;
+    const turnStart = Date.now();
 
     const email = renderReminderEmail({
       kind: plan.kind,
@@ -168,7 +203,6 @@ export async function runPaymentReminders(
       instructions: config.instructions,
       logoUrl: config.logoUrl,
     });
-    const testMode = config.testTo != null;
     const to = testMode ? [config.testTo as string] : plan.recipients;
     const outgoing = testMode
       ? { ...email, subject: `[PRUEBA → ${plan.recipients.join(", ") || "sin correo"}] ${email.subject}` }
@@ -180,24 +214,37 @@ export async function runPaymentReminders(
       email: outgoing,
       idempotencyKey: testMode ? undefined : `reminder-${plan.playerId}-${plan.kind}-${sentOn}`,
     });
+    attempted += 1;
+
+    // Cuota agotada: no se registra como fallo (no es culpa del aviso) y se corta; el resto queda
+    // pendiente y volverá a proponerse en el siguiente pase.
+    if (isQuotaExhausted(result)) {
+      attempted -= 1;
+      break;
+    }
 
     if (result.ok) summary.sent += 1;
     else summary.failed += 1;
 
     // En modo prueba no se registra: no debe bloquear ni espaciar los avisos reales.
-    if (testMode) continue;
-    await logReminder(db, {
-      player_id: plan.playerId,
-      kind: plan.kind,
-      sent_on: sentOn,
-      recipients: plan.recipients,
-      items: plan.items,
-      total: plan.total,
-      status: result.ok ? "sent" : "failed",
-      provider_id: result.ok ? result.id : null,
-      error: result.ok ? null : result.error,
-    });
+    if (!testMode) {
+      await logReminder(db, {
+        player_id: plan.playerId,
+        kind: plan.kind,
+        sent_on: sentOn,
+        recipients: plan.recipients,
+        items: plan.items,
+        total: plan.total,
+        status: result.ok ? "sent" : "failed",
+        provider_id: result.ok ? result.id : null,
+        error: result.ok ? null : result.error,
+      });
+    }
+
+    const wait = MIN_GAP_MS - (Date.now() - turnStart);
+    if (wait > 0) await sleep(wait);
   }
 
+  summary.deferred = withEmail.length - attempted;
   return summary;
 }

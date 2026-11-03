@@ -3,7 +3,20 @@ import "server-only";
 import type { ReminderConfig } from "@/lib/payments/reminders/config";
 import type { RenderedEmail } from "@/lib/payments/reminders/email";
 
-export type SendResult = { ok: true; id: string | null } | { ok: false; error: string };
+export type SendResult =
+  | { ok: true; id: string | null }
+  | {
+      ok: false;
+      error: string;
+      /** Código de error de Resend (p. ej. daily_quota_exceeded, rate_limit_exceeded). */
+      code?: string;
+      status?: number;
+    };
+
+/** La cuota (diaria o mensual) del proveedor se agotó: no tiene sentido seguir intentándolo. */
+export function isQuotaExhausted(result: SendResult): boolean {
+  return !result.ok && (result.code === "daily_quota_exceeded" || result.code === "monthly_quota_exceeded");
+}
 
 /** Envío por la API REST de Resend (sin dependencia extra). */
 export async function sendEmail({
@@ -40,9 +53,16 @@ export async function sendEmail({
     });
 
     const body = (await res.json().catch(() => null)) as
-      | { id?: string; message?: string }
+      | { id?: string; message?: string; name?: string }
       | null;
-    if (!res.ok) return { ok: false, error: body?.message ?? `Resend respondió ${res.status}` };
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: body?.message ?? `Resend respondió ${res.status}`,
+        code: body?.name,
+        status: res.status,
+      };
+    }
     return { ok: true, id: body?.id ?? null };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Error de red al enviar" };

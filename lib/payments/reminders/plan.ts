@@ -4,7 +4,8 @@ import type { PlayerFeeRow } from "@/lib/payments/player-fee-rows";
  * Qué aviso de pago toca enviar hoy a cada jugador. Lógica pura (sin base de datos ni
  * correo): el cron y la página de pruebas usan el mismo plan.
  *
- *  - aviso:        día 10 del mes, hay algo vencido pero nada atrasado.
+ *  - aviso:        desde el día 10 del mes, hay algo vencido pero nada atrasado y aún no se avisó
+ *                  este mes (si el día 10 no salió, p. ej. por el tope diario, sale al siguiente).
  *  - ultimo_aviso: último día del mes, igual que antes (hoy termina el plazo).
  *  - atrasado:     hay algo atrasado (su mes ya terminó); se repite cada 7 días.
  */
@@ -116,7 +117,8 @@ export function planReminders({
 }): ReminderPlan[] {
   const todayKey = dateKey(today);
   const lastDay = isLastDayOfMonth(today);
-  const dueDay = today.getDate() === 10;
+  const dueFromDay = today.getDate() >= 10;
+  const monthPrefix = todayKey.slice(0, 7);
 
   const sentByPlayer = new Map<string, ReminderHistoryEntry[]>();
   for (const entry of history) {
@@ -146,7 +148,7 @@ export function planReminders({
       if (!lastLate || daysBetween(lastLate, todayKey) >= LATE_REPEAT_DAYS) kind = "atrasado";
     } else if (lastDay) {
       kind = "ultimo_aviso";
-    } else if (dueDay) {
+    } else if (dueFromDay && !sent.some((s) => s.kind === "aviso" && s.sent_on.startsWith(monthPrefix))) {
       kind = "aviso";
     }
 
@@ -165,4 +167,41 @@ export function planReminders({
   }
 
   return plans;
+}
+
+/** Orden de envío cuando no caben todos: lo más urgente primero. */
+const KIND_PRIORITY: Record<ReminderKind, number> = { ultimo_aviso: 0, aviso: 1, atrasado: 2 };
+
+/** Último aviso, luego aviso, luego atrasado; dentro de cada tipo, la deuda mayor primero. */
+export function prioritizePlans<T extends ReminderPlan>(plans: readonly T[]): T[] {
+  return [...plans].sort(
+    (a, b) =>
+      KIND_PRIORITY[a.kind] - KIND_PRIORITY[b.kind] ||
+      b.total - a.total ||
+      a.playerName.localeCompare(b.playerName, "es"),
+  );
+}
+
+/**
+ * Reparte los avisos entre lo que cabe hoy y lo que queda para el siguiente pase. `cost` es lo que
+ * gasta cada aviso de la cuota diaria del proveedor (un correo por destinatario). Respeta el
+ * orden recibido y salta los que no caben para aprovechar el hueco con otros más baratos.
+ */
+export function applyDailyCap<T>(
+  plans: readonly T[],
+  { remaining, cost }: { remaining: number; cost: (plan: T) => number },
+): { send: T[]; deferred: T[] } {
+  const send: T[] = [];
+  const deferred: T[] = [];
+  let used = 0;
+  for (const plan of plans) {
+    const c = cost(plan);
+    if (used + c <= remaining) {
+      send.push(plan);
+      used += c;
+    } else {
+      deferred.push(plan);
+    }
+  }
+  return { send, deferred };
 }

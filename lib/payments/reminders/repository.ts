@@ -68,3 +68,21 @@ export async function logReminder(
   });
   if (error) throw new Error(dbErrorMessage(error));
 }
+
+/**
+ * Correos de avisos ya enviados en un día (YYYY-MM-DD). Resend cuenta uno por destinatario, así
+ * que se suman los destinatarios y no las filas.
+ */
+export async function countEmailsSentOn(db: PaymentsDb, date: string): Promise<number> {
+  const { data, error } = await db
+    .from("payment_reminders")
+    .select("recipients")
+    .eq("status", "sent")
+    .eq("sent_on", date);
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return (data ?? []).reduce(
+    (acc, row) => acc + (Array.isArray(row.recipients) ? row.recipients.length : 0),
+    0,
+  );
+}
