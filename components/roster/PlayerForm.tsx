@@ -821,7 +821,7 @@ export function PlayerForm({
         ) : null}
 
         <div className="grid gap-8 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-10">
-          <aside className="flex flex-col gap-8 lg:sticky lg:top-20">
+          <aside className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)] md:items-start lg:sticky lg:top-20 lg:flex lg:flex-col">
           {canWrite && player ? (
             <PlayerPhotoSection
               playerId={player.id}
@@ -843,7 +843,7 @@ export function PlayerForm({
               }}
             />
           ) : null}
-          <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
+          <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5 md:border-t-0 md:pt-0 lg:border-t lg:pt-8">
             <SectionHeading icon={Shirt} title="Equipo" />
             {teams.length === 0 ? (
               <p className="text-sm text-muted-foreground">Crea un equipo para asignar el equipo principal.</p>
