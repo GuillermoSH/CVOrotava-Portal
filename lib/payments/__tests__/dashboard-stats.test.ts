@@ -112,6 +112,47 @@ describe("buildPaymentsDashboard", () => {
     expect(s.debtors).toEqual([]);
   });
 
+  it("calcula lo previsto, el desglose por mes y las matrículas pendientes", () => {
+    // 3 jugadores × (matrícula 75 + oct/nov/dic 25) = 450 previstos.
+    expect(stats.expectedTotal).toBe(450);
+    expect(stats.onTariffTotal).toBe(stats.seasonTotal);
+    expect(stats.byMonth.map((m) => [m.month, m.due, m.paid, m.amountDue, m.amountPaid])).toEqual([
+      [10, 3, 2, 75, 50],
+      [11, 3, 1, 75, 25],
+      [12, 3, 0, 75, 0],
+    ]);
+    expect(stats.withoutMatricula).toEqual({ players: 2, amount: 150 });
+    expect(stats.overpaid).toBe(0);
+    expect(stats.unassigned).toEqual({ count: 0, total: 0 });
+  });
+
+  it("no suma los cobros sin concepto y separa lo cobrado de más", () => {
+    const extra = buildPlayerFeeRows({
+      players: [player("a", "Ana")],
+      lines,
+      paymentsByPlayer: new Map([
+        [
+          "a",
+          [
+            paid("m1", { amount: 75, fee_code: "matricula", billing_month: null }),
+            // la misma matrícula anotada otra vez: cobrado de más
+            paid("m2", { amount: 75, fee_code: "matricula", billing_month: null }),
+            paid("o1", { amount: 25, billing_month: 10 }),
+            // anotación antigua sin concepto (la que repite a o1 en los datos reales)
+            paid("old", { amount: 25, fee_code: null, billing_month: null }),
+          ],
+        ],
+      ]),
+      season,
+      today,
+    });
+    const s2 = buildPaymentsDashboard({ rows: extra, lines, today });
+    expect(s2.unassigned).toEqual({ count: 1, total: 25 });
+    expect(s2.seasonTotal).toBe(75 + 75 + 25);
+    expect(s2.overpaid).toBe(75);
+    expect(s2.onTariffTotal).toBe(75 + 25);
+  });
+
   it("sin cuotas este mes devuelve monthly null", () => {
     const empty = buildPaymentsDashboard({ rows: [], lines, today });
     expect(empty.monthly).toBeNull();

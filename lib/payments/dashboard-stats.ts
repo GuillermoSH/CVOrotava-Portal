@@ -1,4 +1,4 @@
-import { obligationConcept } from "@/lib/payments/fees";
+import { obligationConcept, seasonMonthIndex } from "@/lib/payments/fees";
 import type { PlayerFeeRow } from "@/lib/payments/player-fee-rows";
 import type { SeasonFeeLine } from "@/lib/types/db";
 
@@ -29,9 +29,36 @@ export type RecentPayment = {
   date: string;
 };
 
+export type MonthCollection = {
+  /** Mes natural (1–12). */
+  month: number;
+  /** Cuotas de ese mes (una por jugador con tarifa) y cuántas están al día. */
+  due: number;
+  paid: number;
+  /** Importes de esas cuotas: previsto y cobrado dentro de la tarifa. */
+  amountDue: number;
+  amountPaid: number;
+};
+
 export type PaymentsDashboard = {
-  /** Cobrado en la temporada, incluidos cobros libres sin línea de tarifa. */
+  /**
+   * Cobrado en la temporada: lo que cierra una línea de tarifa (cobros con concepto), igual que
+   * /admin/pagos. Los cobros sin concepto asignado van aparte en `unassigned` y no suman aquí:
+   * entre ellos hay anotaciones antiguas repetidas por otras ya reintroducidas.
+   */
   seasonTotal: number;
+  /** Previsto de la temporada: todas las cuotas y pagos únicos de jugadores activos y no exentos. */
+  expectedTotal: number;
+  /** Parte de lo cobrado que cubre la tarifa (sin contar lo cobrado de más). */
+  onTariffTotal: number;
+  /** Cobrado por encima de lo que toca (p. ej. una matrícula anotada dos veces). */
+  overpaid: number;
+  /** Cobros que no cierran ninguna línea (sin concepto o sin mes). */
+  unassigned: { count: number; total: number };
+  /** Cuotas mensuales por mes de la temporada, en orden de calendario de temporada. */
+  byMonth: MonthCollection[];
+  /** Jugadores con la matrícula pendiente y lo que suma. */
+  withoutMatricula: { players: number; amount: number };
   /** Cobrado con `paid_date` en el mes natural de hoy. */
   monthTotal: number;
   /** Mensualidades del mes corriente ya cerradas / que tocan cobrar. */
@@ -68,7 +95,15 @@ export function buildPaymentsDashboard({
   const thisMonth = monthKey(today);
   const lineLabel = new Map(lines.map((l) => [l.code, l.label]));
 
-  let seasonTotal = 0;
+  let paymentsTotal = 0;
+  let unassignedCount = 0;
+  let unassignedTotal = 0;
+  let expectedTotal = 0;
+  let onTariffTotal = 0;
+  let overpaid = 0;
+  let matriculaPlayers = 0;
+  let matriculaAmount = 0;
+  const monthly = new Map<number, MonthCollection>();
   let monthTotal = 0;
   let overdueTotal = 0;
   let overduePlayers = 0;
@@ -78,8 +113,10 @@ export function buildPaymentsDashboard({
   const recent: RecentPayment[] = [];
 
   for (const row of rows) {
+    unassignedCount += row.unassigned.count;
+    unassignedTotal += row.unassigned.total;
     for (const payment of row.payments) {
-      seasonTotal += payment.amount;
+      paymentsTotal += payment.amount;
       if (payment.paid_date?.startsWith(thisMonth)) monthTotal += payment.amount;
       if (payment.paid_date) {
         recent.push({
@@ -98,7 +135,29 @@ export function buildPaymentsDashboard({
     let overdueBalance = 0;
     let lateCount = 0;
     let lateBalance = 0;
+    let missingMatricula = false;
     for (const o of row.obligations) {
+      expectedTotal += o.due;
+      onTariffTotal += Math.min(o.paid, o.due);
+      overpaid += Math.max(0, o.paid - o.due);
+      if (o.code === "matricula" && o.remaining > 0) {
+        missingMatricula = true;
+        matriculaAmount += o.remaining;
+      }
+      if (o.kind === "monthly" && o.month != null) {
+        const entry = monthly.get(o.month) ?? {
+          month: o.month,
+          due: 0,
+          paid: 0,
+          amountDue: 0,
+          amountPaid: 0,
+        };
+        entry.due += 1;
+        entry.amountDue += o.due;
+        entry.amountPaid += Math.min(o.paid, o.due);
+        if (o.remaining === 0) entry.paid += 1;
+        monthly.set(o.month, entry);
+      }
       if (o.kind === "monthly" && o.month === currentMonth) {
         monthlyTarget += 1;
         if (o.remaining === 0) monthlyPaid += 1;
@@ -113,6 +172,7 @@ export function buildPaymentsDashboard({
       }
     }
 
+    if (missingMatricula) matriculaPlayers += 1;
     if (overdueCount > 0) {
       overduePlayers += 1;
       overdueTotal += overdueBalance;
@@ -131,8 +191,18 @@ export function buildPaymentsDashboard({
   debtors.sort((a, b) => b.balance - a.balance || b.lateCount - a.lateCount);
   recent.sort((a, b) => b.date.localeCompare(a.date));
 
+  const byMonth = [...monthly.values()]
+    .sort((a, b) => seasonMonthIndex(a.month) - seasonMonthIndex(b.month))
+    .map((m) => ({ ...m, amountDue: roundCents(m.amountDue), amountPaid: roundCents(m.amountPaid) }));
+
   return {
-    seasonTotal: roundCents(seasonTotal),
+    seasonTotal: roundCents(paymentsTotal - unassignedTotal),
+    expectedTotal: roundCents(expectedTotal),
+    onTariffTotal: roundCents(onTariffTotal),
+    overpaid: roundCents(overpaid),
+    unassigned: { count: unassignedCount, total: roundCents(unassignedTotal) },
+    byMonth,
+    withoutMatricula: { players: matriculaPlayers, amount: roundCents(matriculaAmount) },
     monthTotal: roundCents(monthTotal),
     monthly: monthlyTarget > 0 ? { month: currentMonth, paid: monthlyPaid, target: monthlyTarget } : null,
     overdueTotal: roundCents(overdueTotal),

@@ -39,7 +39,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
   if (pathname === appRoutes.admin) {
     return {
       title: "Resumen del club",
-      subtitle: "Vista general de pagos, morosidad e inventario de ropa. Datos ficticios hasta conectar Supabase.",
+      subtitle: "Lo pendiente en pagos, jugadores y ropa.",
       skeleton: "admin",
     };
   }
