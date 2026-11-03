@@ -9,7 +9,17 @@ import { PAYMENT_INSTRUCTIONS } from "@/lib/payments/reminders/instructions";
  *  - PAYMENT_REMINDERS_ENABLED=true: sin esto el cron NO envía nada.
  *  - PAYMENT_REMINDERS_TEST_TO: si existe, todo correo real se redirige a esa dirección.
  *  - CRON_SECRET: protege /api/cron/payment-reminders.
+ *  - PAYMENT_REMINDERS_DAILY_LIMIT: tope de correos de avisos por día (por defecto 80). El plan
+ *    gratuito de Resend admite 100 al día en total, así que se deja margen para otros envíos
+ *    (avisos de vídeo, pruebas). Lo que no cabe queda para el siguiente pase.
  */
+
+const DEFAULT_DAILY_LIMIT = 80;
+
+function parseDailyLimit(value: string | undefined): number {
+  const n = Number.parseInt(value?.trim() ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_DAILY_LIMIT;
+}
 /** Logo del correo: URL absoluta pública (sitio configurado o dominio de producción en Vercel). */
 function emailLogoUrl(): string | null {
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
@@ -28,6 +38,7 @@ export function getReminderConfig() {
     /** Cómo pagar: se edita en lib/payments/reminders/instructions.ts. */
     logoUrl: emailLogoUrl(),
     instructions: PAYMENT_INSTRUCTIONS,
+    dailyLimit: parseDailyLimit(process.env.PAYMENT_REMINDERS_DAILY_LIMIT),
     enabled: process.env.PAYMENT_REMINDERS_ENABLED === "true",
     testTo: process.env.PAYMENT_REMINDERS_TEST_TO?.trim() || null,
     cronSecret: process.env.CRON_SECRET?.trim() || null,

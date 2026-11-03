@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { renderReminderEmail } from "@/lib/payments/reminders/email";
-import { listOwing, planReminders, type ReminderHistoryEntry } from "@/lib/payments/reminders/plan";
+import {
+  applyDailyCap,
+  listOwing,
+  planReminders,
+  prioritizePlans,
+  type ReminderHistoryEntry,
+} from "@/lib/payments/reminders/plan";
 import { formatOwingForWhatsapp } from "@/lib/payments/reminders/whatsapp-list";
 import type { FeeObligation } from "@/lib/payments/fees";
 import type { PlayerFeeRow } from "@/lib/payments/player-fee-rows";
@@ -55,14 +61,23 @@ describe("planReminders", () => {
     expect(plans.map((p) => p.kind)).toEqual(["ultimo_aviso"]);
   });
 
-  it("otros días del mes no hay aviso para lo solo vencido", () => {
-    expect(plan([vencida], new Date(2026, 9, 20))).toEqual([]);
-    expect(plan([vencida], new Date(2026, 9, 11))).toEqual([]);
+  it("antes del día 10 no hay aviso y, si ya se avisó este mes, tampoco después", () => {
+    expect(plan([vencida], new Date(2026, 9, 9))).toEqual([]);
+    const history: ReminderHistoryEntry[] = [{ player_id: "a", kind: "aviso", sent_on: "2026-10-10" }];
+    expect(plan([vencida], new Date(2026, 9, 11), history)).toEqual([]);
+    expect(plan([vencida], new Date(2026, 9, 20), history)).toEqual([]);
+  });
+
+  it("si el aviso del día 10 no llegó a salir, sale al día siguiente", () => {
+    expect(plan([vencida], new Date(2026, 9, 11)).map((p) => p.kind)).toEqual(["aviso"]);
+    const otroMes: ReminderHistoryEntry[] = [{ player_id: "a", kind: "aviso", sent_on: "2026-09-10" }];
+    expect(plan([vencida], new Date(2026, 9, 12), otroMes).map((p) => p.kind)).toEqual(["aviso"]);
   });
 
   it("en febrero el último día es el 28 (o 29 en bisiesto)", () => {
+    const avisado: ReminderHistoryEntry[] = [{ player_id: "a", kind: "aviso", sent_on: "2028-02-10" }];
     expect(plan([vencida], new Date(2027, 1, 28)).map((p) => p.kind)).toEqual(["ultimo_aviso"]);
-    expect(plan([vencida], new Date(2028, 1, 28))).toEqual([]);
+    expect(plan([vencida], new Date(2028, 1, 28), avisado)).toEqual([]);
     expect(plan([vencida], new Date(2028, 1, 29)).map((p) => p.kind)).toEqual(["ultimo_aviso"]);
   });
 
@@ -165,5 +180,50 @@ describe("listOwing + formatOwingForWhatsapp", () => {
     expect(
       formatOwingForWhatsapp({ owing: [], date: "2026-11-15", onlyLate: false }),
     ).toBe("");
+  });
+});
+
+describe("tope diario de envíos", () => {
+  const mk = (id: string, kind: "aviso" | "ultimo_aviso" | "atrasado", total: number, emails = 1) => ({
+    playerId: id,
+    playerName: `Jugador ${id}`,
+    teamName: null,
+    kind,
+    items: [],
+    total,
+    recipients: Array.from({ length: emails }, (_, i) => `${id}${i}@x.es`),
+  });
+
+  it("ordena: último aviso, aviso, atrasado y, dentro de cada uno, la deuda mayor", () => {
+    const ordered = prioritizePlans([
+      mk("a", "atrasado", 90),
+      mk("b", "aviso", 25),
+      mk("c", "ultimo_aviso", 25),
+      mk("d", "aviso", 50),
+      mk("e", "atrasado", 120),
+    ]);
+    expect(ordered.map((p) => p.playerId)).toEqual(["c", "d", "b", "e", "a"]);
+  });
+
+  it("envía lo que cabe y deja el resto para el siguiente pase", () => {
+    const ordered = prioritizePlans([mk("a", "aviso", 1), mk("b", "atrasado", 2), mk("c", "atrasado", 3)]);
+    const { send, deferred } = applyDailyCap(ordered, { remaining: 2, cost: (p) => p.recipients.length });
+    expect(send.map((p) => p.playerId)).toEqual(["a", "c"]);
+    expect(deferred.map((p) => p.playerId)).toEqual(["b"]);
+  });
+
+  it("cuenta un correo por destinatario y aprovecha el hueco con otros más baratos", () => {
+    const { send, deferred } = applyDailyCap(
+      [mk("a", "aviso", 5, 1), mk("b", "aviso", 4, 2), mk("c", "aviso", 3, 1)],
+      { remaining: 2, cost: (p) => p.recipients.length },
+    );
+    expect(send.map((p) => p.playerId)).toEqual(["a", "c"]);
+    expect(deferred.map((p) => p.playerId)).toEqual(["b"]);
+  });
+
+  it("sin cuota restante no envía nada", () => {
+    const { send, deferred } = applyDailyCap([mk("a", "aviso", 1)], { remaining: 0, cost: () => 1 });
+    expect(send).toEqual([]);
+    expect(deferred).toHaveLength(1);
   });
 });
