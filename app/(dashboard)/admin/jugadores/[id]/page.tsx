@@ -25,7 +25,7 @@ import {
 import { getPlayerDetailsSnapshot, getPlayerNavigationItems } from "@/lib/roster/snapshots";
 import { getCurrentSeason } from "@/lib/season";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { formatPlayerName } from "@/lib/roster/constants";
+
 
 /** Ropa del jugador, inventario y árbol de almacén: pesan más que la ficha, así que streamean. */
 async function PlayerClothingLoader({
@@ -117,22 +117,7 @@ async function PlayerDetailContent({
       : null;
 
   return (
-    <DashboardPage
-      title={formatPlayerName(snapshot.player)}
-      subtitle={snapshot.player.team?.name ?? "Sin equipo"}
-      back={{ href: listHref, label: "Jugadores" }}
-      actions={null}
-      topActions={
-        neighbors ? (
-          <PlayerNeighborNav
-            position={neighbors.position}
-            total={neighbors.total}
-            prev={neighborLink(neighbors.prev)}
-            next={neighborLink(neighbors.next)}
-          />
-        ) : undefined
-      }
-    >
+    <DashboardPage>
       <div className="flex flex-col gap-8">
         <PlayerForm
           teams={snapshot.teams}
@@ -140,15 +125,26 @@ async function PlayerDetailContent({
           canWrite={canWrite}
           canDelete={canDelete}
           listHref={listHref}
+          navigation={
+            neighbors ? (
+              <PlayerNeighborNav
+                position={neighbors.position}
+                total={neighbors.total}
+                prev={neighborLink(neighbors.prev)}
+                next={neighborLink(neighbors.next)}
+              />
+            ) : undefined
+          }
           exemption={
             canWrite
               ? { playerId: id, season: exemptionSeason, current: exemption, canEdit: canDelete }
               : null
           }
-        />
-        <Suspense fallback={<ClothingSectionFallback />}>
-          <PlayerClothingLoader playerId={id} canWrite={canWrite} />
-        </Suspense>
+        >
+          <Suspense fallback={<ClothingSectionFallback />}>
+            <PlayerClothingLoader playerId={id} canWrite={canWrite} />
+          </Suspense>
+        </PlayerForm>
       </div>
     </DashboardPage>
   );

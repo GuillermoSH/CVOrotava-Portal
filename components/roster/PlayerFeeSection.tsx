@@ -95,7 +95,7 @@ export function PlayerFeeSection({
   const anyActive = tariffActive || exemptActive;
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
+    <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
       <SectionHeading icon={Wallet} title="Cuotas" />
 
       {showTariff && !exemptActive && (!anyActive || mode === "extended") ? (

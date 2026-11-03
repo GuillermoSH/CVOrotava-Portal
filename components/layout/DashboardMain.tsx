@@ -55,7 +55,7 @@ export function DashboardMain({ children }: { children: React.ReactNode }) {
         aria-busy={navigating}
       >
         <div className={getDashboardFrameClassName(routeChrome)}>
-          {title ? (
+          {title && !routeChrome?.hideHeader ? (
             <PageHeader title={title} subtitle={subtitle} back={back} actions={actions} topActions={topActions} />
           ) : null}
           {showPending ? (

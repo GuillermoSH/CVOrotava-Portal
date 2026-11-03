@@ -17,7 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import type { FieldError } from "react-hook-form";
 
 import { Badge } from "@/components/club/Badge";
@@ -27,7 +27,6 @@ import { FormDate, FormInput, FormSelect, FormTextarea } from "@/components/club
 import { Input } from "@/components/club/Input";
 import { Label } from "@/components/club/Label";
 import { SegmentedControl } from "@/components/club/SegmentedControl";
-import { SizePicker } from "@/components/clothing/SizePicker";
 import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { TeamCreateSheet } from "@/components/roster/TeamCreateSheet";
@@ -213,6 +212,8 @@ export function PlayerForm({
   canDelete = false,
   listHref = appRoutes.players.list,
   exemption,
+  navigation,
+  children,
 }: {
   teams: Team[];
   player?: PlayerWithDetails;
@@ -223,6 +224,10 @@ export function PlayerForm({
   listHref?: string;
   /** Exención de pagos de la temporada (solo al editar un jugador existente). */
   exemption?: PlayerExemptionInfo | null;
+  /** Anterior / siguiente de la lista, a la derecha de la barra superior. */
+  navigation?: ReactNode;
+  /** Secciones extra al final de la columna principal (p. ej. la ropa del jugador). */
+  children?: ReactNode;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -503,6 +508,7 @@ export function PlayerForm({
     showDocsDate && docsDeliveredAt ? `${docsDeliveredAt}T12:00:00` : null,
   );
   const readOnly = !canWrite;
+  const currentPlayerName = `${firstName} ${lastName}`.trim() || player?.full_name || "";
   const canSave = canWrite && !pending && (!player || isDirty);
   const saveLabel = pending ? "Guardando…" : player ? "Guardar ficha" : "Dar de alta";
   const mobileSaveLabel = pending ? "Guardando…" : player ? "Guardar" : "Dar de alta";
@@ -723,22 +729,59 @@ export function PlayerForm({
 
   return (
     <div className="clothing-page-with-sticky clothing-page-with-sticky--tall flex min-h-full flex-col md:-mt-4">
-      {/* Desktop: sticky flush con el borde del main (compensa py-4 / lg:py-6).
-          Acciones a la izquierda para dejar libre la esquina superior derecha. */}
-      <div className="sticky top-0 z-20 -mx-4 mb-4 hidden border-b border-[var(--club-border)] bg-[var(--club-bg)]/95 px-4 py-2 backdrop-blur-sm md:-mx-6 md:top-[-1rem] md:flex md:items-center md:justify-start md:gap-3 md:px-6 lg:top-[-1.5rem]">
-        <div className="flex shrink-0 items-center gap-2">
-          <Link href={listHref} className={cn("btn-secondary", stickyActionClass)}>
-            Volver
-          </Link>
+      {/* Barra superior fija, a ras del borde del main (compensa py-4 / lg:py-6): volver, nombre
+          del jugador, navegación entre fichas y acciones. Sustituye a la cabecera del shell. */}
+      <div className="sticky top-0 z-20 -mx-4 mb-4 flex items-center gap-2 border-b border-[var(--club-border)] bg-[var(--club-bg)]/95 px-4 py-2 backdrop-blur-sm md:-mx-6 md:top-[-1rem] md:gap-3 md:px-6 lg:top-[-1.5rem]">
+        <Link
+          href={listHref}
+          aria-label="Volver al listado"
+          title="Volver al listado"
+          className={cn("btn-secondary shrink-0 !px-0", "size-9 min-h-9 justify-center")}
+        >
+          <ChevronLeft className="size-5" aria-hidden strokeWidth={2.25} />
+        </Link>
+
+        {player ? (
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-semibold leading-tight tracking-[-0.01em] text-foreground md:text-xl">
+              {currentPlayerName}
+            </h1>
+            <p className="flex min-w-0 items-center gap-2 truncate text-xs text-muted-foreground">
+              <span className="truncate">{selectedTeam?.name ?? "Sin equipo"}</span>
+              {player.is_active === false ? (
+                <Badge variant="warning" className="text-[11px]">
+                  Baja
+                </Badge>
+              ) : null}
+              {!profileCompleteness.isComplete ? (
+                <span
+                  className="inline-flex shrink-0 items-center gap-1 text-[var(--club-warning-strong)]"
+                  title={`Faltan: ${profileCompleteness.missingFields.join(", ")}`}
+                >
+                  <AlertTriangle className="size-3.5" aria-hidden />
+                  Ficha incompleta
+                </span>
+              ) : null}
+            </p>
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+
+        {navigation ? <div className="shrink-0">{navigation}</div> : null}
+
+        <div className="hidden shrink-0 items-center gap-2 md:flex">
           {canWrite && player ? <PlayerStatusActions player={player} /> : null}
           {canDelete && player ? (
             <Button
               type="button"
               variant="secondary"
-              className={cn(stickyActionClass, "text-[var(--club-danger)]")}
+              aria-label="Eliminar jugador"
+              title="Eliminar jugador"
+              className="size-9 min-h-9 !px-0 text-[var(--club-danger)]"
               onClick={() => setDeleteOpen(true)}
             >
-              Eliminar
+              <Trash2 className="size-4" aria-hidden />
             </Button>
           ) : null}
           {canWrite ? (
@@ -751,26 +794,6 @@ export function PlayerForm({
             >
               {saveLabel}
             </Button>
-          ) : null}
-        </div>
-        <div className="min-w-0 flex-1">
-          {!profileCompleteness.isComplete ? (
-            <div
-              role="status"
-              className="flex min-w-0 items-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--club-warning)_45%,var(--club-border))] bg-[var(--club-warning-muted)] px-2.5 py-1.5"
-            >
-              <AlertTriangle
-                className="size-3.5 shrink-0 text-[var(--club-warning-strong)]"
-                aria-hidden
-              />
-              <p className="min-w-0 truncate text-xs text-foreground">
-                <span className="font-semibold">Ficha incompleta</span>
-                <span className="text-muted-foreground">
-                  {" · "}
-                  {profileCompleteness.missingFields.join(", ")}
-                </span>
-              </p>
-            </div>
           ) : null}
         </div>
       </div>
@@ -797,8 +820,8 @@ export function PlayerForm({
           </div>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-[19rem_minmax(0,1fr)] lg:items-start">
-          <aside className="flex flex-col gap-4 lg:sticky lg:top-16">
+        <div className="grid gap-8 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-10">
+          <aside className="flex flex-col gap-8 lg:sticky lg:top-20">
           {canWrite && player ? (
             <PlayerPhotoSection
               playerId={player.id}
@@ -820,7 +843,7 @@ export function PlayerForm({
               }}
             />
           ) : null}
-          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
+          <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
             <SectionHeading icon={Shirt} title="Equipo" />
             {teams.length === 0 ? (
               <p className="text-sm text-muted-foreground">Crea un equipo para asignar el equipo principal.</p>
@@ -869,8 +892,8 @@ export function PlayerForm({
             ) : null}
           </section>
           </aside>
-          <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
-          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5 xl:col-span-2">
+          <div className="flex min-w-0 flex-col gap-8">
+          <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
             <SectionHeading icon={UserRound} title="Identidad" />
             <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
               <FormInput
@@ -1017,7 +1040,7 @@ export function PlayerForm({
               ) : null}
             </div>
           </section>
-          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5 xl:col-span-2">
+          <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
             <SectionHeading icon={MapPin} title="Domicilio" />
             <div className="grid gap-3 sm:grid-cols-2 md:gap-2.5">
               <FormSelect
@@ -1123,7 +1146,7 @@ export function PlayerForm({
               </p>
             ) : null}
           </section>
-          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
+          <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
             {selfContact ? (
               <>
                 <SectionHeading icon={Phone} title="Contacto del jugador" />
@@ -1277,7 +1300,7 @@ export function PlayerForm({
               </>
             )}
           </section>
-          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
+          <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <SectionHeading icon={ClipboardCheck} title="Alta federativa" />
               <div className="flex items-center gap-2">
@@ -1370,7 +1393,7 @@ export function PlayerForm({
             ) : null}
           </section>
           <PlayerKitCard
-            className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5 xl:col-span-2"
+            className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5"
             jerseyNumber={jerseyNumber}
             onJerseyNumberChange={setJerseyNumber}
             generalSize={size}
@@ -1378,7 +1401,8 @@ export function PlayerForm({
             garmentSizes={garmentSizes}
             onGarmentSizeChange={(category, next) =>
               setGarmentSizes((prev) => {
-                const { [category]: _removed, ...rest } = prev;
+                const rest = { ...prev };
+                delete rest[category];
                 return next ? { ...rest, [category]: next } : rest;
               })
             }
@@ -1395,7 +1419,7 @@ export function PlayerForm({
             readOnly={readOnly}
             exemption={exemption ?? null}
           />
-          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5">
+          <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
             <SectionHeading icon={MessageCircle} title="Grupo y fotos" />
             <div className="grid gap-2 md:grid-cols-2 md:gap-2.5">
               <ToggleRow
@@ -1417,7 +1441,7 @@ export function PlayerForm({
               />
             </div>
           </section>
-          <section className="flex flex-col gap-3 rounded-xl border border-[var(--club-border)] bg-[var(--club-surface)] p-4 md:gap-2.5 md:p-5 xl:col-span-2">
+          <section className="flex flex-col gap-3 border-t border-[var(--club-border)] pt-8 first:border-t-0 first:pt-0 md:gap-2.5">
             <SectionHeading icon={HeartPulse} title="Salud" />
             <FormTextarea
               label="Enfermedades o patologías detectadas"
@@ -1431,6 +1455,7 @@ export function PlayerForm({
               onChange={(e) => setMedicalNotes(e.target.value)}
             />
           </section>
+            {children}
           </div>
         </div>
 

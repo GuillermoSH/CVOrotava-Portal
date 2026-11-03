@@ -85,26 +85,19 @@ export function ToggleRow({
   );
 }
 
+/** Título de sección: solo texto (sin icono en cuadro), la jerarquía la da el tamaño. */
 export function SectionHeading({
-  icon: Icon,
   title,
   action,
 }: {
-  icon: LucideIcon;
+  /** Se acepta por compatibilidad con las llamadas existentes; ya no se pinta. */
+  icon?: LucideIcon;
   title: string;
   action?: ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span
-          aria-hidden
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--club-surface-2)] text-muted-foreground"
-        >
-          <Icon className="size-4" strokeWidth={1.75} />
-        </span>
-        <h2 className="section-title">{title}</h2>
-      </div>
+      <h2 className="section-title">{title}</h2>
       {action}
     </div>
   );

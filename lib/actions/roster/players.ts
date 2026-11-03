@@ -18,6 +18,7 @@ import {
   updatePlayer,
   updatePlayerChecklistField,
 } from "@/lib/roster/repository/players";
+import { findJerseyConflict } from "@/lib/roster/repository/garment-sizes";
 import { createTeam, getTeamById } from "@/lib/roster/repository/teams";
 import {
   bulkSetPlayersActiveSchema,
@@ -37,6 +38,20 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 export type ActionResult =
   | { ok: true; id?: string; updated?: number }
   | { ok: false; error: string };
+
+/** Un dorsal por jugador activo y equipo: si ya lo lleva otro, el mensaje dice quién. */
+async function jerseyConflictMessage(
+  db: Awaited<ReturnType<typeof getRosterDb>>,
+  {
+    teamId,
+    jerseyNumber,
+    excludePlayerId,
+  }: { teamId: string | null; jerseyNumber: number | null; excludePlayerId?: string },
+): Promise<string | null> {
+  if (!teamId || jerseyNumber == null) return null;
+  const holder = await findJerseyConflict(db, { teamId, jerseyNumber, excludePlayerId });
+  return holder ? `El dorsal ${jerseyNumber} ya lo lleva ${holder} en este equipo` : null;
+}
 
 function friendlyDbError(message: string): string {
   if (/players_address_street_type_chk/i.test(message)) {
@@ -99,6 +114,12 @@ export async function createPlayerAction(input: unknown): Promise<ActionResult> 
       teamCategory,
       contacts: parsed.data.contacts,
     });
+
+    const jerseyError = await jerseyConflictMessage(db, {
+      teamId: parsed.data.team_id ?? null,
+      jerseyNumber: parsed.data.jersey_number ?? null,
+    });
+    if (jerseyError) return { ok: false, error: jerseyError };
 
     const player = await createPlayer(db, {
       ...parsed.data,
@@ -189,6 +210,13 @@ export async function updatePlayerAction(input: unknown): Promise<ActionResult> 
       teamCategory,
       contacts: parsed.data.contacts,
     });
+
+    const jerseyError = await jerseyConflictMessage(db, {
+      teamId: parsed.data.team_id ?? null,
+      jerseyNumber: parsed.data.jersey_number ?? null,
+      excludePlayerId: parsed.data.id,
+    });
+    if (jerseyError) return { ok: false, error: jerseyError };
 
     await updatePlayer(
       db,

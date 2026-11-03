@@ -46,3 +46,31 @@ describe("tarjeta de equipación", () => {
     expect(updatePlayerSchema.safeParse({ ...base, garment_sizes: { backpack: "m" } }).success).toBe(false);
   });
 });
+
+describe("dorsal único por equipo", () => {
+  it("avisa de quién lo lleva y no se guarda", async () => {
+    const calls: Array<[string, unknown]> = [];
+    const chain: Record<string, unknown> = {};
+    const result = { data: [{ full_name: "Romén Gómez" }], error: null };
+    for (const method of ["select", "eq", "limit", "neq"]) {
+      chain[method] = (...args: unknown[]) => {
+        calls.push([method, args]);
+        return chain;
+      };
+    }
+    chain.then = (resolve: (value: unknown) => void) => resolve(result);
+    const db = { from: () => chain } as never;
+
+    const { findJerseyConflict } = await import("@/lib/roster/repository/garment-sizes");
+    const holder = await findJerseyConflict(db, {
+      teamId: "t1",
+      jerseyNumber: 5,
+      excludePlayerId: "me",
+    });
+    expect(holder).toBe("Romén Gómez");
+    // solo cuentan jugadores activos del mismo equipo, y nunca el propio jugador
+    expect(calls).toContainEqual(["eq", ["is_active", true]]);
+    expect(calls).toContainEqual(["eq", ["team_id", "t1"]]);
+    expect(calls).toContainEqual(["neq", ["id", "me"]]);
+  });
+});

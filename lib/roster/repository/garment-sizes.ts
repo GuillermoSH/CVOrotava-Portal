@@ -52,3 +52,29 @@ export async function replacePlayerGarmentSizes(
     : await del;
   if (error) throw new Error(dbErrorMessage(error));
 }
+
+/**
+ * Otro jugador activo del mismo equipo con ese dorsal. Las bajas no cuentan: su dorsal queda
+ * libre para otra persona. Devuelve su nombre, o null si el dorsal está libre.
+ */
+export async function findJerseyConflict(
+  db: Db,
+  {
+    teamId,
+    jerseyNumber,
+    excludePlayerId,
+  }: { teamId: string; jerseyNumber: number; excludePlayerId?: string },
+): Promise<string | null> {
+  let query = db
+    .from("players")
+    .select("full_name")
+    .eq("team_id", teamId)
+    .eq("jersey_number", jerseyNumber)
+    .eq("is_active", true)
+    .limit(1);
+  if (excludePlayerId) query = query.neq("id", excludePlayerId);
+
+  const { data, error } = await query;
+  if (error) throw new Error(dbErrorMessage(error));
+  return data?.[0]?.full_name ?? null;
+}
