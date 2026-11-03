@@ -728,10 +728,10 @@ export function PlayerForm({
   }
 
   return (
-    <div className="clothing-page-with-sticky clothing-page-with-sticky--tall flex min-h-full flex-col md:-mt-4">
+    <div className="clothing-page-with-sticky clothing-page-with-sticky--tall -mt-4 flex min-h-full flex-col lg:-mt-6">
       {/* Barra superior fija, a ras del borde del main (compensa py-4 / lg:py-6): volver, nombre
           del jugador, navegación entre fichas y acciones. Sustituye a la cabecera del shell. */}
-      <div className="sticky top-0 z-20 -mx-4 mb-4 flex items-center gap-2 border-b border-[var(--club-border)] bg-[var(--club-bg)]/95 px-4 py-2 backdrop-blur-sm md:-mx-6 md:top-[-1rem] md:gap-3 md:px-6 lg:top-[-1.5rem]">
+      <div className="sticky top-[-1rem] z-20 lg:top-[-1.5rem] -mx-4 mb-6 flex h-14 items-center gap-2 border-b border-[var(--club-border)] bg-background px-4 md:-mx-6 md:gap-3 md:px-6">
         <Link
           href={listHref}
           aria-label="Volver al listado"
