@@ -205,3 +205,59 @@ export function applyDailyCap<T>(
   }
   return { send, deferred };
 }
+
+/** Gravedad para el tono de un correo con varios jugadores: manda el más grave. */
+const TONE_RANK: Record<ReminderKind, number> = { atrasado: 0, ultimo_aviso: 1, aviso: 2 };
+
+export type ReminderGroup<T extends ReminderPlan & { recipients: string[] }> = {
+  /** Destinatarios normalizados y ordenados: dos jugadores con el mismo destino comparten clave. */
+  key: string;
+  recipients: string[];
+  /** Jugadores de ese destino, por orden alfabético. */
+  plans: T[];
+  /** Tono del correo: el del aviso más grave del grupo. */
+  kind: ReminderKind;
+  /** Suma de lo pendiente de todos los jugadores del grupo. */
+  total: number;
+};
+
+/**
+ * Junta en un solo correo a los jugadores que tienen exactamente el mismo destino (hermanos con
+ * los mismos tutores). Quien no tiene correo no entra: no hay destino al que escribir. Un destino
+ * parcialmente compartido (A para uno, A y B para otro) no se mezcla: nadie recibe datos de un
+ * jugador que no es suyo.
+ */
+export function groupByDestination<T extends ReminderPlan & { recipients: string[] }>(
+  plans: readonly T[],
+): ReminderGroup<T>[] {
+  const groups = new Map<string, ReminderGroup<T>>();
+  for (const plan of plans) {
+    const recipients = [...new Set(plan.recipients.map((r) => r.trim().toLowerCase()).filter(Boolean))].sort();
+    if (recipients.length === 0) continue;
+    const key = recipients.join(",");
+    const group = groups.get(key) ?? { key, recipients: plan.recipients, plans: [], kind: plan.kind, total: 0 };
+    group.plans.push(plan);
+    groups.set(key, group);
+  }
+  return [...groups.values()].map((g) => {
+    const sorted = [...g.plans].sort((a, b) => a.playerName.localeCompare(b.playerName, "es"));
+    const kind = sorted.reduce<ReminderKind>(
+      (worst, p) => (TONE_RANK[p.kind] < TONE_RANK[worst] ? p.kind : worst),
+      sorted[0].kind,
+    );
+    return { ...g, plans: sorted, kind, total: roundCents(sorted.reduce((acc, p) => acc + p.total, 0)) };
+  });
+}
+
+/** Orden de envío de los correos: el aviso más urgente de cada grupo, luego la deuda mayor. */
+export function prioritizeGroups<T extends ReminderPlan & { recipients: string[] }>(
+  groups: readonly ReminderGroup<T>[],
+): ReminderGroup<T>[] {
+  const urgency = (g: ReminderGroup<T>) => Math.min(...g.plans.map((p) => KIND_PRIORITY[p.kind]));
+  return [...groups].sort(
+    (a, b) =>
+      urgency(a) - urgency(b) ||
+      b.total - a.total ||
+      a.plans[0].playerName.localeCompare(b.plans[0].playerName, "es"),
+  );
+}

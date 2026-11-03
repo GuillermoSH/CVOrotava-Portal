@@ -70,19 +70,31 @@ export async function logReminder(
 }
 
 /**
- * Correos de avisos ya enviados en un día (YYYY-MM-DD). Resend cuenta uno por destinatario, así
- * que se suman los destinatarios y no las filas.
+ * Correos que suman las filas del registro de un día. Resend cuenta uno por destinatario y un
+ * correo combinado (varios jugadores, mismo destino) deja una fila por jugador con el mismo
+ * `provider_id`: se cuenta una sola vez. Las filas sin id del proveedor cuentan cada una.
  */
+export function countEmailsFromRows(
+  rows: readonly { recipients: unknown; provider_id: string | null }[],
+): number {
+  const byEmail = new Map<string, number>();
+  let loose = 0;
+  for (const row of rows) {
+    const n = Array.isArray(row.recipients) ? row.recipients.length : 0;
+    if (row.provider_id) byEmail.set(row.provider_id, n);
+    else loose += n;
+  }
+  return loose + [...byEmail.values()].reduce((acc, n) => acc + n, 0);
+}
+
+/** Correos de avisos ya enviados en un día (YYYY-MM-DD), contados como los cuenta el proveedor. */
 export async function countEmailsSentOn(db: PaymentsDb, date: string): Promise<number> {
   const { data, error } = await db
     .from("payment_reminders")
-    .select("recipients")
+    .select("recipients, provider_id")
     .eq("status", "sent")
     .eq("sent_on", date);
 
   if (error) throw new Error(dbErrorMessage(error));
-  return (data ?? []).reduce(
-    (acc, row) => acc + (Array.isArray(row.recipients) ? row.recipients.length : 0),
-    0,
-  );
+  return countEmailsFromRows((data ?? []) as { recipients: unknown; provider_id: string | null }[]);
 }
