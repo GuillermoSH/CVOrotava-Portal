@@ -2,11 +2,13 @@
 
 import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
 import { getReminderConfig } from "@/lib/payments/reminders/config";
+import { refreshDeliveries } from "@/lib/payments/reminders/delivery";
 import { renderReminderEmail, renderReminderGroupEmail } from "@/lib/payments/reminders/email";
 import { groupByDestination } from "@/lib/payments/reminders/plan";
 import { sendEmail } from "@/lib/payments/reminders/resend";
 import { buildReminderPreview, type ReminderPreview } from "@/lib/payments/reminders/run";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export type PreviewRemindersResult =
   | ({ ok: true } & ReminderPreview)
@@ -33,6 +35,23 @@ export async function previewRemindersAction(date: unknown): Promise<PreviewRemi
     return { ok: true, ...(await buildReminderPreview({ today: day })) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No se pudo calcular el plan" };
+  }
+}
+
+export type RefreshDeliveryResult =
+  | { ok: true; checked: number; updated: number; remaining: number }
+  | { ok: false; error: string };
+
+/** Pregunta a Resend qué ha pasado con los correos recientes (entregado, rebotado…). */
+export async function refreshDeliveryAction(): Promise<RefreshDeliveryResult> {
+  try {
+    await requirePaymentsWriteAccess();
+    const config = getReminderConfig();
+    if (!config.apiKey) return { ok: false, error: "Falta RESEND_API_KEY en el servidor" };
+    const result = await refreshDeliveries(createServiceRoleClient(), config);
+    return { ok: true, ...result };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No se pudo consultar a Resend" };
   }
 }
 

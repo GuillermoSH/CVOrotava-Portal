@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 
 import { Badge } from "@/components/club/Badge";
 import { Button } from "@/components/club/Button";
 import { Input } from "@/components/club/Input";
+import { appRoutes } from "@/lib/constants";
 import {
   previewRemindersAction,
   sendTestReminderAction,
@@ -167,7 +169,12 @@ export function RemindersPageClient({
   return (
     <div className="flex flex-col gap-5">
       <section className="rounded-lg border border-[var(--club-border)] bg-[var(--club-surface)]/60 p-4">
-        <h2 className="section-title mb-2">Estado</h2>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="section-title">Estado</h2>
+          <Link href={appRoutes.payments.remindersControl} className="text-sm text-brand hover:underline">
+            Control de envíos y rebotes →
+          </Link>
+        </div>
         <StatusNotes status={status} />
         {!instructions ? (
           <p className="mt-2 text-sm text-foreground">

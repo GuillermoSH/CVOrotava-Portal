@@ -45,7 +45,7 @@ function dateKey(date: Date): string {
 /** Ventana de historial: cubre la cadencia de 7 días con margen. */
 const HISTORY_DAYS = 30;
 
-async function loadFeeRows({
+export async function loadFeeRows({
   today,
   historySince,
 }: {
