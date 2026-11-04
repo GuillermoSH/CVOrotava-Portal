@@ -103,6 +103,15 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     };
   }
 
+  if (pathname === appRoutes.payments.remindersControl) {
+    return {
+      title: "Control de avisos",
+      subtitle: "Qué se ha enviado, qué ha rebotado, quién no tiene destino y cuándo toca el siguiente aviso.",
+      back: { href: appRoutes.payments.reminders, label: "Avisos de pago" },
+      skeleton: "products",
+    };
+  }
+
   if (pathname === appRoutes.clothing.hub) {
     return {
       title: "Ropa",
