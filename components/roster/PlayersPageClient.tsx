@@ -941,7 +941,13 @@ export function PlayersPageClient({
         )
       }
     >
-      <div className={cn("flex flex-col gap-3", hasSelection && canWrite && "max-md:pb-28")}>
+      <div
+        className={cn(
+          "flex flex-col gap-3",
+          // En móvil la barra de acciones fija tapa el final de la lista: se reserva su altura real.
+          canWrite && (hasSelection ? "clothing-page-with-sticky--bulk" : "clothing-page-with-sticky"),
+        )}
+      >
         <div className={showBajasToggle ? "flex flex-col gap-3 md:flex-row md:items-start" : undefined}>
           <FacetSearchBar
             query={query}
