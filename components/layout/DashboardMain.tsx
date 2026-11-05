@@ -51,7 +51,7 @@ export function DashboardMain({ children }: { children: React.ReactNode }) {
       <main
         id="dashboard-main"
         ref={mainRef}
-        className="scrollbar-hidden flex-1 overflow-auto px-4 py-4 pb-[calc(var(--shell-dock-offset)+0.5rem)] md:px-6 md:pb-4 lg:py-6"
+        className="scrollbar-hidden flex-1 overflow-auto px-4 py-4 pb-[calc(var(--shell-dock-offset)+0.5rem)] md:px-6 md:pb-[calc(var(--shell-dock-offset)+0.5rem)] lg:py-6 lg:pb-6"
         aria-busy={navigating}
       >
         <div className={getDashboardFrameClassName(routeChrome)}>
