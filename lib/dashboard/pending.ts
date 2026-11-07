@@ -137,7 +137,7 @@ export function buildPendingGroups({
           count: payments.overduePlayers,
           valueLabel: plural(payments.overduePlayers, "jugador", "jugadores"),
           detail: `${formatEur(payments.overdueTotal)} · ${payments.debtors.length} con algo atrasado`,
-          href: appRoutes.payments.list,
+          href: `${appRoutes.payments.control}#vencidos`,
         },
         {
           id: "matricula",
@@ -145,14 +145,14 @@ export function buildPendingGroups({
           count: payments.withoutMatricula.players,
           valueLabel: plural(payments.withoutMatricula.players, "jugador", "jugadores"),
           detail: formatEur(payments.withoutMatricula.amount),
-          href: checklistHref("missing_matricula"),
+          href: `${appRoutes.payments.control}#matricula`,
         },
         {
           id: "unassigned",
           label: "Cobros sin concepto asignado",
           count: payments.unassigned.count,
           detail: `${formatEur(payments.unassigned.total)} · no suman en lo cobrado`,
-          href: appRoutes.payments.list,
+          href: `${appRoutes.payments.control}#sin-concepto`,
         },
         {
           id: "overpaid",
@@ -160,7 +160,7 @@ export function buildPendingGroups({
           count: payments.overpaid > 0 ? 1 : 0,
           valueLabel: formatEur(payments.overpaid),
           detail: "Un mismo concepto anotado más de una vez",
-          href: appRoutes.payments.list,
+          href: `${appRoutes.payments.control}#cobrado-de-mas`,
         },
       ]
     : [];

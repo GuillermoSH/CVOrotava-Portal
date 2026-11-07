@@ -94,6 +94,15 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
     };
   }
 
+  if (pathname === appRoutes.payments.control) {
+    return {
+      title: "Control económico",
+      subtitle: "Vencidos, matrículas, cobros sin concepto y cobrado de más, con lo necesario para resolverlos.",
+      back: { href: appRoutes.payments.list, label: "Pagos" },
+      skeleton: "products",
+    };
+  }
+
   if (pathname === appRoutes.payments.reminders) {
     return {
       title: "Avisos de pago",
