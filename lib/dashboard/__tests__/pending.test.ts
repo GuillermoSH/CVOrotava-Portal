@@ -114,10 +114,10 @@ describe("buildPendingGroups", () => {
     expect(pay.map((i) => i.id)).toEqual(["overdue", "matricula", "unassigned", "overpaid"]);
     expect(pay[0]).toMatchObject({ count: 76, valueLabel: "76 jugadores" });
     expect(pay.map((i) => i.href)).toEqual([
-      "/admin/pagos/control#vencidos",
-      "/admin/pagos/control#matricula",
-      "/admin/pagos/control#sin-concepto",
-      "/admin/pagos/control#cobrado-de-mas",
+      "/admin/pagos/control/vencidos",
+      "/admin/pagos/control/matriculas",
+      "/admin/pagos/control/sin-concepto",
+      "/admin/pagos/control/cobrado-de-mas",
     ]);
     expect(pay[3].valueLabel).toContain("375");
     const storage = groups[1].items.find((i) => i.id === "storage");

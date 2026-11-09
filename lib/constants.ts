@@ -58,6 +58,10 @@ export const appRoutes = {
     list: "/admin/pagos",
     fees: "/admin/pagos/tarifas",
     control: "/admin/pagos/control",
+    controlOverdue: "/admin/pagos/control/vencidos",
+    controlMatricula: "/admin/pagos/control/matriculas",
+    controlUnassigned: "/admin/pagos/control/sin-concepto",
+    controlOverpaid: "/admin/pagos/control/cobrado-de-mas",
     reminders: "/admin/pagos/avisos",
     remindersControl: "/admin/pagos/avisos/control",
     /** Redirige a tarifas; se mantiene por enlaces guardados. */

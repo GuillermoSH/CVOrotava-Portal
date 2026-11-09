@@ -52,8 +52,8 @@ export function HomeDebtors({ debtors }: Readonly<{ debtors: readonly CriticalDe
       ) : null}
 
       {debtors.length > LIMIT ? (
-        <Link href={appRoutes.payments.list} className="text-sm font-medium text-brand hover:underline">
-          Ver los {debtors.length} en Pagos
+        <Link href={appRoutes.payments.controlOverdue} className="text-sm font-medium text-brand hover:underline">
+          Ver los {debtors.length} en el control
         </Link>
       ) : null}
     </section>

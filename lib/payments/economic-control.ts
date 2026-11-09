@@ -9,7 +9,7 @@ import type { SeasonFeeLine } from "@/lib/types/db";
 
 /**
  * Control económico: lo mismo que cuenta el inicio de /admin, pero con el detalle para resolverlo
- * (quién, qué concepto, qué cobro). Lógica pura sobre `PlayerFeeRow`; sin base de datos.
+ * (quién, qué concepto, qué cobro, qué hacer con él). Lógica pura sobre `PlayerFeeRow`.
  */
 
 type PlayerRef = { playerId: string; name: string; teamName: string | null };
@@ -31,11 +31,27 @@ export type PaymentRef = {
   method: string | null;
 };
 
+/** Deuda abierta a la que se podría reasignar un cobro (mismo importe que lo que falta). */
+export type AssignTarget = {
+  code: string;
+  month: number | null;
+  label: string;
+  remaining: number;
+};
+
 export type UnassignedEntry = PlayerRef & {
   payment: PaymentRef;
-  /** Cobro con concepto del mismo jugador y el mismo importe: probable repetición. */
-  twin: { concept: string; date: string | null } | null;
+  /** Cobros con concepto del mismo jugador y el mismo importe: probable repetición. */
+  twins: { id: string; concept: string; date: string | null }[];
+  /** Otro cobro libre del mismo jugador con igual importe y fecha. */
+  repeatsFree: boolean;
+  /** Deudas abiertas que este cobro cubriría exactamente. */
+  assignTargets: AssignTarget[];
+  /** Lo que se recomienda hacer: anular (repetido), asignar (cubre una deuda) o revisar a mano. */
+  verdict: "repeat" | "assign" | "review";
 };
+
+export type OverpaidPayment = PaymentRef & { code: string | null; month: number | null };
 
 export type OverpaidEntry = PlayerRef & {
   concept: string;
@@ -43,18 +59,19 @@ export type OverpaidEntry = PlayerRef & {
   paid: number;
   excess: number;
   /** Los cobros que suman ese concepto, para decidir cuál sobra. */
-  payments: PaymentRef[];
+  payments: OverpaidPayment[];
+  /** Deudas abiertas del jugador que un cobro de más cubriría exactamente. */
+  assignTargets: (AssignTarget & { paymentId: string })[];
 };
 
 export type EconomicControl = {
   overdue: OverdueEntry[];
   overdueTotal: number;
+  overdueLate: number;
   matricula: MatriculaEntry[];
   matriculaTotal: number;
   unassigned: UnassignedEntry[];
   unassignedTotal: number;
-  /** Cuántos de los cobros sin concepto tienen un gemelo con concepto. */
-  unassignedWithTwin: number;
   overpaid: OverpaidEntry[];
   overpaidTotal: number;
 };
@@ -62,6 +79,8 @@ export type EconomicControl = {
 function roundCents(value: number): number {
   return Math.round(value * 100) / 100;
 }
+
+const sameAmount = (a: number, b: number) => Math.abs(a - b) < 0.005;
 
 const ref = (p: PlayerPaymentFact): PaymentRef => ({
   id: p.id,
@@ -112,50 +131,66 @@ export function buildEconomicControl({
       matricula.push({ ...who, amount: matriculaLine.remaining, paidSoFar: matriculaLine.paid });
     }
 
+    const open = row.obligations.filter((o) => o.remaining > 0);
+    const targetsFor = (amount: number): AssignTarget[] =>
+      open
+        .filter((o) => sameAmount(o.remaining, amount))
+        .map((o) => ({ code: o.code, month: o.month, label: obligationConcept(o), remaining: o.remaining }));
+
     for (const o of row.obligations) {
       const excess = roundCents(o.paid - o.due);
       if (excess <= 0) continue;
+      const payments = row.payments
+        .filter((p) => matchesObligation(p, o))
+        .map((p) => ({ ...ref(p), code: p.fee_code, month: p.billing_month }));
       overpaid.push({
         ...who,
         concept: obligationConcept(o),
         due: o.due,
         paid: o.paid,
         excess,
-        payments: row.payments.filter((p) => matchesObligation(p, o)).map(ref),
+        payments,
+        assignTargets: payments.flatMap((p) =>
+          targetsFor(p.amount).map((t) => ({ ...t, paymentId: p.id })),
+        ),
       });
     }
 
-    // Cobros con concepto aún sin emparejar con un cobro libre del mismo importe.
+    const free = row.payments.filter((p) => isUnassignedPayment(p, monthlyCodes));
     const assigned = row.payments.filter((p) => p.status === "paid" && !isUnassignedPayment(p, monthlyCodes));
-    const usedTwins = new Set<string>();
-    for (const p of row.payments) {
-      if (!isUnassignedPayment(p, monthlyCodes)) continue;
-      const twin = assigned.find((a) => !usedTwins.has(a.id) && Math.abs(a.amount - p.amount) < 0.005);
-      if (twin) usedTwins.add(twin.id);
+    for (const p of free) {
+      const twins = assigned
+        .filter((a) => sameAmount(a.amount, p.amount) && a.fee_code)
+        .map((a) => ({
+          id: a.id,
+          concept: obligationConcept({
+            label: lineLabel.get(a.fee_code as string) ?? (a.fee_code as string),
+            month: a.billing_month,
+          }),
+          date: a.paid_date,
+        }));
+      const repeatsFree = free.some(
+        (f) => f.id !== p.id && sameAmount(f.amount, p.amount) && f.paid_date === p.paid_date,
+      );
+      const assignTargets = targetsFor(p.amount);
       unassigned.push({
         ...who,
         payment: ref(p),
-        twin:
-          twin && twin.fee_code
-            ? {
-                concept: obligationConcept({
-                  label: lineLabel.get(twin.fee_code) ?? twin.fee_code,
-                  month: twin.billing_month,
-                }),
-                date: twin.paid_date,
-              }
-            : null,
+        twins,
+        repeatsFree,
+        assignTargets,
+        verdict: twins.length > 0 || repeatsFree ? "repeat" : assignTargets.length > 0 ? "assign" : "review",
       });
     }
   }
 
+  const verdictOrder = { repeat: 0, assign: 1, review: 2 } as const;
   overdue.sort((a, b) => Number(b.hasLate) - Number(a.hasLate) || b.total - a.total);
   matricula.sort((a, b) => a.name.localeCompare(b.name, "es"));
-  overpaid.sort((a, b) => b.excess - a.excess);
-  // Primero los que tienen gemelo (los más seguros de anular), luego por jugador y fecha.
+  overpaid.sort((a, b) => b.excess - a.excess || a.name.localeCompare(b.name, "es"));
   unassigned.sort(
     (a, b) =>
-      Number(Boolean(b.twin)) - Number(Boolean(a.twin)) ||
+      verdictOrder[a.verdict] - verdictOrder[b.verdict] ||
       a.name.localeCompare(b.name, "es") ||
       (a.payment.date ?? "").localeCompare(b.payment.date ?? ""),
   );
@@ -164,12 +199,39 @@ export function buildEconomicControl({
   return {
     overdue,
     overdueTotal: sum(overdue.map((e) => e.total)),
+    overdueLate: overdue.filter((e) => e.hasLate).length,
     matricula,
     matriculaTotal: sum(matricula.map((e) => e.amount)),
     unassigned,
     unassignedTotal: sum(unassigned.map((e) => e.payment.amount)),
-    unassignedWithTwin: unassigned.filter((e) => e.twin).length,
     overpaid,
     overpaidTotal: sum(overpaid.map((e) => e.excess)),
   };
+}
+
+/** Datos extra de un cobro (de la tabla `payments`) que no están en los hechos de la temporada. */
+export type PaymentDetail = {
+  id: string;
+  concept: string;
+  notes: string | null;
+  createdAt: string;
+};
+
+/**
+ * Qué cobro de un concepto cobrado de más conviene anular: uno de importe repetido cuyo retiro deja
+ * el concepto igualmente cubierto. Entre los repetidos, el último que se anotó. null = no hay un
+ * candidato claro (p. ej. un solo cobro con importe superior a la tarifa).
+ */
+export function suggestAnnul(
+  entry: Pick<OverpaidEntry, "payments" | "due" | "paid">,
+  details: ReadonlyMap<string, PaymentDetail>,
+): string | null {
+  const candidates = entry.payments.filter(
+    (p) =>
+      entry.payments.some((q) => q.id !== p.id && sameAmount(q.amount, p.amount)) &&
+      entry.paid - p.amount >= entry.due - 0.005,
+  );
+  if (candidates.length === 0) return null;
+  const stamp = (p: OverpaidPayment) => details.get(p.id)?.createdAt ?? p.date ?? "";
+  return [...candidates].sort((a, b) => stamp(b).localeCompare(stamp(a)))[0].id;
 }

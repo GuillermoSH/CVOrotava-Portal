@@ -1,38 +1,20 @@
-import { EconomicControlView } from "@/components/payments/EconomicControlView";
+import { ControlDashboard } from "@/components/payments/control/ControlDashboard";
+import { ControlSubnav } from "@/components/payments/control/shared";
 import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requirePaymentsWriteAccess } from "@/lib/payments/auth";
-import { getCachedSeasonFeeLines } from "@/lib/payments/cached-fees";
-import {
-  getCachedExemptPlayerIds,
-  getCachedPaymentPlayers,
-  getCachedSeasonPaymentFacts,
-} from "@/lib/payments/cached-payments";
-import { buildEconomicControl } from "@/lib/payments/economic-control";
-import { buildPlayerFeeRows } from "@/lib/payments/player-fee-rows";
-import { getCurrentSeason } from "@/lib/season";
+import { loadEconomicControl } from "@/lib/payments/load";
 
 async function ControlContent() {
   await requirePaymentsWriteAccess();
-
   const today = new Date();
-  const season = getCurrentSeason(today);
-  const [players, lines, paymentEntries, exemptIds] = await Promise.all([
-    getCachedPaymentPlayers(season),
-    getCachedSeasonFeeLines(season),
-    getCachedSeasonPaymentFacts(season),
-    getCachedExemptPlayerIds(season),
-  ]);
+  const { control, payments } = await loadEconomicControl(today);
 
-  const rows = buildPlayerFeeRows({
-    players,
-    lines,
-    paymentsByPlayer: new Map(paymentEntries),
-    season,
-    today,
-    exemptPlayerIds: new Set(exemptIds),
-  });
-
-  return <EconomicControlView control={buildEconomicControl({ rows, lines })} />;
+  return (
+    <div className="flex flex-col gap-6">
+      <ControlSubnav active="overview" control={control} />
+      <ControlDashboard payments={payments} control={control} currentMonth={today.getMonth() + 1} />
+    </div>
+  );
 }
 
 export default function EconomicControlPage() {

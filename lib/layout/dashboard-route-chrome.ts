@@ -97,8 +97,42 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
   if (pathname === appRoutes.payments.control) {
     return {
       title: "Control económico",
-      subtitle: "Vencidos, matrículas, cobros sin concepto y cobrado de más, con lo necesario para resolverlos.",
+      subtitle: "Cobrado, vencido y lo que hay que revisar en los cobros de la temporada.",
       back: { href: appRoutes.payments.list, label: "Pagos" },
+      skeleton: "products",
+    };
+  }
+
+  const controlBack = { href: appRoutes.payments.control, label: "Control económico" };
+  if (pathname === appRoutes.payments.controlOverdue) {
+    return {
+      title: "Vencidos sin cobrar",
+      subtitle: "Quién debe qué: atrasados primero, luego lo vencido este mes.",
+      back: controlBack,
+      skeleton: "products",
+    };
+  }
+  if (pathname === appRoutes.payments.controlMatricula) {
+    return {
+      title: "Matrículas pendientes",
+      subtitle: "Jugadores activos con la matrícula sin cobrar.",
+      back: controlBack,
+      skeleton: "products",
+    };
+  }
+  if (pathname === appRoutes.payments.controlUnassigned) {
+    return {
+      title: "Cobros sin concepto",
+      subtitle: "Cobros que no cierran ninguna tarifa: repetidos, asignables o por revisar.",
+      back: controlBack,
+      skeleton: "products",
+    };
+  }
+  if (pathname === appRoutes.payments.controlOverpaid) {
+    return {
+      title: "Cobrado de más",
+      subtitle: "Conceptos cobrados por encima de la tarifa: duplicados e importes de más.",
+      back: controlBack,
       skeleton: "products",
     };
   }

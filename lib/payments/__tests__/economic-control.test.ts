@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildEconomicControl } from "@/lib/payments/economic-control";
+import { buildEconomicControl, suggestAnnul, type PaymentDetail } from "@/lib/payments/economic-control";
 import { buildPlayerFeeRows, type PaymentPlayer } from "@/lib/payments/player-fee-rows";
 import type { SeasonFeeLine } from "@/lib/types/db";
 
@@ -102,9 +102,54 @@ describe("buildEconomicControl", () => {
 
   it("cobros sin concepto indican el gemelo con concepto del mismo importe", () => {
     expect(control.unassigned).toHaveLength(1);
-    expect(control.unassigned[0].payment.id).toBe("b3");
-    expect(control.unassigned[0].twin?.concept).toBe("Cuota mensual — octubre");
+    const [free] = control.unassigned;
+    expect(free.payment.id).toBe("b3");
+    expect(free.twins.map((t) => t.concept)).toEqual(["Cuota mensual — octubre"]);
+    expect(free.verdict).toBe("repeat");
     expect(control.unassignedTotal).toBe(25);
-    expect(control.unassignedWithTwin).toBe(1);
+  });
+
+  it("un cobro libre que no repite nada y cubre una deuda abierta se puede asignar", () => {
+    const only = buildPlayerFeeRows({
+      players: [player("d", "Dani")],
+      lines,
+      paymentsByPlayer: new Map([
+        ["d", [paid("d1", { fee_code: null, billing_month: null, amount: 75 })]],
+      ]),
+      season,
+      today,
+    });
+    const [free] = buildEconomicControl({ rows: only, lines }).unassigned;
+    expect(free.verdict).toBe("assign");
+    expect(free.assignTargets.map((t) => t.label)).toEqual(["Matrícula"]);
+  });
+
+  it("sin gemelo ni deuda que encaje, el cobro libre queda para revisar", () => {
+    const only = buildPlayerFeeRows({
+      players: [player("e", "Eva")],
+      lines,
+      paymentsByPlayer: new Map([["e", [paid("e1", { fee_code: null, billing_month: null, amount: 13 })]]]),
+      season,
+      today,
+    });
+    expect(buildEconomicControl({ rows: only, lines }).unassigned[0].verdict).toBe("review");
+  });
+});
+
+describe("suggestAnnul", () => {
+  const [entry] = control.overpaid;
+  const detail = (id: string, createdAt: string): [string, PaymentDetail] => [
+    id,
+    { id, concept: "Matrícula", notes: null, createdAt },
+  ];
+
+  it("sugiere el último cobro anotado entre los de importe repetido", () => {
+    const details = new Map([detail("a1", "2026-10-01T10:00:00Z"), detail("a2", "2026-10-20T10:00:00Z")]);
+    expect(suggestAnnul(entry, details)).toBe("a2");
+  });
+
+  it("no sugiere nada si el cobro de más es un único importe superior", () => {
+    const single = { due: 25, paid: 30, payments: [{ id: "x", amount: 30, date: null, method: null, code: "m", month: 10 }] };
+    expect(suggestAnnul(single, new Map())).toBeNull();
   });
 });
