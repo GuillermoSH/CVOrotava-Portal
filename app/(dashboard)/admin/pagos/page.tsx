@@ -39,7 +39,7 @@ async function PaymentsContent() {
 
 export default function PaymentsPage() {
   return (
-    <RuntimePage kind="products">
+    <RuntimePage kind="payments">
       <PaymentsContent />
     </RuntimePage>
   );

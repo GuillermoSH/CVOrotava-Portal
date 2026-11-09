@@ -1,5 +1,6 @@
 import type { MonthCollection } from "@/lib/payments/dashboard-stats";
 import { monthName, monthShort } from "@/lib/payments/fees";
+import { reveal } from "@/lib/ui/reveal";
 import { cn } from "@/lib/utils";
 
 const TRACK_HEIGHT = 112;
@@ -11,12 +12,13 @@ const TRACK_HEIGHT = 112;
 export function SeasonMonthChart({
   months,
   currentMonth,
-}: Readonly<{ months: readonly MonthCollection[]; currentMonth: number }>) {
+  startTurn = 0,
+}: Readonly<{ months: readonly MonthCollection[]; currentMonth: number; startTurn?: number }>) {
   if (months.length === 0) return null;
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="month-chart-title">
-      <div>
+      <div className="reveal" style={reveal(startTurn)}>
         <h2 id="month-chart-title" className="text-base font-semibold text-foreground">
           Cuotas cobradas por mes
         </h2>
@@ -29,13 +31,16 @@ export function SeasonMonthChart({
         className="grid items-end gap-2"
         style={{ gridTemplateColumns: `repeat(${months.length}, minmax(0, 1fr))` }}
       >
-        {months.map((m) => {
+        {months.map((m, i) => {
           const ratio = m.due > 0 ? m.paid / m.due : 0;
           const isCurrent = m.month === currentMonth;
           const label = `${monthName(m.month)}: ${m.paid} de ${m.due} cuotas al día`;
           return (
             <li key={m.month} className="flex min-w-0 flex-col items-stretch gap-1.5" aria-label={label}>
-              <span className="text-center text-xs tabular-nums text-muted-foreground">
+              <span
+                className="reveal text-center text-xs tabular-nums text-muted-foreground"
+                style={reveal(startTurn + 1 + i)}
+              >
                 {m.paid}/{m.due}
               </span>
               <div
@@ -45,15 +50,16 @@ export function SeasonMonthChart({
                 aria-label={label}
               >
                 <div
-                  className="absolute inset-x-0 bottom-0 bg-brand"
-                  style={{ height: `${Math.round(ratio * 100)}%` }}
+                  className="reveal-grow-y absolute inset-x-0 bottom-0 bg-brand"
+                  style={{ height: `${Math.round(ratio * 100)}%`, ...reveal(startTurn + 1 + i) }}
                 />
               </div>
               <span
                 className={cn(
-                  "text-center text-xs capitalize",
+                  "reveal text-center text-xs capitalize",
                   isCurrent ? "font-semibold text-foreground" : "text-muted-foreground",
                 )}
+                style={reveal(startTurn + 1 + i)}
               >
                 {monthShort(m.month)}
               </span>

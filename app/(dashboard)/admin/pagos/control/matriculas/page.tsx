@@ -18,7 +18,7 @@ async function MatriculaContent() {
 
 export default function MatriculaPage() {
   return (
-    <RuntimePage kind="products">
+    <RuntimePage kind="control-matricula">
       <MatriculaContent />
     </RuntimePage>
   );

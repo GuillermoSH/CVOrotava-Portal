@@ -384,7 +384,7 @@ export function ProductsPageClient({
           </div>
         ) : (
           <>
-            <div className="flex flex-col gap-2.5 md:hidden">
+            <div className="reveal-children flex flex-col gap-2.5 md:hidden">
               {visibleProducts.map((product) => (
                 <div
                   key={product.id}
@@ -480,7 +480,7 @@ export function ProductsPageClient({
                     </TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody className="reveal-children">
                   {visibleProducts.map((product) => (
                     <TableRowInteractive
                       key={product.id}

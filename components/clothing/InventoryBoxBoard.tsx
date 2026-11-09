@@ -141,7 +141,7 @@ function RackSection({
         <h2 className="ropa-rack__title">{title}</h2>
         {code ? <span className="ropa-rack__code">{code}</span> : null}
       </header>
-      <div className="ropa-rack__grid">{children}</div>
+      <div className="ropa-rack__grid reveal-children">{children}</div>
     </section>
   );
 }
@@ -227,7 +227,7 @@ export function InventoryBoxBoard({
           {pending.length === 0 ? (
             <p className="ropa-queue__empty">Todo el stock tiene ubicación.</p>
           ) : (
-            <ul className="ropa-queue__list">
+            <ul className="ropa-queue__list reveal-children">
               {pending.map((lot) => (
                 <li key={lot.id} className="ropa-queue__item">
                   <div className="ropa-queue__item-main">
@@ -279,7 +279,7 @@ export function InventoryBoxBoard({
             </Link>
           </div>
         ) : hasCabinets ? (
-          <div className="ropa-store__racks">
+          <div className="ropa-store__racks reveal-children">
             {looseBins.length > 0 ? (
               <RackSection title="Cajas sueltas">{looseBins}</RackSection>
             ) : null}
@@ -298,7 +298,7 @@ export function InventoryBoxBoard({
             ))}
           </div>
         ) : (
-          <div className="ropa-rack__grid">{looseBins}</div>
+          <div className="ropa-rack__grid reveal-children">{looseBins}</div>
         )
       ) : null}
     </div>

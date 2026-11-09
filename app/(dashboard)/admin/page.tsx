@@ -76,7 +76,7 @@ async function AdminDashboardContent() {
             openOrders: clothingKpis.openOrders,
           }}
         />
-        <HomePending groups={groups} />
+        <HomePending groups={groups} startTurn={4} />
       </div>
     </DashboardPage>
   );

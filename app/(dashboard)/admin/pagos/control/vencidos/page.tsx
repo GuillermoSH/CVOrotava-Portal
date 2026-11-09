@@ -18,7 +18,7 @@ async function OverdueContent() {
 
 export default function OverduePage() {
   return (
-    <RuntimePage kind="products">
+    <RuntimePage kind="control-overdue">
       <OverdueContent />
     </RuntimePage>
   );

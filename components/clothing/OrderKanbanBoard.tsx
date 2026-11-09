@@ -193,7 +193,7 @@ export function OrderKanbanBoard({
     <>
       <div className="hidden md:block">
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="ropa-kanban">
+          <div className="ropa-kanban reveal-children">
             {CLOTHING_KANBAN_STATUSES.map((status) => (
               <KanbanColumn key={status} status={status} orders={openOrders} />
             ))}

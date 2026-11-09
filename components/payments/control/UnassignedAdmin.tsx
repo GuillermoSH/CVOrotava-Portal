@@ -3,6 +3,7 @@ import { AnnulPaymentButton } from "@/components/payments/AnnulPaymentButton";
 import { AssignPaymentButton } from "@/components/payments/AssignPaymentButton";
 import { formatEur } from "@/lib/format/currency";
 import type { EconomicControl, PaymentDetail, UnassignedEntry } from "@/lib/payments/economic-control";
+import { reveal } from "@/lib/ui/reveal";
 import { EmptyState, PaymentDetailLines, PlayerLink, day, paymentWhen, plural } from "./shared";
 
 const GROUPS: { verdict: UnassignedEntry["verdict"]; title: string; note: string }[] = [
@@ -23,9 +24,13 @@ const GROUPS: { verdict: UnassignedEntry["verdict"]; title: string; note: string
   },
 ];
 
-function Entry({ e, detail }: Readonly<{ e: UnassignedEntry; detail: PaymentDetail | undefined }>) {
+function Entry({
+  e,
+  detail,
+  turn,
+}: Readonly<{ e: UnassignedEntry; detail: PaymentDetail | undefined; turn: number }>) {
   return (
-    <li className="flex flex-col gap-2 border-t border-[var(--club-border)] py-3 first:border-t-0">
+    <li style={reveal(turn)} className="reveal flex flex-col gap-2 border-t border-[var(--club-border)] py-3 first:border-t-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PlayerLink id={e.playerId} name={e.name} teamName={e.teamName} />
         <span className="shrink-0 text-right">
@@ -67,19 +72,21 @@ export function UnassignedAdmin({
   details,
 }: Readonly<{ control: EconomicControl; details: ReadonlyMap<string, PaymentDetail> }>) {
   if (control.unassigned.length === 0) return <EmptyState>No hay cobros sin concepto.</EmptyState>;
+  let turn = 1;
 
   return (
     <div className="flex flex-col gap-8">
-      <p className="text-sm text-muted-foreground">
+      <p className="reveal text-sm text-muted-foreground" style={reveal(0)}>
         Estos cobros no suman en «cobrado»: anular uno no cambia ninguna cifra, asignarlo la sube.{" "}
         {plural(control.unassigned.length, "cobro", "cobros")} · {formatEur(control.unassignedTotal)}.
       </p>
       {GROUPS.map((g) => {
         const entries = control.unassigned.filter((e) => e.verdict === g.verdict);
         if (entries.length === 0) return null;
+        const headTurn = turn++;
         return (
           <section key={g.verdict} className="flex flex-col gap-2">
-            <div>
+            <div className="reveal" style={reveal(headTurn)}>
               <h2 className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
                 {g.title}
                 <Badge variant={g.verdict === "repeat" ? "warning" : g.verdict === "assign" ? "info" : "secondary"}>
@@ -90,7 +97,7 @@ export function UnassignedAdmin({
             </div>
             <ul className="flex flex-col">
               {entries.map((e) => (
-                <Entry key={e.payment.id} e={e} detail={details.get(e.payment.id)} />
+                <Entry key={e.payment.id} e={e} detail={details.get(e.payment.id)} turn={turn++} />
               ))}
             </ul>
           </section>

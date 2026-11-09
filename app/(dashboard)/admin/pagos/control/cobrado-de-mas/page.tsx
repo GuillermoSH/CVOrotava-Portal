@@ -19,7 +19,7 @@ async function OverpaidContent() {
 
 export default function OverpaidPage() {
   return (
-    <RuntimePage kind="products">
+    <RuntimePage kind="control-overpaid">
       <OverpaidContent />
     </RuntimePage>
   );

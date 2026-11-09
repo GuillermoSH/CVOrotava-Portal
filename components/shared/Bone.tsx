@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
 
-export function Bone({ className }: { className?: string }) {
+export function Bone({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
+      style={style}
       className={cn("animate-pulse rounded-md bg-[var(--club-surface-2)]", className)}
       aria-hidden
     />

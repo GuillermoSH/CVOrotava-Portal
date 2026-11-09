@@ -1,4 +1,5 @@
 import type { PaymentsDashboard } from "@/lib/payments/dashboard-stats";
+import { reveal } from "@/lib/ui/reveal";
 import { cn } from "@/lib/utils";
 import { formatEur } from "@/lib/format/currency";
 
@@ -8,15 +9,17 @@ function Cell({
   label,
   value,
   caption,
+  turn,
   children,
 }: Readonly<{
   label: string;
   value: string;
   caption: string;
+  turn: number;
   children?: React.ReactNode;
 }>) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 px-5 py-4">
+    <div className="reveal flex min-w-0 flex-col gap-1 px-5 py-4" style={reveal(turn)}>
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{value}</p>
       {children}
@@ -25,7 +28,7 @@ function Cell({
   );
 }
 
-function Track({ ratio, label }: Readonly<{ ratio: number; label: string }>) {
+function Track({ ratio, label, turn }: Readonly<{ ratio: number; label: string; turn: number }>) {
   return (
     <div
       className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--club-brand)_14%,transparent)]"
@@ -35,7 +38,10 @@ function Track({ ratio, label }: Readonly<{ ratio: number; label: string }>) {
       aria-valuenow={Math.round(ratio * 100)}
       aria-label={label}
     >
-      <div className="h-full rounded-full bg-brand" style={{ width: `${Math.min(100, ratio * 100)}%` }} />
+      <div
+        className="reveal-grow-x h-full rounded-full bg-brand"
+        style={{ width: `${Math.min(100, ratio * 100)}%`, ...reveal(turn + 2) }}
+      />
     </div>
   );
 }
@@ -69,6 +75,7 @@ export function HomeKpiStrip({
       {payments ? (
         <>
           <Cell
+            turn={0}
             label="Cobrado esta temporada"
             value={formatEur(payments.seasonTotal)}
             caption={
@@ -77,9 +84,10 @@ export function HomeKpiStrip({
                 : "Sin tarifa prevista todavía"
             }
           >
-            {payments.expectedTotal > 0 ? <Track ratio={paid} label="Cobrado sobre lo previsto" /> : null}
+            {payments.expectedTotal > 0 ? <Track ratio={paid} label="Cobrado sobre lo previsto" turn={0} /> : null}
           </Cell>
           <Cell
+            turn={1}
             label="Vencido sin cobrar"
             value={formatEur(payments.overdueTotal)}
             caption={
@@ -91,13 +99,15 @@ export function HomeKpiStrip({
         </>
       ) : null}
       <Cell
+        turn={payments ? 2 : 0}
         label="Altas completas"
         value={`${roster.complete} de ${roster.active}`}
         caption={roster.incomplete === 0 ? "Toda la plantilla al día" : `${roster.incomplete} por completar`}
       >
-        {roster.active > 0 ? <Track ratio={altas} label="Altas completas sobre la plantilla" /> : null}
+        {roster.active > 0 ? <Track ratio={altas} label="Altas completas sobre la plantilla" turn={payments ? 2 : 0} /> : null}
       </Cell>
       <Cell
+        turn={payments ? 3 : 1}
         label="Ropa en el almacén"
         value={`${clothing.storedUnits} uds.`}
         caption={`${clothing.openOrders} ${clothing.openOrders === 1 ? "pedido abierto" : "pedidos abiertos"} · ${clothing.pendingStorageUnits} por ubicar`}

@@ -19,7 +19,7 @@ async function ControlContent() {
 
 export default function EconomicControlPage() {
   return (
-    <RuntimePage kind="products">
+    <RuntimePage kind="control">
       <ControlContent />
     </RuntimePage>
   );

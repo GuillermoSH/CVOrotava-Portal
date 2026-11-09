@@ -19,7 +19,7 @@ async function UnassignedContent() {
 
 export default function UnassignedPage() {
   return (
-    <RuntimePage kind="products">
+    <RuntimePage kind="control-unassigned">
       <UnassignedContent />
     </RuntimePage>
   );

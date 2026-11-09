@@ -246,12 +246,12 @@ export function StorageLocationsBoard({ tree }: { tree: ClothingStorageLocationN
         {isEmpty ? (
           <EmptyBoxesState onAdd={() => openAddBox(null, getCurrentSeason())} />
         ) : cabinets.length === 0 ? (
-          <div className="warehouse-board">
+          <div className="warehouse-board reveal-children">
             {board.loose.map((box) => crateFor(box))}
             <AddCrateButton onClick={() => openAddBox(null, getCurrentSeason())} />
           </div>
         ) : (
-          <div className="flex flex-col gap-7">
+          <div className="reveal-children flex flex-col gap-7">
             <WarehouseBay title="Cajas sueltas" count={board.loose.length}>
               {board.loose.map((box) => crateFor(box))}
               <AddCrateButton onClick={() => openAddBox(null, getCurrentSeason())} />
@@ -416,7 +416,7 @@ function WarehouseBay({
         </p>
         <p className="warehouse-bay__meta">{count === 1 ? "1 caja" : `${count} cajas`}</p>
       </div>
-      <div className="warehouse-board">{children}</div>
+      <div className="warehouse-board reveal-children">{children}</div>
     </section>
   );
 }

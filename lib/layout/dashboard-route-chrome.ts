@@ -1,4 +1,5 @@
 import { appRoutes } from "@/lib/constants";
+import { formatSeasonShort, getCurrentSeason } from "@/lib/season";
 
 /**
  * Cromado estático por ruta del dashboard.
@@ -14,6 +15,13 @@ export type DashboardSkeletonKind =
   | "player-detail"
   | "deliveries"
   | "products"
+  | "clothing-products"
+  | "payments"
+  | "control"
+  | "control-overdue"
+  | "control-matricula"
+  | "control-unassigned"
+  | "control-overpaid"
   | "warehouse"
   | "locations"
   | "orders"
@@ -58,7 +66,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
   if (pathname === appRoutes.players.list) {
     return {
       title: "Jugadores",
-      subtitle: "Equipo principal, trámites y contacto familiar.",
+      subtitle: `Plantilla ${formatSeasonShort(getCurrentSeason())}. Equipo principal, trámites y contacto familiar.`,
       sticky: "bulk",
       skeleton: "players",
       action: { href: appRoutes.players.new, label: "Nuevo jugador" },
@@ -81,7 +89,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       subtitle:
         "Anota pagos ya recibidos (transferencia o efectivo) y consulta qué le falta a cada jugador.",
       fill: true,
-      skeleton: "products",
+      skeleton: "payments",
     };
   }
 
@@ -99,7 +107,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Control económico",
       subtitle: "Cobrado, vencido y lo que hay que revisar en los cobros de la temporada.",
       back: { href: appRoutes.payments.list, label: "Pagos" },
-      skeleton: "products",
+      skeleton: "control",
     };
   }
 
@@ -109,7 +117,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Vencidos sin cobrar",
       subtitle: "Quién debe qué: atrasados primero, luego lo vencido este mes.",
       back: controlBack,
-      skeleton: "products",
+      skeleton: "control-overdue",
     };
   }
   if (pathname === appRoutes.payments.controlMatricula) {
@@ -117,7 +125,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Matrículas pendientes",
       subtitle: "Jugadores activos con la matrícula sin cobrar.",
       back: controlBack,
-      skeleton: "products",
+      skeleton: "control-matricula",
     };
   }
   if (pathname === appRoutes.payments.controlUnassigned) {
@@ -125,7 +133,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Cobros sin concepto",
       subtitle: "Cobros que no cierran ninguna tarifa: repetidos, asignables o por revisar.",
       back: controlBack,
-      skeleton: "products",
+      skeleton: "control-unassigned",
     };
   }
   if (pathname === appRoutes.payments.controlOverpaid) {
@@ -133,7 +141,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       title: "Cobrado de más",
       subtitle: "Conceptos cobrados por encima de la tarifa: duplicados e importes de más.",
       back: controlBack,
-      skeleton: "products",
+      skeleton: "control-overpaid",
     };
   }
 
@@ -179,7 +187,7 @@ export function getDashboardRouteChrome(pathname: string): DashboardRouteChrome 
       subtitle: "Catálogo del club. Activas = disponibles en pedidos.",
       back: { href: appRoutes.clothing.hub, label: "Ropa" },
       sticky: true,
-      skeleton: "products",
+      skeleton: "clothing-products",
     };
   }
 
