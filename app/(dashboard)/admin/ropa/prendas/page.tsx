@@ -19,7 +19,7 @@ export default function ClothingProductsPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   return (
-    <RuntimePage kind="products">
+    <RuntimePage kind="clothing-products">
       <ClothingProductsContent searchParams={searchParams} />
     </RuntimePage>
   );

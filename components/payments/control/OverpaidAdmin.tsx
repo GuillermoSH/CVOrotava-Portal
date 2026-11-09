@@ -8,15 +8,22 @@ import {
   type OverpaidEntry,
   type PaymentDetail,
 } from "@/lib/payments/economic-control";
+import { reveal } from "@/lib/ui/reveal";
 import { EmptyState, PaymentDetailLines, PlayerLink, paymentLine, plural } from "./shared";
 
 function Entry({
   e,
   suggested,
   details,
-}: Readonly<{ e: OverpaidEntry; suggested: string | null; details: ReadonlyMap<string, PaymentDetail> }>) {
+  turn,
+}: Readonly<{
+  e: OverpaidEntry;
+  suggested: string | null;
+  details: ReadonlyMap<string, PaymentDetail>;
+  turn: number;
+}>) {
   return (
-    <li className="flex flex-col gap-3 border-t border-[var(--club-border)] py-4 first:border-t-0">
+    <li style={reveal(turn)} className="reveal flex flex-col gap-3 border-t border-[var(--club-border)] py-4 first:border-t-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PlayerLink id={e.playerId} name={e.name} teamName={e.teamName} />
         <span className="shrink-0 text-right">
@@ -67,17 +74,18 @@ export function OverpaidAdmin({
   const withSuggestion = control.overpaid.map((e) => ({ e, suggested: suggestAnnul(e, details) }));
   const duplicates = withSuggestion.filter((x) => x.suggested);
   const others = withSuggestion.filter((x) => !x.suggested);
+  let turn = 1;
 
   return (
     <div className="flex flex-col gap-8">
-      <p className="text-sm text-muted-foreground">
+      <p className="reveal text-sm text-muted-foreground" style={reveal(0)}>
         {formatEur(control.overpaidTotal)} por encima de la tarifa en {plural(control.overpaid.length, "concepto", "conceptos")}.
         Anular un cobro baja lo cobrado; moverlo a otra deuda abierta lo mantiene y cierra esa deuda.
       </p>
 
       {duplicates.length > 0 ? (
         <section className="flex flex-col gap-2">
-          <div>
+          <div className="reveal" style={reveal(turn++)}>
             <h2 className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
               Probables duplicados <Badge variant="warning">{duplicates.length}</Badge>
             </h2>
@@ -88,7 +96,7 @@ export function OverpaidAdmin({
           </div>
           <ul className="flex flex-col">
             {duplicates.map(({ e, suggested }) => (
-              <Entry key={`${e.playerId}-${e.concept}`} e={e} suggested={suggested} details={details} />
+              <Entry key={`${e.playerId}-${e.concept}`} e={e} suggested={suggested} details={details} turn={turn++} />
             ))}
           </ul>
         </section>
@@ -96,7 +104,7 @@ export function OverpaidAdmin({
 
       {others.length > 0 ? (
         <section className="flex flex-col gap-2">
-          <div>
+          <div className="reveal" style={reveal(turn++)}>
             <h2 className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
               Importe superior a la tarifa <Badge variant="secondary">{others.length}</Badge>
             </h2>
@@ -107,7 +115,7 @@ export function OverpaidAdmin({
           </div>
           <ul className="flex flex-col">
             {others.map(({ e }) => (
-              <Entry key={`${e.playerId}-${e.concept}`} e={e} suggested={null} details={details} />
+              <Entry key={`${e.playerId}-${e.concept}`} e={e} suggested={null} details={details} turn={turn++} />
             ))}
           </ul>
         </section>

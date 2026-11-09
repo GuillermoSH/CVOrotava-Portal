@@ -16,7 +16,7 @@ export type ClothingOpsLane = {
 export function ClothingOpsLanes({ lanes }: { lanes: ClothingOpsLane[] }) {
   return (
     <div className="ropa-panel overflow-hidden">
-      <ul className="ropa-quick-links">
+      <ul className="ropa-quick-links reveal-children" style={{ "--base": 4 } as React.CSSProperties}>
         {lanes.map((lane, index) => (
           <li key={lane.href + lane.title}>
             <Link

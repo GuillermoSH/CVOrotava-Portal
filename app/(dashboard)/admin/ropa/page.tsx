@@ -4,6 +4,7 @@ import { ClothingHubSearch } from "@/components/clothing/ClothingHubSearch";
 import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
 import { getClothingHubKpis } from "@/lib/clothing/snapshots";
+import { reveal } from "@/lib/ui/reveal";
 
 async function ClothingHubContent() {
   await requireClothingReadAccess();
@@ -12,7 +13,7 @@ async function ClothingHubContent() {
   return (
     <div className="ropa-hub">
       <div className="ropa-hub__ahora">
-        <p className="ropa-board-header__meta">
+        <p className="ropa-board-header__meta reveal" style={reveal(0)}>
           <span className="ropa-digit">{kpis.storedUnits}</span>
           <span> uds en caja</span>
           <span className="ropa-board-header__dot" aria-hidden>
@@ -21,19 +22,25 @@ async function ClothingHubContent() {
           <span className="ropa-digit">{kpis.openOrders}</span>
           <span> pedidos abiertos</span>
         </p>
-        <ClothingHubCards kpis={kpis} />
+        <div className="reveal" style={reveal(1)}>
+          <ClothingHubCards kpis={kpis} />
+        </div>
       </div>
 
-      <ClothingHubSearch />
+      <div className="reveal" style={reveal(2)}>
+        <ClothingHubSearch />
+      </div>
 
       <section className="ropa-hub__ops" aria-labelledby="ropa-hub-ops-heading">
-        <h2 id="ropa-hub-ops-heading" className="ropa-section-label">
+        <h2 id="ropa-hub-ops-heading" className="ropa-section-label reveal" style={reveal(3)}>
           Accesos rápidos
         </h2>
-        <ClothingHubQuickLinks
-          featuredOrderId={kpis.featuredOpenOrder?.id}
-          pendingStorageUnits={kpis.pendingStorageUnits}
-        />
+        <div>
+          <ClothingHubQuickLinks
+            featuredOrderId={kpis.featuredOpenOrder?.id}
+            pendingStorageUnits={kpis.pendingStorageUnits}
+          />
+        </div>
       </section>
     </div>
   );

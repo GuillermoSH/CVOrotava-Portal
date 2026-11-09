@@ -4,16 +4,20 @@ import { buttonClassName } from "@/components/club/Button";
 import { appRoutes } from "@/lib/constants";
 import type { RecentPayment } from "@/lib/payments/dashboard-stats";
 import { formatEur } from "@/lib/format/currency";
+import { reveal } from "@/lib/ui/reveal";
 
 const day = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
 
 /** Últimos cobros anotados: columna lateral, 5 filas y salida a Pagos (sin paginación). */
-export function HomeRecentPayments({ payments }: Readonly<{ payments: readonly RecentPayment[] }>) {
+export function HomeRecentPayments({
+  payments,
+  startTurn = 0,
+}: Readonly<{ payments: readonly RecentPayment[]; startTurn?: number }>) {
   const shown = payments.slice(0, 5);
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="recent-title">
-      <h2 id="recent-title" className="text-base font-semibold text-foreground">
+      <h2 id="recent-title" className="reveal text-base font-semibold text-foreground" style={reveal(startTurn)}>
         Últimos cobros
       </h2>
 
@@ -23,10 +27,11 @@ export function HomeRecentPayments({ payments }: Readonly<{ payments: readonly R
         </p>
       ) : (
         <ul className="flex flex-col">
-          {shown.map((p) => (
+          {shown.map((p, i) => (
             <li
               key={p.id}
-              className="flex min-h-12 items-center justify-between gap-3 border-t border-[var(--club-border)] py-2 first:border-t-0"
+              style={reveal(startTurn + 1 + i)}
+              className="reveal flex min-h-12 items-center justify-between gap-3 border-t border-[var(--club-border)] py-2 first:border-t-0"
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium text-foreground">{p.playerName}</span>
@@ -47,7 +52,8 @@ export function HomeRecentPayments({ payments }: Readonly<{ payments: readonly R
 
       <Link
         href={appRoutes.payments.list}
-        className={buttonClassName({ variant: "secondary", size: "sm", className: "w-fit" })}
+        className={buttonClassName({ variant: "secondary", size: "sm", className: "reveal w-fit" })}
+        style={reveal(startTurn + 1 + shown.length)}
       >
         Ver todos los pagos
       </Link>

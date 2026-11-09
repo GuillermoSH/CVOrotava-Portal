@@ -68,7 +68,7 @@ export function OrderLinesSection({
 
   return (
     <>
-      <div className="flex flex-col gap-3 md:hidden">
+      <div className="reveal-children flex flex-col gap-3 md:hidden">
         {lines.map((line) => (
           <OrderLineCard key={line.id} line={line} showReceived={showReceived} />
         ))}
@@ -89,7 +89,7 @@ export function OrderLinesSection({
               {showReceived ? <TableHead>Recibidas</TableHead> : null}
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody className="reveal-children">
             {lines.map((line) => {
               const isComplete = line.quantity_received >= line.quantity_ordered;
 

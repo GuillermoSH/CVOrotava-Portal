@@ -272,7 +272,7 @@ export function DeliveryHistory({
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-2 md:hidden">
+          <div className="reveal-children flex flex-col gap-2 md:hidden">
             {filtered.map((item) => {
               const open = item.kind === "delivery" ? possessionByDelivery.get(item.id) : null;
               return (
@@ -349,7 +349,7 @@ export function DeliveryHistory({
                     <TableHead className="w-[1%]" />
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody className="reveal-children">
                   {filtered.map((item) => {
                     const open = item.kind === "delivery" ? possessionByDelivery.get(item.id) : null;
                     return (

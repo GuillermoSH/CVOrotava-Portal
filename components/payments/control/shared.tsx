@@ -81,31 +81,31 @@ export function EmptyState({ children }: Readonly<{ children: React.ReactNode }>
 
 export type ControlSection = "overview" | "overdue" | "matricula" | "unassigned" | "overpaid";
 
-/** Navegación entre el panel y sus cuatro detalles, con el recuento de cada uno. */
+/** Navegación entre el panel y sus cuatro detalles, con el recuento de cada uno (sin `control` = solo etiquetas, para el skeleton). */
 export function ControlSubnav({
   active,
   control,
-}: Readonly<{ active: ControlSection; control: EconomicControl }>) {
+}: Readonly<{ active: ControlSection; control?: EconomicControl }>) {
   const items: { id: ControlSection; label: string; href: string; count?: number }[] = [
     { id: "overview", label: "Panel", href: appRoutes.payments.control },
-    { id: "overdue", label: "Vencidos", href: appRoutes.payments.controlOverdue, count: control.overdue.length },
+    { id: "overdue", label: "Vencidos", href: appRoutes.payments.controlOverdue, count: control?.overdue.length },
     {
       id: "matricula",
       label: "Matrículas",
       href: appRoutes.payments.controlMatricula,
-      count: control.matricula.length,
+      count: control?.matricula.length,
     },
     {
       id: "unassigned",
       label: "Sin concepto",
       href: appRoutes.payments.controlUnassigned,
-      count: control.unassigned.length,
+      count: control?.unassigned.length,
     },
     {
       id: "overpaid",
       label: "Cobrado de más",
       href: appRoutes.payments.controlOverpaid,
-      count: control.overpaid.length,
+      count: control?.overpaid.length,
     },
   ];
 

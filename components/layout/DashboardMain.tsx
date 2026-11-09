@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { useDashboardNavigation } from "@/components/layout/DashboardNavigation";
 import { useDashboardChromeOverride } from "@/components/layout/DashboardPage";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { DashboardBodySkeleton } from "@/components/shared/skeletons";
+import { DashboardBodySkeleton, PlayersPendingToolbar } from "@/components/shared/skeletons";
 import {
   getDashboardFrameClassName,
   getDashboardRouteChrome,
@@ -28,7 +28,9 @@ export function DashboardMain({ children }: { children: React.ReactNode }) {
   const actions =
     activeOverride && activeOverride.actions !== undefined
       ? activeOverride.actions
-      : routeChrome?.action ? (
+      : routeChrome?.skeleton === "players" ? (
+        <PlayersPendingToolbar />
+      ) : routeChrome?.action ? (
           <div className="clothing-toolbar hidden md:flex">
             <Link href={routeChrome.action.href} className="btn-primary">
               {routeChrome.action.label}

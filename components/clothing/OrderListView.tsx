@@ -145,7 +145,7 @@ export function OrderListView({
         />
       ) : (
         <>
-          <div className="flex flex-col gap-2.5 md:hidden">
+          <div className="reveal-children flex flex-col gap-2.5 md:hidden">
             {filtered.map((order) => (
               <ClothingOrderCard key={order.id} order={order} />
             ))}
@@ -163,7 +163,7 @@ export function OrderListView({
                     <TableHead>Actualizado</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                <TableBody className="reveal-children">
                   {filtered.map((order) => (
                     <TableRowInteractive
                       key={order.id}
