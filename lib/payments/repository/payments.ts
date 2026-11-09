@@ -182,3 +182,55 @@ export async function deletePayment(db: PaymentsDb, id: string): Promise<void> {
   if (error) throw new Error(dbErrorMessage(error));
   if (!data || data.length === 0) throw new Error("No se pudo anular este cobro");
 }
+
+export type PaymentDetailRow = {
+  id: string;
+  concept: string;
+  notes: string | null;
+  createdAt: string;
+};
+
+/** Concepto escrito, notas y fecha de alta de unos cobros (para revisar duplicados). */
+export async function listPaymentDetails(
+  db: PaymentsDb,
+  ids: readonly string[],
+): Promise<PaymentDetailRow[]> {
+  const out: PaymentDetailRow[] = [];
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await db
+      .from("payments")
+      .select("id, concept, notes, created_at")
+      .in("id", ids.slice(i, i + 200));
+    if (error) throw new Error(dbErrorMessage(error));
+    for (const row of data ?? []) {
+      out.push({
+        id: row.id as string,
+        concept: (row.concept as string | null) ?? "",
+        notes: (row.notes as string | null) ?? null,
+        createdAt: row.created_at as string,
+      });
+    }
+  }
+  return out;
+}
+
+/** Asigna un cobro a una línea de tarifa (y reescribe su concepto para que cuadre). */
+export async function updatePaymentFee(
+  db: PaymentsDb,
+  id: string,
+  target: { fee_code: string; billing_month: number | null; concept: string },
+): Promise<void> {
+  const { data, error } = await db
+    .from("payments")
+    .update({
+      fee_code: target.fee_code,
+      billing_month: target.billing_month,
+      concept: target.concept,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("id");
+
+  if (error) throw new Error(dbErrorMessage(error));
+  if (!data || data.length === 0) throw new Error("No se pudo modificar este cobro");
+}

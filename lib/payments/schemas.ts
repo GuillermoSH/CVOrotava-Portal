@@ -62,6 +62,13 @@ export const updatePaymentMethodSchema = z.object({
   method: z.enum(PAYMENT_METHODS),
 });
 
+/** Asigna un cobro libre (o de más) a una línea de tarifa de la temporada. */
+export const assignPaymentFeeSchema = z.object({
+  id: z.string().uuid("Cobro no válido"),
+  fee_code: z.string().trim().min(1).max(60),
+  billing_month: z.coerce.number().int().min(1).max(12).nullish(),
+});
+
 export const deletePaymentSchema = z.object({
   id: z.string().uuid("Cobro no válido"),
 });

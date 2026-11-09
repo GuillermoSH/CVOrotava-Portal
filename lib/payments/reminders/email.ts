@@ -72,6 +72,9 @@ function parseInstructions(raw: string): InstructionBlock[] {
 const NOREPLY_NOTICE =
   "Este mensaje se ha enviado automáticamente desde una dirección que no admite respuestas, por favor no contestes a este correo. Para cualquier duda, escríbenos por WhatsApp al 696 94 28 23.";
 
+const HELP_NOTICE =
+  "¿Tienes algún problema con el pago o con tu situación económica? Consúltalo con nosotros llamando o escribiendo al 696 94 28 23.";
+
 export type ReminderEmailPlayer = {
   playerName: string;
   items: readonly ReminderItem[];
@@ -143,6 +146,8 @@ export function renderCombinedReminderEmail({
         ]
       : []),
     "",
+    HELP_NOTICE,
+    "",
     `Saludos cordiales,
 ${clubName}`,
     "",
@@ -155,48 +160,62 @@ ${clubName}`,
       const rows = p.items
         .map(
           (it) =>
-            `<tr><td style="padding:10px 0;border-bottom:1px solid #E1E1E8;">${escapeHtml(itemLabel(it))}</td>` +
-            `<td style="padding:10px 0;border-bottom:1px solid #E1E1E8;text-align:right;white-space:nowrap;">${eur.format(it.remaining)}</td></tr>`,
+            `<tr><td style="padding:10px 0;border-bottom:1px solid #E1E1E8;font-size:15px;">${escapeHtml(itemLabel(it))}</td>` +
+            `<td style="padding:10px 0 10px 12px;border-bottom:1px solid #E1E1E8;text-align:right;white-space:nowrap;font-size:15px;">${eur.format(it.remaining)}</td></tr>`,
         )
         .join("");
       const subtotal = multi
-        ? `<tr><td style="padding:10px 0 0;color:#3F3F50;">Subtotal</td><td style="padding:10px 0 0;text-align:right;white-space:nowrap;color:#3F3F50;">${eur.format(p.total)}</td></tr>`
+        ? `<tr><td style="padding:10px 0 0;font-size:14px;color:#3F3F50;">Subtotal</td><td style="padding:10px 0 0 12px;text-align:right;white-space:nowrap;font-size:14px;color:#3F3F50;">${eur.format(p.total)}</td></tr>`
         : "";
-      return `<p style="margin:${i > 0 ? "24px" : "0"} 0 0;font-size:13px;color:#3F3F50;">Jugador/a</p>
-<p style="margin:0 0 12px;font-size:17px;font-weight:700;">${escapeHtml(p.playerName)}</p>
-<table role="presentation" style="width:100%;border-collapse:collapse;font-size:15px;border-top:1px solid #E1E1E8;">${rows}${subtotal}</table>`;
+      return `<p style="margin:${i > 0 ? "28px" : "0"} 0 2px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#5A5A6B;">Jugador/a</p>
+<p class="player" style="margin:0 0 12px;font-size:20px;line-height:1.3;font-weight:700;">${escapeHtml(p.playerName)}</p>
+<table role="presentation" width="100%" style="width:100%;border-collapse:collapse;border-top:1px solid #E1E1E8;">${rows}${subtotal}</table>`;
     })
     .join("\n");
 
   const logoHtml = logoUrl
-    ? `<td style="width:48px;padding-right:12px;vertical-align:middle;"><img src="${escapeHtml(logoUrl)}" width="48" height="48" alt="" style="display:block;border:0;"></td>`
+    ? `<td style="width:44px;padding-right:12px;vertical-align:middle;"><img src="${escapeHtml(logoUrl)}" width="44" height="44" alt="" style="display:block;border:0;width:44px;height:44px;"></td>`
     : "";
 
   const howToHtml = sections.length
-    ? `<p style="margin:28px 0 10px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#3F3F50;">Cómo pagar</p>
+    ? `<p style="margin:32px 0 12px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5A5A6B;">Cómo pagar</p>
 ${sections
   .map(
-    (sec) => `<div style="margin:0 0 12px;padding:14px 16px;background:#ECECF1;border-left:4px solid #B91C1C;border-radius:6px;">
-${sec.title ? `<p style="margin:0 0 6px;font-size:15px;font-weight:700;">${escapeHtml(sec.title)}</p>` : ""}${sec.lines.map(instructionLineHtml).join("")}
+    (sec) => `<div class="card" style="margin:0 0 12px;padding:16px 18px;background:#FFFFFF;border:1px solid #DADAE3;border-radius:10px;">
+${sec.title ? `<p style="margin:0 0 10px;font-size:16px;line-height:1.3;font-weight:700;">${escapeHtml(sec.title)}</p>` : ""}${sec.lines.map(instructionLineHtml).join("")}
 </div>`,
   )
   .join("\n")}`
     : "";
 
+  const helpHtml = `<p class="help" style="margin:20px 0 0;padding:14px 16px;background:#ECECF1;border-radius:10px;font-size:14px;line-height:1.5;color:#2B2B38;">${escapeHtml(HELP_NOTICE)}</p>`;
+
   const html = `<!doctype html>
-<html lang="es"><body style="margin:0;padding:24px 12px;background:#F0F0F4;font-family:Arial,Helvetica,sans-serif;color:#12121A;">
-<div style="max-width:560px;margin:0 auto;background:#F8F8FA;border-radius:12px;overflow:hidden;">
-<table role="presentation" style="width:100%;border-collapse:collapse;background:#12121A;"><tr><td style="padding:16px 24px;"><table role="presentation" style="border-collapse:collapse;"><tr>${logoHtml}<td style="vertical-align:middle;color:#F8F8FA;font-size:18px;font-weight:700;">${escapeHtml(clubName)}</td></tr></table></td></tr></table>
-<div style="padding:24px;font-size:15px;line-height:1.55;">
-<p style="margin:0 0 12px;">Hola,</p>
-<p style="margin:0 0 20px;">${escapeHtml(intro)}</p>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><style>
+@media only screen and (max-width:480px){
+  .outer{padding:0 !important}
+  .wrap{border-radius:0 !important}
+  .head{padding:14px 16px !important}
+  .body{padding:20px 16px !important;font-size:16px !important}
+  .player{font-size:19px !important}
+  .card{padding:14px !important}
+  .foot{padding:14px 16px !important}
+}
+</style></head><body style="margin:0;padding:0;background:#F0F0F4;font-family:Arial,Helvetica,sans-serif;color:#12121A;">
+<div class="outer" style="padding:24px 12px;">
+<div class="wrap" style="max-width:560px;margin:0 auto;background:#F8F8FA;border-radius:12px;overflow:hidden;">
+<table role="presentation" width="100%" style="width:100%;border-collapse:collapse;background:#12121A;"><tr><td class="head" style="padding:16px 24px;"><table role="presentation" style="border-collapse:collapse;"><tr>${logoHtml}<td style="vertical-align:middle;color:#F8F8FA;font-size:17px;line-height:1.3;font-weight:700;">${escapeHtml(clubName)}</td></tr></table></td></tr></table>
+<div class="body" style="padding:28px 24px;font-size:15px;line-height:1.55;">
+<p style="margin:0 0 8px;font-size:18px;font-weight:700;">Hola,</p>
+<p style="margin:0 0 24px;color:#2B2B38;">${escapeHtml(intro)}</p>
 ${playerBlocks}
-<table role="presentation" style="width:100%;border-collapse:collapse;font-size:16px;margin-top:${multi ? "20px" : "0"};"><tr><td style="padding:12px 0 0;font-weight:700;">Total pendiente</td><td style="padding:12px 0 0;text-align:right;font-weight:700;white-space:nowrap;">${eur.format(grandTotal)}</td></tr></table>
+<table role="presentation" width="100%" style="width:100%;border-collapse:collapse;margin-top:${multi ? "20px" : "0"};"><tr><td style="padding:14px 0 0;font-size:17px;font-weight:700;">Total pendiente</td><td style="padding:14px 0 0 12px;text-align:right;font-size:20px;font-weight:700;white-space:nowrap;">${eur.format(grandTotal)}</td></tr></table>
 ${howToHtml}
-<p style="margin:24px 0 0;">Saludos cordiales,<br>${escapeHtml(clubName)}</p>
+${helpHtml}
+<p style="margin:28px 0 0;color:#2B2B38;">Saludos cordiales,<br><strong>${escapeHtml(clubName)}</strong></p>
 </div>
-<div style="padding:14px 24px;background:#ECECF1;font-size:12px;line-height:1.5;color:#3F3F50;">${escapeHtml(NOREPLY_NOTICE)}</div>
-</div></body></html>`;
+<div class="foot" style="padding:14px 24px;background:#ECECF1;font-size:12px;line-height:1.5;color:#5A5A6B;">${escapeHtml(NOREPLY_NOTICE)}</div>
+</div></div></body></html>`;
 
   return { subject, html, text };
 }
@@ -235,14 +254,14 @@ export function renderReminderEmail({
 
 const LABELED_LINE = /^(IBAN|Titular|Concepto):\s*(.*)$/;
 
-/** `! texto` = aviso destacado con icono. `IBAN:`/`Titular:`/`Concepto:` van subrayados. */
+/** `! texto` = aviso destacado con icono. `IBAN:`/`Titular:`/`Concepto:` llevan la etiqueta en gris y el dato en negrita. */
 function instructionLineHtml(line: string): string {
   if (line.startsWith("! ")) {
-    return `<p style="margin:8px 0 6px;padding:10px 12px;background:#FDF3D7;border-radius:6px;font-size:14px;font-weight:600;color:#12121A;">&#9888;&#65039; ${escapeHtml(line.slice(2))}</p>`;
+    return `<p style="margin:12px 0 0;padding:10px 12px;background:#FDF3D7;border-radius:8px;font-size:14px;line-height:1.45;font-weight:600;color:#12121A;">&#9888;&#65039; ${escapeHtml(line.slice(2))}</p>`;
   }
   const match = LABELED_LINE.exec(line);
   if (match) {
-    return `<p style="margin:0 0 6px;font-size:14px;"><span style="text-decoration:underline;font-weight:700;">${escapeHtml(match[1])}:</span> ${escapeHtml(match[2])}</p>`;
+    return `<p style="margin:0 0 8px;font-size:14px;line-height:1.45;"><span style="display:block;font-size:12px;color:#5A5A6B;">${escapeHtml(match[1])}</span><span style="font-size:15px;font-weight:700;">${escapeHtml(match[2])}</span></p>`;
   }
-  return `<p style="margin:0 0 6px;font-size:14px;">${escapeHtml(line)}</p>`;
+  return `<p style="margin:0;font-size:14px;line-height:1.5;color:#2B2B38;">${escapeHtml(line)}</p>`;
 }

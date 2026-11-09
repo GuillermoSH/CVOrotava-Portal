@@ -272,19 +272,29 @@ export function sortOpenObligations(obligations: readonly FeeObligation[]): FeeO
  * Cobros pagados que no cierran ninguna línea: sin fee_code, o mensualidad antigua
  * sin mes (no se adivina el mes). El listado los muestra aparte.
  */
+export function isUnassignedPayment(
+  payment: FeePaymentLike,
+  monthlyCodes: ReadonlySet<string>,
+): boolean {
+  if (payment.status !== "paid") return false;
+  return (
+    payment.fee_code == null || (monthlyCodes.has(payment.fee_code) && payment.billing_month == null)
+  );
+}
+
+export function monthlyFeeCodes(lines: readonly SeasonFeeLine[]): Set<string> {
+  return new Set(lines.filter((l) => l.kind === "monthly").map((l) => l.code));
+}
+
 export function unassignedPaidPayments(
   payments: readonly FeePaymentLike[],
   lines: readonly SeasonFeeLine[],
 ): { count: number; total: number } {
-  const monthlyCodes = new Set(lines.filter((l) => l.kind === "monthly").map((l) => l.code));
+  const monthlyCodes = monthlyFeeCodes(lines);
   let count = 0;
   let total = 0;
   for (const payment of payments) {
-    if (payment.status !== "paid") continue;
-    const unassigned =
-      payment.fee_code == null ||
-      (monthlyCodes.has(payment.fee_code) && payment.billing_month == null);
-    if (!unassigned) continue;
+    if (!isUnassignedPayment(payment, monthlyCodes)) continue;
     count += 1;
     total += payment.amount;
   }
