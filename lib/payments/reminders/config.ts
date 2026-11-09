@@ -20,11 +20,18 @@ function parseDailyLimit(value: string | undefined): number {
   const n = Number.parseInt(value?.trim() ?? "", 10);
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_DAILY_LIMIT;
 }
-/** Logo del correo: URL absoluta pública (sitio configurado o dominio de producción en Vercel). */
+/**
+ * Logo del correo: URL absoluta pública. Orden: REMINDER_EMAIL_LOGO_URL, dominio de producción en
+ * Vercel y, por último, el sitio configurado (si no es local/LAN: el cliente de correo no lo alcanzaría).
+ */
 function emailLogoUrl(): string | null {
+  const override = process.env.REMINDER_EMAIL_LOGO_URL?.trim();
+  if (override) return override;
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-  const origin = getConfiguredSiteOrigin() || (vercel ? `https://${vercel}` : "");
-  return origin ? `${origin}/logo/email-logo.png` : null;
+  if (vercel) return `https://${vercel}/logo/email-logo.png`;
+  const origin = getConfiguredSiteOrigin();
+  const isPrivate = /^https?:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(origin);
+  return origin && !isPrivate ? `${origin}/logo/email-logo.png` : null;
 }
 
 export function getReminderConfig() {
