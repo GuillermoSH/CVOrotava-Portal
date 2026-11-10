@@ -7,15 +7,17 @@
  *
  * Sin red, las navegaciones muestran /offline.html (página estática, sin datos).
  */
-const STATIC_CACHE = "cvo-static-v2";
+const STATIC_CACHE = "cvo-static-v3";
 const OFFLINE_URL = "/offline.html";
+const OFFLINE_ASSETS = [OFFLINE_URL, "/icons/icon-192.png"];
 const STATIC_PREFIXES = ["/_next/static/", "/icons/", "/logo/"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(STATIC_CACHE);
-      await cache.add(new Request(OFFLINE_URL, { cache: "reload" }));
+      // La página sin conexión y lo que usa (el logo), para que se vea completa sin red.
+      await cache.addAll(OFFLINE_ASSETS.map((url) => new Request(url, { cache: "reload" })));
       await self.skipWaiting();
     })(),
   );
