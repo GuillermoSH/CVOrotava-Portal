@@ -1,4 +1,5 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/club/Card";
+import { InstallAppCard } from "@/components/shared/InstallAppCard";
 
 export default function ProfilePage() {
   return (
@@ -17,6 +18,7 @@ export default function ProfilePage() {
           </CardDescription>
         </CardHeader>
       </Card>
+      <InstallAppCard />
     </div>
   );
 }
