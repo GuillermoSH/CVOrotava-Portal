@@ -12,6 +12,6 @@ export const config = {
      * Match app routes for session refresh; skip static assets, fonts,
      * SEO files, and Next internals.
      */
-    "/((?!_next/static|_next/image|_next/.*|favicon.ico|robots.txt|manifest\\.webmanifest|sw\\.js|sitemap(?:\\.xml)?|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|xml|woff2?)$).*)",
+    "/((?!_next/static|_next/image|_next/.*|favicon.ico|robots.txt|manifest\\.webmanifest|sw\\.js|offline\\.html|sitemap(?:\\.xml)?|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|xml|woff2?)$).*)",
   ],
 };
