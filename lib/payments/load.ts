@@ -5,6 +5,7 @@ import {
   getCachedExemptPlayerIds,
   getCachedPaymentPlayers,
   getCachedSeasonPaymentFacts,
+  getCachedSeasonWaivers,
 } from "@/lib/payments/cached-payments";
 import { buildPaymentsDashboard } from "@/lib/payments/dashboard-stats";
 import { buildEconomicControl, type PaymentDetail } from "@/lib/payments/economic-control";
@@ -16,11 +17,12 @@ import { getCurrentSeason } from "@/lib/season";
 /** Tarifa de la temporada − cobros anotados, por jugador: la base de todo el control económico. */
 export async function loadSeasonFeeData(today: Date) {
   const season = getCurrentSeason(today);
-  const [players, lines, paymentEntries, exemptIds] = await Promise.all([
+  const [players, lines, paymentEntries, exemptIds, waiverEntries] = await Promise.all([
     getCachedPaymentPlayers(season),
     getCachedSeasonFeeLines(season),
     getCachedSeasonPaymentFacts(season),
     getCachedExemptPlayerIds(season),
+    getCachedSeasonWaivers(season),
   ]);
 
   const rows = buildPlayerFeeRows({
@@ -30,6 +32,7 @@ export async function loadSeasonFeeData(today: Date) {
     season,
     today,
     exemptPlayerIds: new Set(exemptIds),
+    waiversByPlayer: new Map(waiverEntries),
   });
   return { season, lines, rows };
 }

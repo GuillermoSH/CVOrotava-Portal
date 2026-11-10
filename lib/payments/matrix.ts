@@ -49,7 +49,7 @@ export function buildMatrixColumns(rows: readonly PlayerFeeRow[]): MatrixColumn[
   return [...once.values(), ...monthlyColumns];
 }
 
-export type MatrixCellKind = "none" | "paid" | "partial" | "due" | "upcoming";
+export type MatrixCellKind = "none" | "paid" | "partial" | "due" | "upcoming" | "waived";
 
 export type MatrixCell = {
   kind: MatrixCellKind;
@@ -61,7 +61,9 @@ function cellFrom(obligation: FeeObligation | null, payments: PlayerPaymentFact[
   if (!obligation) return { kind: "none", obligation: null, payments: [] };
 
   let kind: MatrixCellKind;
-  if (obligation.remaining === 0) kind = "paid";
+  // Anulado del todo (no se cobra nada de este concepto): ni cuenta como cobrado ni como pendiente.
+  if (obligation.waived > 0 && obligation.due === 0) kind = "waived";
+  else if (obligation.remaining === 0) kind = "paid";
   else if (obligation.paid > 0) kind = "partial";
   else if (obligation.overdue) kind = "due";
   else kind = "upcoming";
@@ -130,7 +132,7 @@ export function rowCellsSignature(cells: readonly MatrixCell[]): string {
     .map((cell) =>
       cell.kind === "none"
         ? "-"
-        : `${cell.kind}:${cell.obligation?.paid ?? 0}:${cell.obligation?.remaining ?? 0}:${methodLetters(cell.payments)}:${lastPaymentDate(cell.payments) ?? ""}`,
+        : `${cell.kind}:${cell.obligation?.paid ?? 0}:${cell.obligation?.remaining ?? 0}:${cell.obligation?.waived ?? 0}:${methodLetters(cell.payments)}:${lastPaymentDate(cell.payments) ?? ""}`,
     )
     .join("|");
 }
@@ -154,7 +156,7 @@ export function columnsProgress(
   for (const cells of cellsByRow) {
     for (let i = 0; i < columnCount; i += 1) {
       const cell = cells[i];
-      if (!cell || cell.kind === "none") continue;
+      if (!cell || cell.kind === "none" || cell.kind === "waived") continue;
       progress[i].total += 1;
       if (cell.kind === "paid") progress[i].paid += 1;
     }

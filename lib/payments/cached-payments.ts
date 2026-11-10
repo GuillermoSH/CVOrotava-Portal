@@ -10,6 +10,7 @@ import {
   type SeasonPaymentFacts,
 } from "@/lib/payments/repository/payments";
 import { listExemptPlayerIds } from "@/lib/payments/repository/exemptions";
+import { listSeasonWaivers, type PlayerWaiver } from "@/lib/payments/repository/waivers";
 import { listPlayersForPayments } from "@/lib/payments/repository/players";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -43,6 +44,15 @@ export async function getCachedExemptPlayerIds(season: string): Promise<string[]
   cacheLife("minutes");
 
   return [...(await listExemptPlayerIds(createServiceRoleClient(), season))];
+}
+
+/** Anulaciones de lo pendiente de la temporada por jugador, como pares serializables. */
+export async function getCachedSeasonWaivers(season: string): Promise<[string, PlayerWaiver[]][]> {
+  "use cache";
+  cacheTag(paymentsTag());
+  cacheLife("minutes");
+
+  return [...(await listSeasonWaivers(createServiceRoleClient(), season)).entries()];
 }
 
 /** Cobros pagados de la temporada agrupados por jugador, como pares serializables. */

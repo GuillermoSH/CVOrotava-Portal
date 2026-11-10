@@ -149,6 +149,18 @@ export type FeePaymentLike = {
   billing_month: number | null;
 };
 
+/**
+ * Anulación de lo pendiente de un concepto (`payment_waivers`): el club decide no cobrar ese
+ * importe (ausencias, cambio de cuota…). Es aditiva: no toca ningún cobro anotado.
+ * `billing_month` 0 = concepto único (sin mes).
+ */
+export type FeeWaiverLike = {
+  fee_code: string;
+  billing_month: number;
+  amount: number;
+  reason?: string | null;
+};
+
 export type FeeObligation = {
   /** `code` para únicos, `code:mes` para mensualidades. */
   key: string;
@@ -156,9 +168,14 @@ export type FeeObligation = {
   label: string;
   kind: FeeLineKind;
   month: number | null;
+  /** Lo que hay que cobrar ya descontada la anulación (`waived`); `due + waived` es la tarifa. */
   due: number;
   paid: number;
   remaining: number;
+  /** Importe que el club ha decidido no cobrar de este concepto (0 si no hay anulación). */
+  waived: number;
+  /** Motivo de la anulación, si lo hay. */
+  waivedReason: string | null;
   /**
    * Vencido: únicos desde el día 10 del mes de `due_date` (o siempre si no hay fecha);
    * mensualidades desde el día 10 de su mes.
@@ -194,6 +211,21 @@ function sumPaid(
   return roundCents(total);
 }
 
+/** Anulación aplicable a una obligación: no puede pasar de la tarifa. */
+function waiverFor(
+  waivers: readonly FeeWaiverLike[],
+  code: string,
+  month: number | null,
+  amount: number,
+): { waived: number; reason: string | null } {
+  const waiver = waivers.find((w) => w.fee_code === code && w.billing_month === (month ?? 0));
+  if (!waiver) return { waived: 0, reason: null };
+  return {
+    waived: Math.min(roundCents(waiver.amount), amount),
+    reason: waiver.reason ?? null,
+  };
+}
+
 /** Todo lo que cubre la tarifa del jugador, con lo ya cobrado y el resto por concepto/mes. */
 export function computeObligations({
   season,
@@ -202,6 +234,7 @@ export function computeObligations({
   lines,
   payments,
   today,
+  waivers = [],
 }: {
   season: SeasonId;
   audience: FeeAudience | null;
@@ -209,6 +242,8 @@ export function computeObligations({
   lines: readonly SeasonFeeLine[];
   payments: readonly FeePaymentLike[];
   today: Date;
+  /** Anulaciones del jugador en la temporada (lo anulado se resta de lo que debe). */
+  waivers?: readonly FeeWaiverLike[];
 }): FeeObligation[] {
   if (!audience) return [];
 
@@ -223,15 +258,19 @@ export function computeObligations({
 
     if (line.kind === "once") {
       const paid = sumPaid(payments, line.code, null);
+      const { waived, reason } = waiverFor(waivers, line.code, null, amount);
+      const due = roundCents(amount - waived);
       out.push({
         key: obligationKey(line.code, null),
         code: line.code,
         label: line.label,
         kind: "once",
         month: null,
-        due: amount,
+        due,
         paid,
-        remaining: Math.max(0, roundCents(amount - paid)),
+        remaining: Math.max(0, roundCents(due - paid)),
+        waived,
+        waivedReason: reason,
         overdue: isOnceFeeOverdue(line.due_date, today),
         late: isOnceFeeLate(line.due_date, today),
       });
@@ -240,15 +279,19 @@ export function computeObligations({
 
     for (const month of sortSeasonMonths(line.months)) {
       const paid = sumPaid(payments, line.code, month);
+      const { waived, reason } = waiverFor(waivers, line.code, month, amount);
+      const due = roundCents(amount - waived);
       out.push({
         key: obligationKey(line.code, month),
         code: line.code,
         label: line.label,
         kind: "monthly",
         month,
-        due: amount,
+        due,
         paid,
-        remaining: Math.max(0, roundCents(amount - paid)),
+        remaining: Math.max(0, roundCents(due - paid)),
+        waived,
+        waivedReason: reason,
         overdue: isSeasonMonthDue(season, month, today),
         late: isSeasonMonthLate(season, month, today),
       });

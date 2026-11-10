@@ -4066,6 +4066,59 @@ html.dark .ropa-board {
   color: var(--club-brand);
 }
 
+/* Anulación de lo pendiente (no cobrar): bloque propio, separado de los cobros. */
+.pay-popover__waiver {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border-top: 1px solid var(--club-border);
+}
+
+.pay-popover__waiver-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--club-fg);
+}
+
+.pay-popover__confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pay-popover__confirm {
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--club-brand);
+  color: var(--primary-foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.pay-popover__confirm:hover:not(:disabled) {
+  background: var(--club-brand-strong);
+}
+
+.pay-popover__confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Concepto anulado entero: no se cobra, ni suma como cobrado ni como pendiente. */
+.pay-cell--waived {
+  border-style: dashed;
+  background: transparent;
+  color: var(--club-fg-muted);
+}
+
+.pay-cell__waived {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
 /*
  * Móvil en vertical: columna de jugador estrecha (sin equipo, nombre a 13px que
  * puede partirse en dos líneas) para que quepan 4-5 meses sin girar el teléfono.

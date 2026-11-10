@@ -20,6 +20,8 @@ function obligation(partial: Partial<FeeObligation> & Pick<FeeObligation, "code"
     due: 25,
     paid: 0,
     remaining: 25,
+    waived: 0,
+    waivedReason: null,
     overdue: true,
     late: true,
     ...partial,
