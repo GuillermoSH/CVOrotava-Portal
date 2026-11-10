@@ -52,15 +52,14 @@ export async function GET(request: NextRequest) {
     return response;
   };
 
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  // El intercambio ya devuelve el usuario (respuesta directa de Auth): no hace falta un getUser aparte.
+  const { data: exchanged, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) {
     console.error("OAuth code exchange failed:", exchangeError.message);
     return finish("/login?error=oauth", true);
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = exchanged.user;
 
   if (!user?.email) {
     await supabase.auth.signOut();
@@ -70,9 +69,14 @@ export async function GET(request: NextRequest) {
   const email = user.email.trim().toLowerCase();
   const admin = createServiceRoleClient();
 
-  const { data: allowedRows, error: allowedError } = await admin
-    .from("allowed_emails")
-    .select("email");
+  // Lista de correos y roles no dependen entre sí: en paralelo (un viaje a la base en vez de dos).
+  const [
+    { data: allowedRows, error: allowedError },
+    { data: roleRows, error: rolesError },
+  ] = await Promise.all([
+    admin.from("allowed_emails").select("email"),
+    admin.from("user_app_roles").select("role").eq("user_id", user.id).eq("app", "portal"),
+  ]);
 
   const allowed =
     !allowedError &&
@@ -85,12 +89,6 @@ export async function GET(request: NextRequest) {
     await revokeSession(admin, supabase, user.id);
     return finish("/login?error=no-club-account", true);
   }
-
-  const { data: roleRows, error: rolesError } = await admin
-    .from("user_app_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("app", "portal");
 
   if (rolesError || !roleRows?.length) {
     console.warn(`Portal access denied (no user_app_roles for app='portal'): ${email}`);
