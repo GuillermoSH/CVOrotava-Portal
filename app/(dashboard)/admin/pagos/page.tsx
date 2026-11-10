@@ -7,6 +7,7 @@ import {
   getCachedExemptPlayerIds,
   getCachedPaymentPlayers,
   getCachedSeasonPaymentFacts,
+  getCachedSeasonWaivers,
 } from "@/lib/payments/cached-payments";
 import { getCurrentSeason } from "@/lib/season";
 
@@ -14,11 +15,12 @@ async function PaymentsContent() {
   await requirePaymentsWriteAccess();
 
   const season = getCurrentSeason();
-  const [players, lines, paymentEntries, exemptIds] = await Promise.all([
+  const [players, lines, paymentEntries, exemptIds, waiverEntries] = await Promise.all([
     getCachedPaymentPlayers(season),
     getCachedSeasonFeeLines(season),
     getCachedSeasonPaymentFacts(season),
     getCachedExemptPlayerIds(season),
+    getCachedSeasonWaivers(season),
   ]);
   const paymentsByPlayer = new Map(paymentEntries);
 
@@ -29,6 +31,7 @@ async function PaymentsContent() {
     season,
     today: new Date(),
     exemptPlayerIds: new Set(exemptIds),
+    waiversByPlayer: new Map(waiverEntries),
   });
 
   // Los exentos no salen en la matriz ni en el registro de cobros; se gestionan en su ficha.

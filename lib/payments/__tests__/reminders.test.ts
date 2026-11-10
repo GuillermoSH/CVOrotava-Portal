@@ -22,6 +22,8 @@ function obligation(over: Partial<FeeObligation>): FeeObligation {
     due: 25,
     paid: 0,
     remaining: 25,
+    waived: 0,
+    waivedReason: null,
     overdue: true,
     late: false,
     ...over,

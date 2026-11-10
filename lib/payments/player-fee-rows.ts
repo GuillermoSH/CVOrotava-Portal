@@ -4,6 +4,7 @@ import {
   unassignedPaidPayments,
   type FeeObligation,
   type FeePaymentLike,
+  type FeeWaiverLike,
 } from "@/lib/payments/fees";
 import { shortPlayerName } from "@/lib/payments/short-name";
 import type { SeasonId } from "@/lib/season";
@@ -57,6 +58,7 @@ export function buildPlayerFeeRows({
   season,
   today,
   exemptPlayerIds,
+  waiversByPlayer,
 }: {
   players: readonly PaymentPlayer[];
   lines: readonly SeasonFeeLine[];
@@ -65,6 +67,8 @@ export function buildPlayerFeeRows({
   today: Date;
   /** Jugadores exentos de la temporada (`payment_exemptions`). */
   exemptPlayerIds?: ReadonlySet<string>;
+  /** Anulaciones de lo pendiente por jugador (`payment_waivers`). */
+  waiversByPlayer?: ReadonlyMap<string, readonly FeeWaiverLike[]>;
 }): PlayerFeeRow[] {
   return players.map((player) => {
     const exempt = exemptPlayerIds?.has(player.id) ?? false;
@@ -90,6 +94,7 @@ export function buildPlayerFeeRows({
               lines,
               payments,
               today,
+              waivers: waiversByPlayer?.get(player.id),
             }),
       unassigned: unassignedPaidPayments(payments, lines),
     };

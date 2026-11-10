@@ -19,6 +19,10 @@ import { createPortal } from "react-dom";
 import { deletePaymentAction, updatePaymentMethodAction } from "@/lib/actions/payments/correct";
 import { MethodIcon, MethodLetters } from "@/components/payments/MethodMark";
 import { registerPaymentAction } from "@/lib/actions/payments/register";
+import {
+  removePaymentWaiverAction,
+  setPaymentWaiverAction,
+} from "@/lib/actions/payments/waivers";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/payments/constants";
 import {
   buildRowCells,
@@ -63,6 +67,8 @@ function cellAriaLabel(row: PlayerFeeRow, column: MatrixColumn, cell: MatrixCell
       return `${row.full_name}, ${what}: vencido, ${formatEuros(cell.obligation?.remaining ?? 0)} €`;
     case "upcoming":
       return `${row.full_name}, ${what}: por llegar, ${formatEuros(cell.obligation?.remaining ?? 0)} €`;
+    case "waived":
+      return `${row.full_name}, ${what}: anulado, no se cobra`;
     default:
       return `${row.full_name}, ${what}: no aplica`;
   }
@@ -94,6 +100,8 @@ function CellPopover({
   onRegister,
   onChangeMethod,
   onAnnul,
+  onWaive,
+  onUnwaive,
   onOther,
 }: {
   row: PlayerFeeRow;
@@ -107,6 +115,8 @@ function CellPopover({
   onRegister: (amount: number, method: PaymentMethod) => void;
   onChangeMethod: (paymentId: string, method: PaymentMethod) => void;
   onAnnul: (paymentId: string) => void;
+  onWaive: (amount: number, reason: string) => void;
+  onUnwaive: () => void;
   onOther: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -114,6 +124,11 @@ function CellPopover({
   const remaining = cell.obligation?.remaining ?? 0;
   const [amount, setAmount] = useState(remaining > 0 ? String(remaining) : "");
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  // No cobrar / volver a cobrar: cada acción pide una segunda confirmación antes de guardarse.
+  const [waiverMode, setWaiverMode] = useState<"idle" | "form" | "confirm" | "unwaive">("idle");
+  const [waiveAmount, setWaiveAmount] = useState(remaining > 0 ? String(remaining) : "");
+  const [waiveReason, setWaiveReason] = useState("");
+  const waived = cell.obligation?.waived ?? 0;
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -128,7 +143,7 @@ function CellPopover({
       top = Math.max(margin, anchor.top - height - 6);
     }
     setPosition({ top, left });
-  }, [anchor, cell.kind, cell.payments.length]);
+  }, [anchor, cell.kind, cell.payments.length, waiverMode]);
 
   useEffect(() => {
     amountRef.current?.focus();
@@ -152,6 +167,9 @@ function CellPopover({
 
   const amountNumber = Number(amount.replace(",", "."));
   const amountValid = Number.isFinite(amountNumber) && amountNumber > 0;
+  const waiveNumber = Number(waiveAmount.replace(",", "."));
+  const waiveValid =
+    Number.isFinite(waiveNumber) && waiveNumber > 0 && waiveNumber <= remaining + 0.005;
   const what =
     column.kind === "once" ? column.label : `${column.label} · ${monthName(column.month ?? 0)}`;
 
@@ -268,6 +286,149 @@ function CellPopover({
         </div>
       ) : null}
 
+      {waived > 0 ? (
+        <div className="pay-popover__waiver" role="group" aria-label="Importe anulado">
+          <p className="pay-popover__waiver-title">
+            Anulado: <span className="ropa-digit">{formatEuros(waived)} €</span> no se cobra
+          </p>
+          {cell.obligation?.waivedReason ? (
+            <p className="pay-popover__hint">{cell.obligation.waivedReason}</p>
+          ) : null}
+          {waiverMode === "unwaive" ? (
+            <>
+              <p className="pay-popover__hint">
+                Vuelven a figurar como pendientes {formatEuros(waived)} € de {what} de{" "}
+                {row.full_name}.
+              </p>
+              <span className="pay-popover__confirm-row">
+                <button
+                  type="button"
+                  className="pay-popover__confirm"
+                  disabled={busy}
+                  onClick={onUnwaive}
+                >
+                  {busy ? "Guardando…" : "Confirmar, volver a cobrar"}
+                </button>
+                <button
+                  type="button"
+                  className="pay-popover__link"
+                  disabled={busy}
+                  onClick={() => setWaiverMode("idle")}
+                >
+                  Cancelar
+                </button>
+              </span>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="pay-popover__link"
+              disabled={busy}
+              onClick={() => setWaiverMode("unwaive")}
+            >
+              Volver a cobrar…
+            </button>
+          )}
+        </div>
+      ) : null}
+
+      {remaining > 0 && waiverMode !== "unwaive" ? (
+        <div className="pay-popover__waiver">
+          {waiverMode === "idle" ? (
+            <button
+              type="button"
+              className="pay-popover__link"
+              disabled={busy}
+              onClick={() => setWaiverMode("form")}
+            >
+              No cobrar…
+            </button>
+          ) : (
+            <>
+              <label className="pay-popover__field">
+                <span className="pay-popover__label">Importe a no cobrar (€)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={waiveAmount}
+                  disabled={waiverMode === "confirm"}
+                  onChange={(e) => setWaiveAmount(e.target.value)}
+                  className="pay-popover__input"
+                  aria-label="Importe a no cobrar en euros"
+                />
+              </label>
+              <label className="pay-popover__field">
+                <span className="pay-popover__label">Motivo (opcional)</span>
+                <input
+                  type="text"
+                  maxLength={200}
+                  list="pay-waiver-reasons"
+                  value={waiveReason}
+                  disabled={waiverMode === "confirm"}
+                  onChange={(e) => setWaiveReason(e.target.value)}
+                  className="pay-popover__input"
+                  placeholder="Ausencia, lesión, cambio de cuota…"
+                  aria-label="Motivo"
+                />
+                <datalist id="pay-waiver-reasons">
+                  <option value="Ausencia" />
+                  <option value="Lesión" />
+                  <option value="Cambio de cuota" />
+                </datalist>
+              </label>
+              {waiverMode === "confirm" ? (
+                <>
+                  <p className="pay-popover__hint">
+                    Se dejará de reclamar {formatEuros(waiveNumber)} € de {what} a {row.full_name}. No
+                    se borra ningún cobro y se puede deshacer.
+                  </p>
+                  <span className="pay-popover__confirm-row">
+                    <button
+                      type="button"
+                      className="pay-popover__confirm"
+                      disabled={busy || !waiveValid}
+                      onClick={() =>
+                        onWaive(Math.round((waived + waiveNumber) * 100) / 100, waiveReason)
+                      }
+                    >
+                      {busy ? "Guardando…" : "Confirmar, no cobrar"}
+                    </button>
+                    <button
+                      type="button"
+                      className="pay-popover__link"
+                      disabled={busy}
+                      onClick={() => setWaiverMode("form")}
+                    >
+                      Volver
+                    </button>
+                  </span>
+                </>
+              ) : (
+                <span className="pay-popover__confirm-row">
+                  <button
+                    type="button"
+                    className="pay-popover__confirm"
+                    disabled={!waiveValid}
+                    onClick={() => setWaiverMode("confirm")}
+                  >
+                    Continuar
+                  </button>
+                  <button
+                    type="button"
+                    className="pay-popover__link"
+                    onClick={() => setWaiverMode("idle")}
+                  >
+                    Cancelar
+                  </button>
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      ) : null}
+
       <div className="pay-popover__foot">
         <button type="button" className="pay-popover__link" onClick={onOther}>
           Otro cobro…
@@ -369,6 +530,8 @@ const MatrixRow = memo(
             ) : (
               "✓"
             );
+          } else if (cell.kind === "waived") {
+            content = <span className="pay-cell__waived">Anul.</span>;
           } else if (cell.kind === "partial") {
             content = formatEuros(cell.obligation?.paid ?? 0);
           } else if (cell.kind === "due") {
@@ -566,6 +729,48 @@ export function PaymentMatrix({
     });
   }
 
+  function waive(amount: number, reason: string) {
+    if (!activeRow || !activeCell?.obligation) return;
+    const row = activeRow;
+    const obligation = activeCell.obligation;
+    startTransition(async () => {
+      const result = await setPaymentWaiverAction({
+        player_id: row.id,
+        fee_code: obligation.code,
+        billing_month: obligation.month ?? 0,
+        amount,
+        reason,
+      });
+      if (!result.ok) {
+        appToast.error(result.error);
+        return;
+      }
+      setActive(null);
+      appToast.success("Pendiente anulado: ya no se reclama");
+      router.refresh();
+    });
+  }
+
+  function unwaive() {
+    if (!activeRow || !activeCell?.obligation) return;
+    const row = activeRow;
+    const obligation = activeCell.obligation;
+    startTransition(async () => {
+      const result = await removePaymentWaiverAction({
+        player_id: row.id,
+        fee_code: obligation.code,
+        billing_month: obligation.month ?? 0,
+      });
+      if (!result.ok) {
+        appToast.error(result.error);
+        return;
+      }
+      setActive(null);
+      appToast.success("Vuelve a cobrarse: el pendiente se ha restablecido");
+      router.refresh();
+    });
+  }
+
   function onGridKeyDown(event: KeyboardEvent<HTMLTableElement>) {
     const target = event.target as HTMLElement;
     const position = target.dataset.cell;
@@ -672,6 +877,8 @@ export function PaymentMatrix({
           onRegister={register}
           onChangeMethod={changeMethod}
           onAnnul={annul}
+          onWaive={waive}
+          onUnwaive={unwaive}
           onOther={() => {
             setActive(null);
             onOther(activeRow);

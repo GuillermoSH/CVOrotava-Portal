@@ -69,6 +69,28 @@ export const assignPaymentFeeSchema = z.object({
   billing_month: z.coerce.number().int().min(1).max(12).nullish(),
 });
 
+const waiverTargetSchema = z.object({
+  player_id: z.string().uuid("Jugador no válido"),
+  fee_code: z.string().trim().min(1).max(60),
+  /** Mes natural de la mensualidad; vacío o 0 para conceptos únicos. */
+  billing_month: z.number().int().min(0).max(12).default(0),
+});
+
+/** Anular (no cobrar) lo pendiente de un concepto/mes de la temporada actual. */
+export const setWaiverSchema = waiverTargetSchema.extend({
+  amount: z.coerce.number().positive("El importe debe ser mayor que 0"),
+  reason: z
+    .string()
+    .trim()
+    .max(200, "Máximo 200 caracteres")
+    .transform((value) => (value === "" ? null : value))
+    .nullable()
+    .default(null),
+});
+
+/** Volver a cobrar: deshace la anulación de ese concepto/mes. */
+export const removeWaiverSchema = waiverTargetSchema;
+
 export const deletePaymentSchema = z.object({
   id: z.string().uuid("Cobro no válido"),
 });
