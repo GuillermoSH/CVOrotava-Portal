@@ -4,7 +4,7 @@ import { dbErrorMessage } from "@/lib/clothing/repository/helpers";
 import type { PaymentsDb } from "@/lib/payments/repository/client";
 import type { ReminderHistoryEntry, ReminderItem, ReminderKind } from "@/lib/payments/reminders/plan";
 
-/** Emails de los contactos de cada jugador, el principal primero, sin duplicados. */
+/** Email del contacto principal de cada jugador (una sola dirección por jugador). */
 export async function listContactEmails(
   db: PaymentsDb,
   playerIds: readonly string[],
@@ -16,18 +16,18 @@ export async function listContactEmails(
     .from("player_contacts")
     .select("player_id, email, is_primary")
     .in("player_id", [...playerIds])
-    .not("email", "is", null)
     .order("is_primary", { ascending: false })
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(dbErrorMessage(error));
 
+  // Solo el contacto principal (el primero de cada jugador por el orden de la consulta).
+  // Si el principal no tiene correo válido, no se cae al de otro contacto: se avisa en control.
   for (const row of data ?? []) {
+    const playerId = row.player_id as string;
+    if (byPlayer.has(playerId)) continue;
     const email = String(row.email ?? "").trim().toLowerCase();
-    if (!email.includes("@")) continue;
-    const list = byPlayer.get(row.player_id as string) ?? [];
-    if (!list.includes(email)) list.push(email);
-    byPlayer.set(row.player_id as string, list);
+    byPlayer.set(playerId, email.includes("@") ? [email] : []);
   }
   return byPlayer;
 }
