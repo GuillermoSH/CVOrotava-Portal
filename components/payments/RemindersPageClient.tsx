@@ -116,7 +116,7 @@ export function RemindersPageClient({
 
   const email = useMemo(() => {
     if (!selected) return null;
-    const options = { instructions, logoUrl: `${typeof window === "undefined" ? "" : window.location.origin}/logo/email-logo.png` };
+    const options = { instructions, logoUrl: `${typeof window === "undefined" ? "" : window.location.origin}/logo/email-logo-white.png` };
     const group = groups.find((g) => g.plans.some((p) => p.playerId === selected.playerId));
     if (group) return renderReminderGroupEmail(group, options);
     return renderReminderEmail({
