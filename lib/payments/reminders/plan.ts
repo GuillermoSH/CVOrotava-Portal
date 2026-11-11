@@ -20,6 +20,11 @@ export type ReminderItem = {
   /** Mes natural (1–12) en mensualidades; null en pagos únicos. */
   month: number | null;
   remaining: number;
+  /**
+   * Atrasado (su mes ya terminó) frente a solo vencido. Opcional: los avisos guardados antes de
+   * este campo no lo llevan y se tratan como vencidos.
+   */
+  late?: boolean;
 };
 
 export type ReminderPlan = {
@@ -155,7 +160,12 @@ export function planReminders({
     if (!kind) continue;
     if (sent.some((s) => s.kind === kind && s.sent_on === todayKey)) continue;
 
-    const items = open.map((o) => ({ label: o.label, month: o.month, remaining: o.remaining }));
+    const items = open.map((o) => ({
+      label: o.label,
+      month: o.month,
+      remaining: o.remaining,
+      late: o.late,
+    }));
     plans.push({
       playerId: row.id,
       playerName: row.full_name,
