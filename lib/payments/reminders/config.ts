@@ -28,10 +28,10 @@ function emailLogoUrl(): string | null {
   const override = process.env.REMINDER_EMAIL_LOGO_URL?.trim();
   if (override) return override;
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-  if (vercel) return `https://${vercel}/logo/email-logo.png`;
+  if (vercel) return `https://${vercel}/logo/email-logo-white.png`;
   const origin = getConfiguredSiteOrigin();
   const isPrivate = /^https?:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(origin);
-  return origin && !isPrivate ? `${origin}/logo/email-logo.png` : null;
+  return origin && !isPrivate ? `${origin}/logo/email-logo-white.png` : null;
 }
 
 export function getReminderConfig() {

@@ -83,8 +83,8 @@ describe("renderCombinedReminderEmail", () => {
     const mixed = renderCombinedReminderEmail({ kind: "atrasado", mixed: true, players, instructions: "" });
     const same = renderCombinedReminderEmail({ kind: "atrasado", players, instructions: "" });
     expect(mixed.text).toContain("pagos pendientes de la temporada");
-    expect(mixed.text).not.toContain("Constan como atrasados");
-    expect(same.text).toContain("Constan como atrasados");
+    expect(mixed.text).not.toContain("constan como atrasados");
+    expect(same.text).toContain("constan como atrasados");
   });
 });
 

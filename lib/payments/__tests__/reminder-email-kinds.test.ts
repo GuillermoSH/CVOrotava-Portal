@@ -61,6 +61,37 @@ describe("aspecto del correo según el tipo de aviso", () => {
     expect(onlyLate.html).not.toContain("Atrasado · mes ya terminado");
   });
 
+  it("la introducción sigue al saludo en la misma línea y en minúscula", () => {
+    const text = render("atrasado", [item(10, true)]).text;
+    expect(text).toContain("Hola, constan como atrasados");
+    expect(render("aviso", [item(11, false)]).text).toContain("Hola, tenemos pendiente");
+    expect(render("ultimo_aviso", [item(11, false)]).text).toContain("Hola, hoy cierra el mes");
+  });
+
+  it("el pie junta el aviso de no responder y el contacto con el texto acordado", () => {
+    const email = render("aviso", [item(11, false)]);
+    const foot =
+      "Este mensaje se ha enviado automáticamente y no admite respuestas. Si tienes dudas, problemas con el pago o con tu situación económica escríbenos o llámanos al 696 94 28 23";
+    expect(email.html).toContain(foot);
+    expect(email.text).toContain(foot);
+    expect(email.html).not.toContain("Consúltalo con nosotros");
+  });
+
+  it("no hay cabecera aparte con el nombre del club: el logo va junto al texto de la franja", () => {
+    const withLogo = renderCombinedReminderEmail({
+      kind: "aviso",
+      players: [{ playerName: "Jugador de Ejemplo", items: [item(11, false)], total: 25 }],
+      instructions: "",
+      logoUrl: "https://ejemplo.test/logo/email-logo-white.png",
+    });
+    expect(withLogo.html).toContain("email-logo-white.png");
+    // El nombre del club solo aparece en la despedida, no en una cabecera.
+    expect(withLogo.html.match(/C\.V\. Orotava - Puerto de la Cruz/g)).toHaveLength(1);
+    expect(withLogo.html.indexOf("email-logo-white.png")).toBeLessThan(
+      withLogo.html.indexOf("Recordatorio · día 10"),
+    );
+  });
+
   it("los avisos guardados antes de existir el campo late se tratan como vencidos", () => {
     const legacy = render("atrasado", [{ label: "Cuota mensual", month: 10, remaining: 25 }]);
     expect(legacy.html).not.toContain("Atrasado · mes ya terminado");
