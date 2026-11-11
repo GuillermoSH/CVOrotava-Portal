@@ -64,7 +64,7 @@ describe("renderCombinedReminderEmail", () => {
 
   it("lleva a todos los jugadores, sus subtotales y un total común", () => {
     const email = renderCombinedReminderEmail({ kind: "atrasado", players, instructions: "" });
-    expect(email.subject).toBe("Pagos atrasados — Ana Pérez y Luis <b> Pérez");
+    expect(email.subject).toBe("Aviso: pagos atrasados — Ana Pérez y Luis <b> Pérez");
     expect(email.text).toContain("Jugador/a: Ana Pérez");
     expect(email.text).toContain("Jugador/a: Luis <b> Pérez");
     expect(email.text).toContain("Total pendiente: 100,00");
