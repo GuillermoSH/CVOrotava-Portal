@@ -1,10 +1,12 @@
 "use client";
 
+import { CheckCircle2, Circle } from "lucide-react";
 import Link from "next/link";
 
 import { ClothingSetBand } from "@/components/clothing/ClothingSetBand";
 import { OrderStatusActions } from "@/components/clothing/OrderStatusActions";
 import { summarizeOrderReceiving } from "@/lib/clothing/orderReceiving";
+import { stockRollbackBlocker } from "@/lib/clothing/orderRollback";
 import { competitionNeedsJersey } from "@/lib/clothing/formatJersey";
 import { appRoutes } from "@/lib/constants";
 import type {
@@ -13,6 +15,8 @@ import type {
   ClothingOrderStatus,
 } from "@/lib/types/db";
 import { cn } from "@/lib/utils";
+
+type ChecklistItem = { label: string; done: boolean; optional?: boolean; href?: string };
 
 function nowGuidance(status: ClothingOrderStatus): {
   title: string;
@@ -88,11 +92,14 @@ export function OrderCockpit({
   status,
   lines,
   orderLots = [],
+  plannedCount = 0,
 }: {
   orderId: string;
   status: ClothingOrderStatus;
   lines: ClothingOrderLineWithProduct[];
   orderLots?: ClothingInventoryLotWithDetails[];
+  /** Entregas previstas asignadas en el pedido (pendientes y entregadas). */
+  plannedCount?: number;
 }) {
   const receiving = summarizeOrderReceiving(lines);
   const guidance = nowGuidance(status);
@@ -110,6 +117,48 @@ export function OrderCockpit({
   const showPostSerigraphy =
     status === "returned_from_serigraphy" ||
     (status === "closed" && pendingLots.length > 0);
+
+  const stockBlocker =
+    status === "returned_from_serigraphy" || status === "closed"
+      ? stockRollbackBlocker(orderLots, lines)
+      : null;
+
+  const checklist: ChecklistItem[] = [];
+  if (status === "draft") {
+    checklist.push({ label: "Añadir las líneas del pedido", done: lines.length > 0 });
+    checklist.push({
+      label:
+        plannedCount > 0
+          ? `Entregas previstas: ${plannedCount} asignadas`
+          : "Asignar prendas a jugadores",
+      done: plannedCount > 0,
+      optional: true,
+      href: "#entregas-previstas",
+    });
+  } else if (status === "ordered") {
+    checklist.push({
+      label: "Anotar las unidades recibidas",
+      done: receiving.receivedUnits > 0,
+      href: "#verificacion-recepcion",
+    });
+    checklist.push({
+      label: "Que lo recibido cuadre con lo pedido",
+      done: receiving.allComplete,
+    });
+  } else if (status === "received") {
+    checklist.push({ label: "Sin unidades por llegar", done: receiving.missingUnits === 0 });
+  } else if (status === "returned_from_serigraphy") {
+    if (orderLots.length === 0 || missingJerseyLots.length > 0) {
+      checklist.push({
+        label: "Numerar los dorsales de competición",
+        done: missingJerseyLots.length === 0,
+      });
+    }
+    checklist.push({
+      label: "Ubicar cada lote en el almacén",
+      done: pendingLots.length === 0,
+    });
+  }
 
   const warehouseHref = `${appRoutes.clothing.warehouse}?order=${orderId}&status=pending_storage`;
   const jerseyHref = `${appRoutes.clothing.warehouse}?order=${orderId}&missingJersey=1`;
@@ -164,16 +213,38 @@ export function OrderCockpit({
         </div>
       ) : null}
 
-      {status !== "closed" ? (
-        <div className="ropa-order-actions">
-          <OrderStatusActions
-            orderId={orderId}
-            status={status}
-            missingUnits={receiving.missingUnits}
-            missingSizes={receiving.incompleteLines}
-          />
-        </div>
+      {checklist.length > 0 ? (
+        <ul className="flex flex-col gap-1.5" aria-label="Pasos de esta fase">
+          {checklist.map((item) => (
+            <li key={item.label} className="flex items-center gap-2 text-sm">
+              {item.done ? (
+                <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
+              ) : (
+                <Circle className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              )}
+              <span className={item.done ? "text-muted-foreground" : "text-foreground"}>
+                {item.label}
+                {item.optional ? " (opcional)" : ""}
+              </span>
+              {item.href ? (
+                <a href={item.href} className="ml-auto text-xs font-medium text-brand">
+                  Ir
+                </a>
+              ) : null}
+            </li>
+          ))}
+        </ul>
       ) : null}
+
+      <div className="ropa-order-actions">
+        <OrderStatusActions
+          orderId={orderId}
+          status={status}
+          missingUnits={receiving.missingUnits}
+          missingSizes={receiving.incompleteLines}
+          stockBlocker={stockBlocker}
+        />
+      </div>
     </div>
   );
 }

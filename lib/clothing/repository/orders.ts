@@ -1,7 +1,12 @@
-import { ORDER_TRANSITIONS } from "@/lib/clothing/constants";
+import { ORDER_BACKWARD_TRANSITIONS, ORDER_TRANSITIONS } from "@/lib/clothing/constants";
+import { stockRollbackBlocker } from "@/lib/clothing/orderRollback";
 import type { ClothingDb } from "@/lib/clothing/repository/client";
 import { dbErrorMessage } from "@/lib/clothing/repository/helpers";
-import { createInventoryLotsFromOrder } from "@/lib/clothing/repository/inventory";
+import {
+  createInventoryLotsFromOrder,
+  deleteLotsByIds,
+  listLotsByOrder,
+} from "@/lib/clothing/repository/inventory";
 import {
   mapOrder,
   mapOrderLine,
@@ -240,9 +245,17 @@ export async function updateOrderStatus(
   const existing = await getOrderWithLines(db, orderId);
   if (!existing) throw new Error("Pedido no encontrado");
 
-  const allowed = ORDER_TRANSITIONS[existing.order.status];
+  const allowed = [
+    ...ORDER_TRANSITIONS[existing.order.status],
+    ...ORDER_BACKWARD_TRANSITIONS[existing.order.status],
+  ];
   if (!allowed.includes(status)) {
     throw new Error("Transición de estado no permitida");
+  }
+
+  // Volver de «Vuelta serigrafía» deshace el stock que se generó: solo si sigue intacto.
+  if (existing.order.status === "returned_from_serigraphy" && status === "at_serigraphy") {
+    await removeUntouchedOrderLots(db, orderId, existing.lines);
   }
 
   const changedAt = new Date().toISOString();
@@ -315,6 +328,35 @@ export async function updateOrderLineReceived(
     .eq("id", lineRow.order_id);
 
   return mapOrderLine(data);
+}
+
+/** Borra los lotes que creó el pedido si siguen intactos; si no, lanza el motivo. */
+async function removeUntouchedOrderLots(
+  db: ClothingDb,
+  orderId: string,
+  lines: ClothingSupplierOrderLine[],
+): Promise<void> {
+  const lots = await listLotsByOrder(db, orderId);
+  const blocker = stockRollbackBlocker(lots, lines);
+  if (blocker) throw new Error(blocker);
+  await deleteLotsByIds(
+    db,
+    lots.map((lot) => lot.id),
+  );
+}
+
+/**
+ * Elimina un pedido en cualquier estado. Si ya generó stock (vuelta de serigrafía o cerrado),
+ * solo se puede mientras ese stock siga intacto, y se borra con él.
+ */
+export async function deleteOrder(db: ClothingDb, orderId: string): Promise<void> {
+  const existing = await getOrderWithLines(db, orderId);
+  if (!existing) throw new Error("Pedido no encontrado");
+  // Antes de volver de serigrafía aún no existe stock del pedido: no hay nada que comprobar.
+  if (existing.order.status === "returned_from_serigraphy" || existing.order.status === "closed") {
+    await removeUntouchedOrderLots(db, orderId, existing.lines);
+  }
+  await deleteOrdersByIds(db, [orderId]);
 }
 
 export async function deleteDraftOrder(db: ClothingDb, orderId: string): Promise<void> {

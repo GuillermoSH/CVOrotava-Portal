@@ -3,11 +3,18 @@
 import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import { Button } from "@/components/club/Button";
 import { FormInput, FormTextarea } from "@/components/club/forms";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
+import {
+  PlannedDeliveriesEditor,
+  plannedRowsFromDeliveries,
+  plannedRowsToPayload,
+  type PlannedRowDraft,
+  type PlannedSkuOption,
+} from "@/components/clothing/PlannedDeliveriesEditor";
 import { ProductPicker } from "@/components/clothing/ProductPicker";
 import { SizePicker } from "@/components/clothing/SizePicker";
 import {
@@ -18,8 +25,10 @@ import { formatSeasonShort, getCurrentSeason } from "@/lib/season";
 import { appRoutes } from "@/lib/constants";
 import type {
   ClothingOrderWithLines,
+  ClothingPlannedDelivery,
   ClothingProduct,
   ClothingSize,
+  PlayerWithTeam,
 } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 
@@ -47,10 +56,16 @@ function linesFromOrder(order: ClothingOrderWithLines): LineDraft[] {
 export function OrderForm({
   products,
   order,
+  players = [],
+  planned = [],
 }: {
   products: ClothingProduct[];
   /** Si se pasa, el formulario edita ese borrador. */
   order?: ClothingOrderWithLines;
+  /** Jugadores a los que se puede asignar prendas del pedido. */
+  players?: PlayerWithTeam[];
+  /** Entregas previstas ya guardadas del borrador que se edita. */
+  planned?: ClothingPlannedDelivery[];
 }) {
   const isEdit = Boolean(order);
   const router = useRouter();
@@ -61,6 +76,23 @@ export function OrderForm({
   const [lines, setLines] = useState<LineDraft[]>(() =>
     order ? linesFromOrder(order) : [emptyLine()],
   );
+  const [plannedRows, setPlannedRows] = useState<PlannedRowDraft[]>(() =>
+    plannedRowsFromDeliveries(planned),
+  );
+
+  // Prendas y tallas del pedido (sumando líneas repetidas): lo que se puede asignar a jugadores.
+  const plannedOptions = useMemo<PlannedSkuOption[]>(() => {
+    const bySku = new Map<string, PlannedSkuOption>();
+    for (const line of lines) {
+      if (!line.productId || !line.size) continue;
+      const key = `${line.productId}::${line.size}`;
+      const quantity = Math.max(0, Math.floor(Number(line.quantityOrdered)) || 0);
+      const existing = bySku.get(key);
+      if (existing) existing.ordered += quantity;
+      else bySku.set(key, { productId: line.productId, size: line.size, ordered: quantity });
+    }
+    return [...bySku.values()];
+  }, [lines]);
 
   if (products.length === 0) {
     return (
@@ -90,6 +122,11 @@ export function OrderForm({
 
   function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
+    const plannedPayload = plannedRowsToPayload(plannedRows);
+    if (!plannedPayload.ok) {
+      appToast.error(plannedPayload.error);
+      return;
+    }
     startTransition(async () => {
       const payload = {
         supplier_name: supplierName,
@@ -100,6 +137,7 @@ export function OrderForm({
           size: line.size as ClothingSize,
           quantity_ordered: Number(line.quantityOrdered),
         })),
+        planned: plannedPayload.rows,
       };
 
       const result = isEdit && order
@@ -250,6 +288,28 @@ export function OrderForm({
             Añadir línea
           </Button>
         </section>
+
+        {players.length > 0 ? (
+          <section
+            id="entregas-previstas"
+            className="flex scroll-mt-24 flex-col gap-5 border-t border-[var(--club-border)] pt-8"
+          >
+            <div>
+              <h2 className="ropa-section-heading">Entregas previstas</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Opcional. Asigna prendas del pedido a jugadores (con su talla y, si lleva, el
+                dorsal). Al entregar, saldrán ya preparadas.
+              </p>
+            </div>
+            <PlannedDeliveriesEditor
+              rows={plannedRows}
+              onChange={setPlannedRows}
+              options={plannedOptions}
+              products={products}
+              players={players}
+            />
+          </section>
+        ) : null}
 
         <div className="clothing-toolbar hidden border-t border-[var(--club-border)] pt-6 md:flex">
           <Button type="submit" disabled={pending}>

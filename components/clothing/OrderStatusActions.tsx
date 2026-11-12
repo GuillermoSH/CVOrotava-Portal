@@ -1,22 +1,28 @@
 "use client";
 
+import { MoreHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { appToast } from "@/lib/toast";
 
 import { Button } from "@/components/club/Button";
 import { ConfirmDialog } from "@/components/club/ConfirmDialog";
 import {
-  ClothingBottomSheet,
-  ClothingSheetOption,
-} from "@/components/clothing/ClothingBottomSheet";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/club/DropdownMenu";
+import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
-import { updateOrderStatus } from "@/lib/actions/clothing/orders";
+import { deleteOrderAction, updateOrderStatus } from "@/lib/actions/clothing/orders";
 import {
   getForwardOrderTransitions,
+  ORDER_BACKWARD_TRANSITIONS,
   ORDER_STATUS_LABELS,
-  ORDER_STATUS_TRANSITIONS,
 } from "@/lib/clothing/constants";
+import { appRoutes } from "@/lib/constants";
+import { appToast } from "@/lib/toast";
 import type { ClothingOrderStatus } from "@/lib/types/db";
 
 const transitionLabels: Partial<Record<ClothingOrderStatus, string>> = {
@@ -27,206 +33,217 @@ const transitionLabels: Partial<Record<ClothingOrderStatus, string>> = {
   closed: "Cerrar pedido",
 };
 
-type ConfirmKind = "serigraphy_missing" | "inventory" | null;
+/** Qué pasa al volver atrás a cada estado (se enseña antes de confirmar). */
+const backwardConsequence: Partial<Record<ClothingOrderStatus, string>> = {
+  draft:
+    "El pedido dejará de estar marcado como enviado y podrás editar su contenido. Las unidades recibidas se pondrán a cero y tendrás que volver a confirmar el envío.",
+  ordered: "El pedido vuelve a «Pedido enviado». Las unidades recibidas que anotaste se conservan.",
+  received: "El pedido vuelve a «Recibido». Podrás revisar la recepción o enviarlo de nuevo a serigrafía.",
+  at_serigraphy:
+    "El pedido vuelve a «En serigrafía». Se borrarán los lotes que se crearon al volver (siguen sin ubicar ni entregar) y se generarán de nuevo al registrar la vuelta.",
+  returned_from_serigraphy: "Se reabre el pedido: volverá a «Vuelta serigrafía» con su stock tal como está.",
+};
+
+type Dialog =
+  | { kind: "forward-serigraphy-missing" }
+  | { kind: "forward-inventory" }
+  | { kind: "backward"; target: ClothingOrderStatus }
+  | { kind: "delete" }
+  | null;
 
 export function OrderStatusActions({
   orderId,
   status,
   missingUnits = 0,
   missingSizes = 0,
+  stockBlocker = null,
 }: {
   orderId: string;
   status: ClothingOrderStatus;
   missingUnits?: number;
   missingSizes?: number;
+  /** Motivo por el que no se puede deshacer el stock generado (vuelta de serigrafía o cerrado). */
+  stockBlocker?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [confirmKind, setConfirmKind] = useState<ConfirmKind>(null);
-  const [confirmNext, setConfirmNext] = useState<ClothingOrderStatus | null>(null);
-  const [reopenDraftOpen, setReopenDraftOpen] = useState(false);
+  const [dialog, setDialog] = useState<Dialog>(null);
 
-  const forwardStatuses = getForwardOrderTransitions(status);
-  const canReopenDraft = ORDER_STATUS_TRANSITIONS[status].includes("draft");
+  const next = getForwardOrderTransitions(status)[0] ?? null;
+  const back = ORDER_BACKWARD_TRANSITIONS[status][0] ?? null;
+  // Solo volver desde «Vuelta serigrafía» borra stock; lo demás no tiene requisitos de stock.
+  const backBlocker = status === "returned_from_serigraphy" ? stockBlocker : null;
+  const deleteBlocker =
+    status === "returned_from_serigraphy" || status === "closed" ? stockBlocker : null;
 
-  function runTransition(next: ClothingOrderStatus) {
+  function runTransition(target: ClothingOrderStatus) {
     startTransition(async () => {
-      const result = await updateOrderStatus({ order_id: orderId, status: next });
+      const result = await updateOrderStatus({ order_id: orderId, status: target });
       if (!result.ok) {
         appToast.error(result.error);
         return;
       }
       appToast.success(
-        next === "draft"
+        target === "draft"
           ? "Pedido vuelto a borrador"
-          : `Estado actualizado: ${ORDER_STATUS_LABELS[next]}`,
+          : `Estado actualizado: ${ORDER_STATUS_LABELS[target]}`,
       );
-      setSheetOpen(false);
-      setConfirmNext(null);
-      setConfirmKind(null);
-      setReopenDraftOpen(false);
+      setDialog(null);
       router.refresh();
     });
   }
 
-  function handleTransition(next: ClothingOrderStatus) {
+  function runDelete() {
+    startTransition(async () => {
+      const result = await deleteOrderAction({ order_id: orderId });
+      if (!result.ok) {
+        appToast.error(result.error);
+        return;
+      }
+      appToast.success("Pedido eliminado");
+      setDialog(null);
+      router.push(appRoutes.clothing.orders);
+      router.refresh();
+    });
+  }
+
+  function handleForward() {
+    if (!next) return;
     if (next === "at_serigraphy" && missingUnits > 0) {
-      setConfirmNext(next);
-      setConfirmKind("serigraphy_missing");
+      setDialog({ kind: "forward-serigraphy-missing" });
       return;
     }
     if (next === "returned_from_serigraphy") {
-      setConfirmNext(next);
-      setConfirmKind("inventory");
+      setDialog({ kind: "forward-inventory" });
       return;
     }
     runTransition(next);
   }
 
-  if (forwardStatuses.length === 0 && !canReopenDraft) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No hay más transiciones en este pedido.
-      </p>
-    );
-  }
+  const nextLabel = next ? (transitionLabels[next] ?? ORDER_STATUS_LABELS[next]) : null;
+  const closeDialog = () => {
+    if (!pending) setDialog(null);
+  };
 
-  const primaryNext = forwardStatuses[0];
-  const primaryLabel = primaryNext
-    ? (transitionLabels[primaryNext] ?? ORDER_STATUS_LABELS[primaryNext])
-    : "Cambiar estado";
-  const hasMultiple = forwardStatuses.length > 1;
-
-  const confirmTitle =
-    confirmKind === "serigraphy_missing"
-      ? "Recepción incompleta"
-      : "Generar inventario";
-  const confirmDescription =
-    confirmKind === "serigraphy_missing"
-      ? `Faltan ${missingUnits} uds en ${missingSizes} talla${missingSizes === 1 ? "" : "s"}. ¿Enviar igual a serigrafía?`
-      : "Se crearán lotes pendientes de ubicar en almacén.";
-  const confirmPrimaryLabel =
-    confirmKind === "serigraphy_missing" ? "Enviar igual" : "Continuar";
-
-  /** En borrador la ficha ya usa sticky para «Guardar cambios»; botones inline en móvil. */
-  const useInlineMobileActions = status === "draft";
+  const blockedBackward = dialog?.kind === "backward" && backBlocker;
+  const blockedDelete = dialog?.kind === "delete" && deleteBlocker;
 
   return (
     <>
-      <div
-        className={
-          useInlineMobileActions ? "flex flex-wrap gap-2" : "hidden flex-wrap gap-2 md:flex"
-        }
-      >
-        {forwardStatuses.map((next) => (
-          <Button
-            key={next}
-            type="button"
-            variant={next === "closed" ? "secondary" : "primary"}
-            size="sm"
-            disabled={pending}
-            onClick={() => handleTransition(next)}
-          >
-            {transitionLabels[next] ?? ORDER_STATUS_LABELS[next]}
-          </Button>
-        ))}
-        {canReopenDraft ? (
+      <div className="flex flex-wrap items-center gap-3">
+        {nextLabel ? (
           <Button
             type="button"
-            variant="secondary"
-            size="sm"
+            size="lg"
+            className="hidden min-h-12 px-6 text-base md:inline-flex"
             disabled={pending}
-            onClick={() => setReopenDraftOpen(true)}
+            onClick={handleForward}
           >
-            Volver a borrador
+            {pending ? "Guardando…" : nextLabel}
           </Button>
         ) : null}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="btn-secondary inline-flex min-h-11 items-center gap-1.5 md:min-h-12"
+            aria-label="Más opciones del pedido"
+            disabled={pending}
+          >
+            <MoreHorizontal className="size-4" aria-hidden />
+            Más opciones
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-64">
+            {back ? (
+              <DropdownMenuItem onClick={() => setDialog({ kind: "backward", target: back })}>
+                Volver a «{ORDER_STATUS_LABELS[back]}»
+              </DropdownMenuItem>
+            ) : null}
+            {back ? <DropdownMenuSeparator /> : null}
+            <DropdownMenuItem variant="destructive" onClick={() => setDialog({ kind: "delete" })}>
+              Eliminar pedido
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {!useInlineMobileActions ? (
+      {nextLabel ? (
         <div className="md:hidden">
           <ClothingStickyActionBar
             actions={[
-              ...(primaryNext
-                ? [
-                    {
-                      type: "button" as const,
-                      label: hasMultiple ? "Cambiar estado" : primaryLabel,
-                      pending,
-                      onClick: () => setSheetOpen(true),
-                    },
-                  ]
-                : []),
-              ...(canReopenDraft
-                ? [
-                    {
-                      type: "button" as const,
-                      label: "Volver a borrador",
-                      pending,
-                      variant: "secondary" as const,
-                      onClick: () => setReopenDraftOpen(true),
-                    },
-                  ]
-                : []),
+              {
+                type: "button",
+                label: nextLabel,
+                pending,
+                onClick: handleForward,
+              },
             ]}
           />
         </div>
       ) : null}
 
       <ClothingBottomSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        title="Siguiente paso"
-        description="Elige el nuevo estado del pedido."
-      >
-        <div className="flex flex-col gap-2">
-          {forwardStatuses.map((next) => (
-            <ClothingSheetOption
-              key={next}
-              onSelect={() => handleTransition(next)}
-            >
-              {transitionLabels[next] ?? ORDER_STATUS_LABELS[next]}
-            </ClothingSheetOption>
-          ))}
-        </div>
-      </ClothingBottomSheet>
-
-      <ClothingBottomSheet
-        open={confirmKind !== null && confirmNext !== null}
-        onClose={() => {
-          setConfirmKind(null);
-          setConfirmNext(null);
-        }}
-        title={confirmTitle}
-        description={confirmDescription}
+        open={dialog?.kind === "forward-serigraphy-missing" || dialog?.kind === "forward-inventory"}
+        onClose={closeDialog}
+        title={
+          dialog?.kind === "forward-serigraphy-missing" ? "Recepción incompleta" : "Generar inventario"
+        }
+        description={
+          dialog?.kind === "forward-serigraphy-missing"
+            ? `Faltan ${missingUnits} uds en ${missingSizes} talla${missingSizes === 1 ? "" : "s"}. ¿Enviar igual a serigrafía?`
+            : "Se crearán lotes pendientes de ubicar en almacén."
+        }
         primaryAction={{
-          label: confirmPrimaryLabel,
+          label: dialog?.kind === "forward-serigraphy-missing" ? "Enviar igual" : "Continuar",
           pending,
           onClick: () => {
-            if (confirmNext) runTransition(confirmNext);
+            if (next) runTransition(next);
           },
         }}
-        secondaryAction={{
-          label: "Cancelar",
-          onClick: () => {
-            setConfirmKind(null);
-            setConfirmNext(null);
-          },
+        secondaryAction={{ label: "Cancelar", onClick: closeDialog }}
+      />
+
+      <ConfirmDialog
+        open={dialog?.kind === "backward"}
+        onClose={closeDialog}
+        title={
+          blockedBackward
+            ? "No se puede volver atrás"
+            : dialog?.kind === "backward"
+              ? `Volver a «${ORDER_STATUS_LABELS[dialog.target]}»`
+              : ""
+        }
+        description={
+          blockedBackward
+            ? (backBlocker ?? undefined)
+            : dialog?.kind === "backward"
+              ? backwardConsequence[dialog.target]
+              : undefined
+        }
+        confirmLabel={blockedBackward ? "Entendido" : "Volver atrás"}
+        destructive={!blockedBackward}
+        pending={pending}
+        onConfirm={() => {
+          if (blockedBackward) setDialog(null);
+          else if (dialog?.kind === "backward") runTransition(dialog.target);
         }}
       />
 
       <ConfirmDialog
-        open={reopenDraftOpen}
-        onClose={() => {
-          if (!pending) setReopenDraftOpen(false);
-        }}
-        title="Volver a borrador"
-        description="El pedido dejará de estar marcado como enviado. Podrás editar el contenido; las unidades recibidas se pondrán a cero y tendrás que volver a confirmar el envío."
-        confirmLabel="Volver a borrador"
-        destructive
+        open={dialog?.kind === "delete"}
+        onClose={closeDialog}
+        title={blockedDelete ? "No se puede eliminar" : "Eliminar pedido"}
+        description={
+          blockedDelete
+            ? (deleteBlocker ?? undefined)
+            : "Se borrará el pedido con sus líneas y entregas previstas (y su stock si aún está sin tocar). Esta acción no se puede deshacer."
+        }
+        confirmLabel={blockedDelete ? "Entendido" : "Eliminar"}
+        destructive={!blockedDelete}
         pending={pending}
-        onConfirm={() => runTransition("draft")}
+        onConfirm={() => {
+          if (blockedDelete) setDialog(null);
+          else runDelete();
+        }}
       />
     </>
   );

@@ -1,8 +1,13 @@
 "use server";
 
-import { invalidateClothingInventory } from "@/lib/cache/invalidate";
+import { invalidateClothingInventory, invalidateClothingOrders } from "@/lib/cache/invalidate";
 import { requireClothingWriteAccess } from "@/lib/clothing/auth";
+import { plannedIdsFulfilledBy } from "@/lib/clothing/plannedDeliveries";
 import { getClothingDb } from "@/lib/clothing/repository/client";
+import {
+  listPendingPlannedForPlayer,
+  markPlannedDelivered,
+} from "@/lib/clothing/repository/plannedDeliveries";
 import {
   applyStockOutLines,
   applyStockReturn,
@@ -36,6 +41,11 @@ export type ActionResult =
 
 function revalidateClothing(playerId?: string) {
   invalidateClothingInventory(playerId);
+}
+
+/** El detalle de pedido muestra qué previsiones están entregadas. */
+function revalidateOrdersForPlanned() {
+  invalidateClothingOrders();
 }
 
 export async function assignInventoryToLocation(input: unknown): Promise<ActionResult> {
@@ -193,7 +203,27 @@ export async function deliverInventoryAction(input: unknown): Promise<ActionResu
       lines,
     });
 
+    // Lo entregado cierra las previsiones del jugador. Si esto fallara, la entrega ya está
+    // registrada: no se devuelve error (la previsión quedaría pendiente y se puede entregar de
+    // nuevo solo si hay stock).
+    try {
+      const pending = await listPendingPlannedForPlayer(db, player.id);
+      const fulfilled = plannedIdsFulfilledBy(
+        pending,
+        lines.map((line) => ({
+          product_id: line.productId,
+          size: line.size,
+          jersey_number: line.jerseyNumber,
+          quantity: line.quantity,
+        })),
+      );
+      await markPlannedDelivered(db, fulfilled);
+    } catch {
+      /* la entrega no se deshace por esto */
+    }
+
     revalidateClothing(player.id);
+    revalidateOrdersForPlanned();
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };

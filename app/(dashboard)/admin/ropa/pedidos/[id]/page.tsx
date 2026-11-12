@@ -1,15 +1,22 @@
 import { notFound } from "next/navigation";
 
-import { DeleteDraftOrderButton } from "@/components/clothing/DeleteDraftOrderButton";
 import { OrderCockpit } from "@/components/clothing/OrderCockpit";
 import { OrderForm } from "@/components/clothing/OrderForm";
 import { OrderLinesSection } from "@/components/clothing/OrderLinesSection";
+import { OrderPlannedDeliveriesPanel } from "@/components/clothing/OrderPlannedDeliveriesPanel";
 import { OrderReceivingVerificationPanel } from "@/components/clothing/OrderReceivingVerificationPanel";
 import { OrderStatusStepper } from "@/components/clothing/OrderStatusStepper";
 import { DashboardPage } from "@/components/layout/DashboardPage";
 import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
-import { enrichInventory, getOrderById, getProductsSnapshot } from "@/lib/clothing/snapshots";
+import { getClothingDb } from "@/lib/clothing/repository/client";
+import { listPlannedByOrder } from "@/lib/clothing/repository/plannedDeliveries";
+import {
+  enrichInventory,
+  getOrderById,
+  getProductsSnapshot,
+  getRosterSnapshot,
+} from "@/lib/clothing/snapshots";
 
 async function ClothingOrderDetailContent({
   params,
@@ -18,10 +25,12 @@ async function ClothingOrderDetailContent({
 }) {
   await requireClothingReadAccess();
   const { id } = await params;
-  const [order, allLots, products] = await Promise.all([
+  const [order, allLots, products, players, planned] = await Promise.all([
     getOrderById(id),
     enrichInventory(),
     getProductsSnapshot(),
+    getRosterSnapshot(),
+    getClothingDb().then((db) => listPlannedByOrder(db, id)),
   ]);
   if (!order) notFound();
 
@@ -69,14 +78,9 @@ async function ClothingOrderDetailContent({
             status={order.status}
             lines={order.lines}
             orderLots={orderLots}
+            plannedCount={planned.length}
           />
         </div>
-
-        {isDraft ? (
-          <div className="ropa-panel__block flex flex-wrap gap-2 !border-0 pt-0">
-            <DeleteDraftOrderButton orderId={order.id} />
-          </div>
-        ) : null}
       </section>
 
       {isDraft ? (
@@ -86,7 +90,7 @@ async function ClothingOrderDetailContent({
             Puedes cambiar proveedor, notas y líneas mientras el pedido siga en borrador.
             Al marcarlo como enviado, el contenido quedará bloqueado.
           </p>
-          <OrderForm products={products} order={order} />
+          <OrderForm products={products} order={order} players={players} planned={planned} />
         </section>
       ) : (
         <section className="flex flex-col gap-3">
@@ -103,6 +107,16 @@ async function ClothingOrderDetailContent({
           )}
         </section>
       )}
+
+      {!isDraft ? (
+        <OrderPlannedDeliveriesPanel
+          orderId={order.id}
+          lines={order.lines}
+          planned={planned}
+          players={players}
+          editable={order.status !== "closed"}
+        />
+      ) : null}
     </DashboardPage>
   );
 }

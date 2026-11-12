@@ -282,6 +282,19 @@ export type ClothingSupplierOrderLine = {
   created_at: string;
 };
 
+/** Prenda de un pedido que se prevé entregar a un jugador (una fila = una unidad). */
+export type ClothingPlannedDelivery = {
+  id: string;
+  order_id: string;
+  player_id: string;
+  product_id: string;
+  size: ClothingSize;
+  jersey_number: number | null;
+  /** Null mientras no se haya entregado. */
+  delivered_at: string | null;
+  created_at: string;
+};
+
 export type ClothingStorageLocation = {
   id: string;
   parent_id: string | null;

@@ -18,6 +18,19 @@ export async function listInventoryLots(db: ClothingDb): Promise<ClothingInvento
   return (data ?? []).map(mapLot);
 }
 
+export async function listLotsByOrder(
+  db: ClothingDb,
+  orderId: string,
+): Promise<ClothingInventoryLot[]> {
+  const { data, error } = await db
+    .from("clothing_inventory_lots")
+    .select("*")
+    .eq("source_order_id", orderId);
+
+  if (error) throw new Error(dbErrorMessage(error));
+  return (data ?? []).map(mapLot);
+}
+
 export async function listStockMovements(
   db: ClothingDb,
   kind?: ClothingStockMovementKind | ClothingStockMovementKind[],

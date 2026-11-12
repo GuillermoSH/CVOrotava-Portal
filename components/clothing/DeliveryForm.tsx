@@ -12,6 +12,7 @@ import { DeliveryAddItemSheet } from "@/components/clothing/DeliveryAddItemSheet
 import { PlayerPicker } from "@/components/clothing/PlayerPicker";
 import { ProductColorBadge } from "@/components/clothing/ProductColorBadge";
 import { deliverInventoryAction } from "@/lib/actions/clothing/inventory";
+import { matchPlannedToStock } from "@/lib/clothing/plannedDeliveries";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { formatJerseyNumber } from "@/lib/clothing/formatJersey";
 import { formatProductName, formatProductShort } from "@/lib/clothing/formatProduct";
@@ -25,6 +26,7 @@ import { formatSeasonShort } from "@/lib/season";
 import { appRoutes } from "@/lib/constants";
 import type {
   ClothingInventoryLotWithDetails,
+  ClothingPlannedDelivery,
   ClothingPossessionItem,
   ClothingProduct,
   ClothingSize,
@@ -48,7 +50,10 @@ export function DeliveryForm({
   storageTree,
   players,
   possession,
+  planned = [],
 }: {
+  /** Entregas previstas pendientes de todos los jugadores. */
+  planned?: ClothingPlannedDelivery[];
   lots: ClothingInventoryLotWithDetails[];
   products: ClothingProduct[];
   storageTree: ClothingStorageLocationNode[];
@@ -75,6 +80,17 @@ export function DeliveryForm({
     () => possession.filter((item) => item.player_id === playerId).slice(0, 6),
     [possession, playerId],
   );
+
+  // Lo previsto para el jugador elegido y dónde está en stock cada prenda.
+  const plannedMatches = useMemo(
+    () =>
+      matchPlannedToStock(
+        planned.filter((item) => item.player_id === playerId),
+        pools,
+      ),
+    [planned, playerId, pools],
+  );
+  const plannedInStock = plannedMatches.filter((match) => match.pool !== null);
 
   const sizeWarnings = useMemo(() => {
     if (!player?.clothing_size) return [];
@@ -141,6 +157,48 @@ export function DeliveryForm({
         },
       ];
     });
+  }
+
+  /**
+   * Añade al formulario lo previsto que hay en stock. Pulsarlo otra vez no duplica: deja cada
+   * prenda en las unidades previstas (o las que ya hubiera, si son más).
+   */
+  function addPlannedFromStock() {
+    if (plannedInStock.length === 0) return;
+    const needed = new Map<string, { pool: StockPool; count: number }>();
+    for (const match of plannedInStock) {
+      const pool = match.pool!;
+      const key = stockPoolKey(pool.productId, pool.size, pool.storageLocationId, pool.jerseyNumber);
+      const entry = needed.get(key);
+      if (entry) entry.count += 1;
+      else needed.set(key, { pool, count: 1 });
+    }
+    setLines((prev) => {
+      const next = [...prev];
+      for (const [key, { pool, count }] of needed) {
+        const index = next.findIndex((line) => line.sourceKey === key);
+        if (index >= 0) {
+          if (pool.jerseyNumber == null && next[index]!.quantity < count) {
+            next[index] = { ...next[index]!, quantity: count };
+          }
+          continue;
+        }
+        next.push({
+          sourceKey: key,
+          productId: pool.productId,
+          size: pool.size,
+          storageLocationId: pool.storageLocationId,
+          jerseyNumber: pool.jerseyNumber,
+          quantity: pool.jerseyNumber != null ? 1 : count,
+        });
+      }
+      return next;
+    });
+    appToast.success(
+      plannedInStock.length === 1
+        ? "Añadida 1 prenda prevista"
+        : `Añadidas ${plannedInStock.length} prendas previstas`,
+    );
   }
 
   function setLineQuantity(sourceKey: string, quantity: number) {
@@ -261,6 +319,50 @@ export function DeliveryForm({
                   </li>
                 ))}
               </ul>
+            </div>
+          ) : null}
+          {playerId && plannedMatches.length > 0 ? (
+            <div className="rounded-xl border border-[color-mix(in_srgb,var(--club-brand)_30%,var(--club-border))] bg-[var(--club-surface-2)] px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Previsto para este jugador
+              </p>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {plannedMatches.map(({ planned: item, pool }) => {
+                  const product =
+                    productById.get(item.product_id) ??
+                    lots.find((lot) => lot.product_id === item.product_id)?.product;
+                  return (
+                    <li key={item.id} className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="min-w-0 text-foreground">
+                        {product ? formatProductShort(product) : "Prenda"} ·{" "}
+                        {formatClothingSize(item.size)}
+                        {item.jersey_number != null ? ` · ${formatJerseyNumber(item.jersey_number)}` : ""}
+                      </span>
+                      <span
+                        className={
+                          pool
+                            ? "shrink-0 text-xs font-medium text-success"
+                            : "shrink-0 text-xs text-muted-foreground"
+                        }
+                      >
+                        {pool ? `En stock · ${formatPoolSource(pool)}` : "Aún no hay en stock"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              {plannedInStock.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3 min-h-11 w-full sm:w-auto"
+                  onClick={addPlannedFromStock}
+                >
+                  <Plus className="size-4" aria-hidden />
+                  Añadir lo previsto ({plannedInStock.length})
+                </Button>
+              ) : null}
             </div>
           ) : null}
           {sizeWarnings.length > 0 ? (

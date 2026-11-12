@@ -114,6 +114,20 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   closed: [],
 };
 
+/**
+ * Marcha atrás permitida desde el detalle del pedido (el kanban no la usa). Volver desde
+ * «Vuelta serigrafía» borra los lotes creados, por eso exige que estén intactos
+ * (ver `lib/clothing/orderRollback.ts`).
+ */
+export const ORDER_BACKWARD_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  draft: [],
+  ordered: ["draft"],
+  received: ["ordered"],
+  at_serigraphy: ["received"],
+  returned_from_serigraphy: ["at_serigraphy"],
+  closed: ["returned_from_serigraphy"],
+};
+
 /** Avance lineal del pedido (excluye la marcha atrás a borrador). */
 export function getForwardOrderTransitions(status: OrderStatus): OrderStatus[] {
   return ORDER_TRANSITIONS[status].filter((next) => next !== "draft");

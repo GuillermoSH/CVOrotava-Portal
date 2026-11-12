@@ -15,12 +15,21 @@ export const orderLineSchema = z.object({
   quantity_ordered: z.coerce.number().int().min(1).max(9999),
 });
 
+/** Una prenda del pedido prevista para un jugador (una unidad, con dorsal si lleva). */
+export const plannedDeliveryRowSchema = z.object({
+  player_id: z.string().uuid(),
+  product_id: z.string().uuid(),
+  size: z.enum(CLOTHING_SIZES),
+  jersey_number: z.number().int().min(0).max(99).nullable().default(null),
+});
+
 export const createOrderSchema = z.object({
   reference: z.string().min(2).max(40).optional(),
   supplier_name: z.string().min(1).max(120),
   season: z.string().min(4).max(20),
   notes: z.string().max(2000).optional(),
   lines: z.array(orderLineSchema).min(1),
+  planned: z.array(plannedDeliveryRowSchema).max(1000).optional().default([]),
 });
 
 export const updateDraftOrderSchema = z.object({
@@ -29,6 +38,12 @@ export const updateDraftOrderSchema = z.object({
   season: z.string().min(4).max(20),
   notes: z.string().max(2000).optional(),
   lines: z.array(orderLineSchema).min(1),
+  planned: z.array(plannedDeliveryRowSchema).max(1000).optional().default([]),
+});
+
+export const setOrderPlannedSchema = z.object({
+  order_id: z.string().uuid(),
+  planned: z.array(plannedDeliveryRowSchema).max(1000),
 });
 
 export const deleteDraftOrderSchema = z.object({
