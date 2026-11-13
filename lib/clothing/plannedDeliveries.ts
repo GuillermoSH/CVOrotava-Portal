@@ -169,3 +169,59 @@ export function plannedIdsFulfilledBy(
 
   return available.filter((a) => a.taken).map((a) => a.item.id);
 }
+
+export type PlannedJerseyHint = {
+  order_id: string;
+  product_id: string;
+  size: ClothingSize;
+  jersey_number: number;
+  player_name: string;
+};
+
+/**
+ * Dorsales previstos que se proponen al numerar un lote del pedido: los de su misma prenda y
+ * talla que aún no están numerados, de menor a mayor y sin pasar de las unidades del lote.
+ */
+export function suggestJerseysForLot(
+  hints: readonly PlannedJerseyHint[],
+  lot: { source_order_id: string | null; product_id: string; size: ClothingSize; quantity: number },
+  takenJerseys: readonly number[] = [],
+): PlannedJerseyHint[] {
+  if (!lot.source_order_id) return [];
+  const taken = new Set(takenJerseys);
+  const seen = new Set<number>();
+  return hints
+    .filter(
+      (hint) =>
+        hint.order_id === lot.source_order_id &&
+        hint.product_id === lot.product_id &&
+        hint.size === lot.size &&
+        !taken.has(hint.jersey_number),
+    )
+    .sort((a, b) => a.jersey_number - b.jersey_number)
+    .filter((hint) => {
+      if (seen.has(hint.jersey_number)) return false;
+      seen.add(hint.jersey_number);
+      return true;
+    })
+    .slice(0, Math.max(0, lot.quantity));
+}
+
+/**
+ * Qué previsiones ya entregadas de un jugador vuelven a pendientes al devolver una prenda: las de
+ * la misma prenda y talla, primero la del mismo dorsal y luego las sin dorsal, las entregadas más
+ * recientemente primero y sin pasar de las unidades devueltas.
+ */
+export function plannedIdsReopenedBy(
+  delivered: readonly ClothingPlannedDelivery[],
+  returned: { product_id: string; size: ClothingSize; jersey_number: number | null; quantity: number },
+): string[] {
+  const sameSku = delivered
+    .filter((item) => item.product_id === returned.product_id && item.size === returned.size)
+    .sort((a, b) => (b.delivered_at ?? "").localeCompare(a.delivered_at ?? ""));
+
+  const exact = sameSku.filter((item) => item.jersey_number === returned.jersey_number);
+  const loose = sameSku.filter((item) => item.jersey_number == null && returned.jersey_number != null);
+
+  return [...exact, ...loose].slice(0, Math.max(0, returned.quantity)).map((item) => item.id);
+}

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { InventoryPageClient } from "@/components/clothing/InventoryPageClient";
 import { ManualInventorySheet } from "@/components/clothing/ManualInventorySheet";
 import { DashboardPage } from "@/components/layout/DashboardPage";
+import type { PlannedJerseyHint } from "@/lib/clothing/plannedDeliveries";
 import { appRoutes } from "@/lib/constants";
 import type {
   ClothingInventoryLotWithDetails,
@@ -24,6 +25,7 @@ export function InventoryWarehouseView({
   initialMissingJersey = false,
   sourceOrderId = null,
   sourceOrderLabel = null,
+  plannedJerseys = [],
 }: {
   lots: ClothingInventoryLotWithDetails[];
   products: ClothingProduct[];
@@ -33,6 +35,7 @@ export function InventoryWarehouseView({
   initialMissingJersey?: boolean;
   sourceOrderId?: string | null;
   sourceOrderLabel?: string | null;
+  plannedJerseys?: PlannedJerseyHint[];
 }) {
   const [manualOpen, setManualOpen] = useState(false);
 
@@ -88,6 +91,7 @@ export function InventoryWarehouseView({
         initialMissingJersey={initialMissingJersey}
         sourceOrderId={sourceOrderId}
         sourceOrderLabel={sourceOrderLabel}
+        plannedJerseys={plannedJerseys}
       />
 
       <ManualInventorySheet

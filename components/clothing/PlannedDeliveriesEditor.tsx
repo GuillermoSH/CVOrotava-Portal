@@ -48,6 +48,8 @@ export function plannedRowsFromDeliveries(
     .filter((row) => row.delivered_at === null)
     .map((row) =>
       newPlannedRow({
+        // Clave estable: un contador de módulo daría claves distintas en servidor y navegador.
+        key: `planned-${row.id}`,
         playerId: row.player_id,
         sku: plannedSkuKey(row.product_id, row.size),
         jersey: row.jersey_number != null ? String(row.jersey_number) : "",

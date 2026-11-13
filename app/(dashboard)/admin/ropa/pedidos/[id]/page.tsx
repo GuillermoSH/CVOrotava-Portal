@@ -1,14 +1,18 @@
 import { notFound } from "next/navigation";
 
-import { OrderCockpit } from "@/components/clothing/OrderCockpit";
 import { OrderForm } from "@/components/clothing/OrderForm";
-import { OrderLinesSection } from "@/components/clothing/OrderLinesSection";
+import { OrderJourney } from "@/components/clothing/OrderJourney";
+import { OrderLinesPanel } from "@/components/clothing/OrderLinesPanel";
 import { OrderPlannedDeliveriesPanel } from "@/components/clothing/OrderPlannedDeliveriesPanel";
-import { OrderReceivingVerificationPanel } from "@/components/clothing/OrderReceivingVerificationPanel";
-import { OrderStatusStepper } from "@/components/clothing/OrderStatusStepper";
+import { OrderDetailsPanel, OrderNextStepCard } from "@/components/clothing/OrderRail";
+import { OrderStatusActions } from "@/components/clothing/OrderStatusActions";
+import { OrderStatusBadge } from "@/components/clothing/OrderStatusBadge";
+import { OrderStockPanel } from "@/components/clothing/OrderStockPanel";
+import { OrderTabs, type OrderTab } from "@/components/clothing/OrderTabs";
 import { DashboardPage } from "@/components/layout/DashboardPage";
 import { RuntimePage } from "@/components/shared/RuntimePage";
 import { requireClothingReadAccess } from "@/lib/clothing/auth";
+import { buildOrderNextStep } from "@/lib/clothing/orderNextStep";
 import { getClothingDb } from "@/lib/clothing/repository/client";
 import { listPlannedByOrder } from "@/lib/clothing/repository/plannedDeliveries";
 import {
@@ -36,79 +40,30 @@ async function ClothingOrderDetailContent({
 
   const isDraft = order.status === "draft";
   const orderLots = allLots.filter((lot) => lot.source_order_id === order.id);
-  const showVerification =
-    order.status === "ordered" ||
-    order.status === "received" ||
-    order.status === "at_serigraphy" ||
-    order.status === "returned_from_serigraphy" ||
-    order.status === "closed";
-  const verificationEditable =
-    order.status === "ordered" || order.status === "received";
+  const receivingEditable = order.status === "ordered" || order.status === "received";
+  const plannedPending = planned.filter((row) => row.delivered_at === null).length;
+  const nextStep = buildOrderNextStep({
+    orderId: order.id,
+    status: order.status,
+    lines: order.lines,
+    lots: orderLots,
+    plannedCount: planned.length,
+  });
 
-  return (
-    <DashboardPage
-      title={order.reference}
-      subtitle={`${order.supplier_name} · Temporada ${order.season}`}
-      className="flex flex-col gap-5 md:gap-6"
-    >
-      <section className="ropa-panel ropa-order-summary">
-        <div className="ropa-panel__block ropa-order-summary__progress">
-          <OrderStatusStepper
-            currentStatus={order.status}
-            statusEvents={order.status_events}
-          />
-          <time dateTime={order.updated_at} className="ropa-panel__meta ropa-order-summary__updated">
-            Actualizado{" "}
-            {new Date(order.updated_at).toLocaleString("es-ES", {
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </time>
-        </div>
-
-        {!isDraft && order.notes ? (
-          <p className="ropa-panel__notes">{order.notes}</p>
-        ) : null}
-
-        <div className="ropa-panel__block ropa-panel__block--flush">
-          <OrderCockpit
-            orderId={order.id}
-            status={order.status}
-            lines={order.lines}
-            orderLots={orderLots}
-            plannedCount={planned.length}
-          />
-        </div>
-      </section>
-
-      {isDraft ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="ropa-section-heading">Editar borrador</h2>
-          <p className="text-sm text-muted-foreground">
-            Puedes cambiar proveedor, notas y líneas mientras el pedido siga en borrador.
-            Al marcarlo como enviado, el contenido quedará bloqueado.
-          </p>
-          <OrderForm products={products} order={order} players={players} planned={planned} />
-        </section>
-      ) : (
-        <section className="flex flex-col gap-3">
-          {showVerification ? (
-            <OrderReceivingVerificationPanel
-              lines={order.lines}
-              editable={verificationEditable}
-            />
-          ) : (
-            <>
-              <h2 className="ropa-section-heading md:hidden">Líneas del pedido</h2>
-              <OrderLinesSection lines={order.lines} showReceived={false} />
-            </>
-          )}
-        </section>
-      )}
-
-      {!isDraft ? (
+  const tabs: OrderTab[] = [
+    {
+      id: "lineas",
+      label: "Líneas",
+      count: order.lines.length,
+      content: <OrderLinesPanel lines={order.lines} editable={receivingEditable} />,
+    },
+  ];
+  if (order.status !== "closed" || planned.length > 0) {
+    tabs.push({
+      id: "entregas-previstas",
+      label: "Entregas previstas",
+      count: plannedPending,
+      content: (
         <OrderPlannedDeliveriesPanel
           orderId={order.id}
           lines={order.lines}
@@ -116,7 +71,72 @@ async function ClothingOrderDetailContent({
           players={players}
           editable={order.status !== "closed"}
         />
-      ) : null}
+      ),
+    });
+  }
+  if (orderLots.length > 0 || order.status === "returned_from_serigraphy") {
+    tabs.push({
+      id: "stock",
+      label: "Stock",
+      count: orderLots.length,
+      content: <OrderStockPanel orderId={order.id} lots={orderLots} />,
+    });
+  }
+  const defaultTab =
+    order.status === "returned_from_serigraphy" || order.status === "closed"
+      ? "stock"
+      : "lineas";
+
+  return (
+    <DashboardPage
+      title={order.reference}
+      subtitle={
+        <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <span>
+            {order.supplier_name} · Temporada {order.season}
+          </span>
+          <OrderStatusBadge status={order.status} />
+        </span>
+      }
+      className="ord-page"
+    >
+      <section className="ord-bar ord-panel" aria-label="Estado y acciones del pedido">
+        <OrderJourney status={order.status} events={order.status_events} />
+        <div className="ord-bar__actions">
+          <OrderStatusActions
+            orderId={order.id}
+            reference={order.reference}
+            status={order.status}
+            missingUnits={nextStep.missingUnits}
+            missingSizes={nextStep.missingSizes}
+            stockBlocker={nextStep.stockBlocker}
+            leadAction={nextStep.leadAction}
+          />
+        </div>
+      </section>
+
+      <div className="ord-rail">
+        <OrderNextStepCard nextStep={nextStep} />
+        <OrderDetailsPanel
+          status={order.status}
+          updatedAt={order.updated_at}
+          notes={order.notes}
+          events={order.status_events}
+          lines={order.lines}
+          planned={planned}
+          lots={orderLots}
+        />
+      </div>
+
+      <div className="ord-main ord-panel">
+        {isDraft ? (
+          <div className="ord-main__body">
+            <OrderForm products={products} order={order} players={players} planned={planned} />
+          </div>
+        ) : (
+          <OrderTabs key={order.status} tabs={tabs} defaultTab={defaultTab} />
+        )}
+      </div>
     </DashboardPage>
   );
 }

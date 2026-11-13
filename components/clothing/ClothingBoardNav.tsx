@@ -16,6 +16,9 @@ const LINKS = [
 export function ClothingBoardNav() {
   const pathname = usePathname();
 
+  // El detalle de un pedido es una vista de trabajo: sin la navegación de ropa, con «volver».
+  if (/^\/admin\/ropa\/pedidos\/(?!nuevo(?:\/|$))[^/]+\/?$/.test(pathname)) return null;
+
   return (
     <SegmentedNav
       aria-label="Secciones de ropa"

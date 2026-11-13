@@ -9,19 +9,23 @@ import { assignJerseyNumbersAction } from "@/lib/actions/clothing/inventory";
 import { formatClothingSize } from "@/lib/clothing/formatSize";
 import { parseJerseyNumberList } from "@/lib/clothing/formatJersey";
 import { formatProductShort } from "@/lib/clothing/formatProduct";
+import type { PlannedJerseyHint } from "@/lib/clothing/plannedDeliveries";
 import type { ClothingInventoryLotWithDetails } from "@/lib/types/db";
 import { appToast } from "@/lib/toast";
 
 export function InventoryAssignJerseysSheet({
   lot,
+  suggestions = [],
   onClose,
 }: {
   lot: ClothingInventoryLotWithDetails;
+  /** Dorsales previstos en el pedido para este lote: se proponen ya escritos. */
+  suggestions?: PlannedJerseyHint[];
   onClose: () => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(() => suggestions.map((hint) => hint.jersey_number).join(", "));
 
   function handleSubmit() {
     let numbers: number[];
@@ -90,6 +94,18 @@ export function InventoryAssignJerseysSheet({
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
+      {suggestions.length > 0 ? (
+        <div className="mt-3 text-sm text-muted-foreground">
+          <p>Previstos en el pedido (ya propuestos arriba):</p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {suggestions.map((hint) => (
+              <li key={hint.jersey_number} className="text-foreground">
+                #{hint.jersey_number} · {hint.player_name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </ClothingBottomSheet>
   );
 }

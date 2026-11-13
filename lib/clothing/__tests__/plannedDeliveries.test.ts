@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   matchPlannedToStock,
   plannedIdsFulfilledBy,
+  plannedIdsReopenedBy,
+  suggestJerseysForLot,
   validatePlannedRows,
 } from "@/lib/clothing/plannedDeliveries";
 import type { StockPool } from "@/lib/clothing/stockSources";
@@ -153,5 +155,57 @@ describe("plannedIdsFulfilledBy", () => {
       { product_id: SHIRT, size: "m", jersey_number: 7, quantity: 1 },
     ]);
     expect(ids).toEqual(["con"]);
+  });
+});
+
+describe("suggestJerseysForLot", () => {
+  const hint = (order_id: string, jersey_number: number, size: "m" | "l" = "m") => ({
+    order_id,
+    product_id: SHIRT,
+    size,
+    jersey_number,
+    player_name: `Jugador ${jersey_number}`,
+  });
+  const lot = { source_order_id: "o1", product_id: SHIRT, size: "m" as const, quantity: 2 };
+
+  it("propone los dorsales previstos del mismo pedido, prenda y talla, ordenados", () => {
+    const hints = [hint("o1", 9), hint("o1", 7), hint("o2", 3), hint("o1", 5, "l")];
+    expect(suggestJerseysForLot(hints, lot).map((h) => h.jersey_number)).toEqual([7, 9]);
+  });
+
+  it("no pasa de las unidades del lote ni propone dorsales ya numerados", () => {
+    const hints = [hint("o1", 7), hint("o1", 9), hint("o1", 12)];
+    expect(suggestJerseysForLot(hints, lot, [7]).map((h) => h.jersey_number)).toEqual([9, 12]);
+    expect(suggestJerseysForLot(hints, { ...lot, quantity: 1 }).map((h) => h.jersey_number)).toEqual([7]);
+  });
+
+  it("un lote que no viene de un pedido no tiene propuesta", () => {
+    expect(suggestJerseysForLot([hint("o1", 7)], { ...lot, source_order_id: null })).toEqual([]);
+  });
+});
+
+describe("plannedIdsReopenedBy", () => {
+  const delivered = (id: string, jersey_number: number | null, at: string, size: "m" | "l" = "m") => ({
+    ...planned(id, SHIRT, size, jersey_number),
+    delivered_at: at,
+  });
+
+  it("reabre la prevista del mismo dorsal", () => {
+    const rows = [delivered("a", 7, "2026-11-01"), delivered("b", 9, "2026-11-02")];
+    expect(plannedIdsReopenedBy(rows, { product_id: SHIRT, size: "m", jersey_number: 7, quantity: 1 })).toEqual(["a"]);
+  });
+
+  it("una devolución con dorsal reabre una prevista sin dorsal si no hay del mismo dorsal", () => {
+    const rows = [delivered("a", null, "2026-11-01")];
+    expect(plannedIdsReopenedBy(rows, { product_id: SHIRT, size: "m", jersey_number: 12, quantity: 1 })).toEqual(["a"]);
+  });
+
+  it("no reabre otra talla ni más que lo devuelto, y prefiere las entregas más recientes", () => {
+    const rows = [
+      delivered("viejo", null, "2026-10-01"),
+      delivered("nuevo", null, "2026-11-05"),
+      delivered("otra-talla", null, "2026-11-06", "l"),
+    ];
+    expect(plannedIdsReopenedBy(rows, { product_id: SHIRT, size: "m", jersey_number: null, quantity: 1 })).toEqual(["nuevo"]);
   });
 });

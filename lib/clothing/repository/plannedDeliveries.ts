@@ -109,3 +109,29 @@ export async function markPlannedDelivered(db: ClothingDb, ids: readonly string[
     .is("delivered_at", null);
   if (error) throw new Error(dbErrorMessage(error));
 }
+
+/** Previsiones ya entregadas de un jugador (para reabrirlas al devolver una prenda). */
+export async function listDeliveredPlannedForPlayer(
+  db: ClothingDb,
+  playerId: string,
+): Promise<ClothingPlannedDelivery[]> {
+  const { data, error } = await db
+    .from("clothing_planned_deliveries")
+    .select("*")
+    .eq("player_id", playerId)
+    .not("delivered_at", "is", null)
+    .order("delivered_at", { ascending: false });
+  if (error) throw new Error(dbErrorMessage(error));
+  return ((data ?? []) as PlannedRow[]).map(mapPlanned);
+}
+
+/** Devuelve a pendientes previsiones entregadas (al anular o devolver la entrega). */
+export async function reopenPlanned(db: ClothingDb, ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await db
+    .from("clothing_planned_deliveries")
+    .update({ delivered_at: null })
+    .in("id", [...ids])
+    .not("delivered_at", "is", null);
+  if (error) throw new Error(dbErrorMessage(error));
+}

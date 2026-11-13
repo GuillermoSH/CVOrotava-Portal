@@ -7,6 +7,7 @@ import { ClothingFilterChips } from "@/components/clothing/ClothingFilterChips";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { InventoryAssignDialog } from "@/components/clothing/InventoryAssignDialog";
 import { InventoryAssignJerseysSheet } from "@/components/clothing/InventoryAssignJerseysSheet";
+import { suggestJerseysForLot, type PlannedJerseyHint } from "@/lib/clothing/plannedDeliveries";
 import { InventoryBoxBoard } from "@/components/clothing/InventoryBoxBoard";
 import { InventoryBoxWriteOffSheet } from "@/components/clothing/InventoryBoxWriteOffSheet";
 import { Button } from "@/components/club/Button";
@@ -76,6 +77,7 @@ export function InventoryPageClient({
   initialMissingJersey = false,
   sourceOrderId = null,
   sourceOrderLabel = null,
+  plannedJerseys = [],
 }: {
   lots: ClothingInventoryLotWithDetails[];
   storageTree: ClothingStorageLocationNode[];
@@ -85,6 +87,7 @@ export function InventoryPageClient({
   initialMissingJersey?: boolean;
   sourceOrderId?: string | null;
   sourceOrderLabel?: string | null;
+  plannedJerseys?: PlannedJerseyHint[];
 }) {
   const [statusFilter, setStatusFilter] = useState<ClothingInventoryStatus | "all">(initialStatus);
   const [seasonFilter, setSeasonFilter] = useState<string>("all");
@@ -295,7 +298,23 @@ export function InventoryPageClient({
       ) : null}
 
       {jerseyLot ? (
-        <InventoryAssignJerseysSheet lot={jerseyLot} onClose={() => setJerseyLot(null)} />
+        <InventoryAssignJerseysSheet
+          lot={jerseyLot}
+          suggestions={suggestJerseysForLot(
+            plannedJerseys,
+            jerseyLot,
+            lots
+              .filter(
+                (other) =>
+                  other.source_order_id === jerseyLot.source_order_id &&
+                  other.product_id === jerseyLot.product_id &&
+                  other.size === jerseyLot.size &&
+                  other.jersey_number != null,
+              )
+              .map((other) => other.jersey_number as number),
+          )}
+          onClose={() => setJerseyLot(null)}
+        />
       ) : null}
 
       {writeOff ? (

@@ -105,17 +105,14 @@ export function OrderPlannedDeliveriesPanel({
   if (!editable && planned.length === 0) return null;
 
   return (
-    <section id="entregas-previstas" className="flex scroll-mt-24 flex-col gap-4">
-      <div>
-        <h2 className="ropa-section-heading">Entregas previstas</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Prendas del pedido asignadas a jugadores. En Entregas salen ya preparadas cuando hay stock.
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        Prendas del pedido asignadas a jugadores. En Entregas salen ya preparadas cuando hay stock.
+      </p>
 
       {delivered.length > 0 ? (
         <div className="rounded-xl border border-[var(--club-border)] px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-medium text-muted-foreground">
             Ya entregadas ({delivered.length})
           </p>
           <ul className="mt-2 flex flex-col gap-1">
@@ -151,6 +148,6 @@ export function OrderPlannedDeliveriesPanel({
           </div>
         </>
       ) : null}
-    </section>
+    </div>
   );
 }

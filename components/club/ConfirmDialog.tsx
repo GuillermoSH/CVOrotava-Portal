@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/club/Button";
@@ -16,6 +16,7 @@ export function ConfirmDialog({
   onConfirm,
   pending = false,
   destructive = false,
+  requireText,
 }: {
   open: boolean;
   onClose: () => void;
@@ -26,10 +27,19 @@ export function ConfirmDialog({
   onConfirm: () => void;
   pending?: boolean;
   destructive?: boolean;
+  /** Confirmación fuerte: hay que escribir este texto exacto para poder confirmar. */
+  requireText?: string;
 }) {
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const [typed, setTyped] = useState("");
+  const inputId = useId();
+  const textMatches = !requireText || typed.trim() === requireText;
+
+  useEffect(() => {
+    if (!open) setTyped("");
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -82,6 +92,24 @@ export function ConfirmDialog({
             {description}
           </p>
         ) : null}
+        {requireText ? (
+          <div className="mt-4 flex flex-col gap-1.5">
+            <label htmlFor={inputId} className="text-sm text-muted-foreground">
+              Escribe <strong className="font-semibold text-foreground">{requireText}</strong> para
+              confirmar
+            </label>
+            <input
+              id={inputId}
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              className="form-input min-h-11"
+              value={typed}
+              disabled={pending}
+              onChange={(event) => setTyped(event.target.value)}
+            />
+          </div>
+        ) : null}
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button
             type="button"
@@ -96,7 +124,7 @@ export function ConfirmDialog({
             type="button"
             variant={destructive ? "destructive" : "primary"}
             className={cn("min-h-11 sm:min-w-[7rem]", pending && "opacity-80")}
-            disabled={pending}
+            disabled={pending || !textMatches}
             onClick={onConfirm}
           >
             {pending ? "Procesando…" : confirmLabel}

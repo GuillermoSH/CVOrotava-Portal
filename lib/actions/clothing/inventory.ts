@@ -2,11 +2,13 @@
 
 import { invalidateClothingInventory, invalidateClothingOrders } from "@/lib/cache/invalidate";
 import { requireClothingWriteAccess } from "@/lib/clothing/auth";
-import { plannedIdsFulfilledBy } from "@/lib/clothing/plannedDeliveries";
+import { plannedIdsFulfilledBy, plannedIdsReopenedBy } from "@/lib/clothing/plannedDeliveries";
 import { getClothingDb } from "@/lib/clothing/repository/client";
 import {
+  listDeliveredPlannedForPlayer,
   listPendingPlannedForPlayer,
   markPlannedDelivered,
+  reopenPlanned,
 } from "@/lib/clothing/repository/plannedDeliveries";
 import {
   applyStockOutLines,
@@ -309,7 +311,25 @@ export async function returnInventoryAction(input: unknown): Promise<ActionResul
       created_by: await currentUserId(db),
     });
 
+    // Lo devuelto reabre la prevista que se había dado por entregada: el jugador sigue sin la
+    // prenda. Si esto fallara, la devolución ya está registrada y no se deshace.
+    try {
+      const delivered = await listDeliveredPlannedForPlayer(db, player.id);
+      await reopenPlanned(
+        db,
+        plannedIdsReopenedBy(delivered, {
+          product_id: parsed.data.product_id,
+          size: parsed.data.size,
+          jersey_number: parsed.data.jersey_number ?? null,
+          quantity: parsed.data.quantity,
+        }),
+      );
+    } catch {
+      /* la devolución no se deshace por esto */
+    }
+
     revalidateClothing(player.id);
+    revalidateOrdersForPlanned();
     return { ok: true, id };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado" };

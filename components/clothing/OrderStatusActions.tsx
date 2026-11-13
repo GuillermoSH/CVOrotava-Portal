@@ -1,6 +1,7 @@
 "use client";
 
 import { MoreHorizontal } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -13,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/club/DropdownMenu";
-import { ClothingBottomSheet } from "@/components/clothing/ClothingBottomSheet";
 import { ClothingStickyActionBar } from "@/components/clothing/ClothingStickyActionBar";
 import { deleteOrderAction, updateOrderStatus } from "@/lib/actions/clothing/orders";
 import {
@@ -53,15 +53,24 @@ type Dialog =
 
 export function OrderStatusActions({
   orderId,
+  reference,
   status,
   missingUnits = 0,
   missingSizes = 0,
   stockBlocker = null,
+  leadAction = null,
 }: {
   orderId: string;
+  /** Referencia del pedido: hay que escribirla para volver a borrador o eliminar. */
+  reference: string;
   status: ClothingOrderStatus;
   missingUnits?: number;
   missingSizes?: number;
+  /**
+   * Paso pendiente que pasa a ser el botón principal (p. ej. «Ubicar lotes»); el avance de estado
+   * queda como secundario hasta que esté hecho.
+   */
+  leadAction?: { label: string; href: string } | null;
   /** Motivo por el que no se puede deshacer el stock generado (vuelta de serigrafía o cerrado). */
   stockBlocker?: string | null;
 }) {
@@ -131,11 +140,24 @@ export function OrderStatusActions({
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
+        {leadAction ? (
+          <Link
+            href={leadAction.href}
+            className="btn-primary hidden min-h-10 items-center px-5 md:inline-flex"
+          >
+            {leadAction.label}
+          </Link>
+        ) : null}
+
         {nextLabel ? (
           <Button
             type="button"
-            size="lg"
-            className="hidden min-h-12 px-6 text-base md:inline-flex"
+            variant={leadAction ? "secondary" : "primary"}
+            className={
+              leadAction
+                ? "hidden min-h-10 md:inline-flex"
+                : "hidden min-h-10 px-5 md:inline-flex"
+            }
             disabled={pending}
             onClick={handleForward}
           >
@@ -145,14 +167,19 @@ export function OrderStatusActions({
 
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="btn-secondary inline-flex min-h-11 items-center gap-1.5 md:min-h-12"
+            className="btn-secondary inline-flex min-h-11 items-center gap-1.5 md:min-h-10"
             aria-label="Más opciones del pedido"
             disabled={pending}
           >
             <MoreHorizontal className="size-4" aria-hidden />
-            Más opciones
+            <span className="sr-only md:not-sr-only">Más opciones</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-64">
+            {leadAction && nextLabel ? (
+              <DropdownMenuItem className="md:hidden" onClick={handleForward}>
+                {nextLabel}
+              </DropdownMenuItem>
+            ) : null}
             {back ? (
               <DropdownMenuItem onClick={() => setDialog({ kind: "backward", target: back })}>
                 Volver a «{ORDER_STATUS_LABELS[back]}»
@@ -166,40 +193,41 @@ export function OrderStatusActions({
         </DropdownMenu>
       </div>
 
-      {nextLabel ? (
+      {leadAction || nextLabel ? (
         <div className="md:hidden">
           <ClothingStickyActionBar
             actions={[
-              {
-                type: "button",
-                label: nextLabel,
-                pending,
-                onClick: handleForward,
-              },
+              leadAction
+                ? { type: "link", label: leadAction.label, href: leadAction.href }
+                : {
+                    type: "button",
+                    label: nextLabel ?? "",
+                    pending,
+                    onClick: handleForward,
+                  },
             ]}
           />
         </div>
       ) : null}
 
-      <ClothingBottomSheet
+      <ConfirmDialog
         open={dialog?.kind === "forward-serigraphy-missing" || dialog?.kind === "forward-inventory"}
         onClose={closeDialog}
         title={
-          dialog?.kind === "forward-serigraphy-missing" ? "Recepción incompleta" : "Generar inventario"
+          dialog?.kind === "forward-serigraphy-missing"
+            ? "Enviar a serigrafía con faltantes"
+            : "Registrar la vuelta de serigrafía"
         }
         description={
           dialog?.kind === "forward-serigraphy-missing"
-            ? `Faltan ${missingUnits} uds en ${missingSizes} talla${missingSizes === 1 ? "" : "s"}. ¿Enviar igual a serigrafía?`
-            : "Se crearán lotes pendientes de ubicar en almacén."
+            ? `Faltan ${missingUnits} uds en ${missingSizes} talla${missingSizes === 1 ? "" : "s"}. Lo no recibido no entrará al almacén después.`
+            : "Se crearán los lotes pendientes de ubicar en el almacén del club."
         }
-        primaryAction={{
-          label: dialog?.kind === "forward-serigraphy-missing" ? "Enviar igual" : "Continuar",
-          pending,
-          onClick: () => {
-            if (next) runTransition(next);
-          },
+        confirmLabel={dialog?.kind === "forward-serigraphy-missing" ? "Enviar igual" : "Registrar vuelta"}
+        pending={pending}
+        onConfirm={() => {
+          if (next) runTransition(next);
         }}
-        secondaryAction={{ label: "Cancelar", onClick: closeDialog }}
       />
 
       <ConfirmDialog
@@ -221,6 +249,11 @@ export function OrderStatusActions({
         }
         confirmLabel={blockedBackward ? "Entendido" : "Volver atrás"}
         destructive={!blockedBackward}
+        requireText={
+          dialog?.kind === "backward" && dialog.target === "draft" && !blockedBackward
+            ? reference
+            : undefined
+        }
         pending={pending}
         onConfirm={() => {
           if (blockedBackward) setDialog(null);
@@ -239,6 +272,7 @@ export function OrderStatusActions({
         }
         confirmLabel={blockedDelete ? "Entendido" : "Eliminar"}
         destructive={!blockedDelete}
+        requireText={blockedDelete ? undefined : reference}
         pending={pending}
         onConfirm={() => {
           if (blockedDelete) setDialog(null);
